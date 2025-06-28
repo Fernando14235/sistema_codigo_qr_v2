@@ -1,0 +1,33 @@
+# Entornos y variables de entorno
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Archivos de caché de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Archivos de base de datos temporales
+*.sqlite3
+*.db
+
+# Archivos de logs
+*.log
+audit.log
+security.log
+application.log
+
+# Archivos del sistema
+.DS_Store
+
+# Migraciones (opcional, si no quieres compartirlas)
+alembic/versions/
+
+# Otros archivos temporales
+*.bak
+*.swp
+*.tmp
