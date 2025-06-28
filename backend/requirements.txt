@@ -6,17 +6,33 @@ python-dotenv==1.0.0
 # Base de datos
 sqlalchemy==2.0.15
 psycopg2-binary==2.9.6  # Requerido para conexión PostgreSQL + SSL
+alembic==1.11.1
 
-# Autenticación
+# Autenticación y seguridad
 python-jose[cryptography]==3.3.0
 bcrypt==4.0.1
+passlib==1.7.4
 
 # Validación de datos
 pydantic==1.10.7  # Compatible con FastAPI < 0.100
+pydantic-settings==2.0.3
 email-validator==2.2.0
 
 # Generación de códigos QR
 qrcode[pil]==7.4.2
+pillow==10.0.0
 
 # Criptografía para QR seguro
 cryptography==41.0.1
+
+# Programación de tareas
+apscheduler==3.10.1
+
+# Detección de dispositivos
+user-agents==2.2.0
+
+# Manejo de logs
+python-multipart==0.0.6
+
+# CORS
+starlette==0.27.0
