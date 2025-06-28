@@ -1,0 +1,48 @@
+# Ignorar entornos virtuales y dependencias
+venv/
+env/
+ENV/
+node_modules/
+
+# Ignorar variables de entorno
+.env
+.env.*
+frontend/.env
+backend/.env
+
+# Ignorar archivos de caché de Python
+__pycache__/
+backend/__pycache__/
+__init__.py
+backend/__init__.py
+*.pyc
+*.pyo
+*.pyd
+
+# Ignorar archivos de logs
+*.log
+logs/
+audit.log
+security.log
+application.log
+
+# Ignorar archivos de base de datos temporales
+*.sqlite3
+*.db
+
+# Ignorar archivos del sistema
+.DS_Store
+
+# Ignorar migraciones de Alembic (opcional)
+backend/alembic/versions/
+
+# Ignorar carpetas de configuración de IDEs
+.vscode/
+.idea/
+
+# Ignorar archivos temporales y de swap
+*.swp
+*.swo
+*.bak
+*.tmp
+*~

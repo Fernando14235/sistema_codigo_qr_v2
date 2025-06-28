@@ -20,14 +20,26 @@ __pycache__/
 audit.log
 security.log
 application.log
+logs/
 
 # Archivos del sistema
 .DS_Store
 
-# Migraciones (opcional, si no quieres compartirlas)
+# Migraciones de Alembic
 alembic/versions/
 
-# Otros archivos temporales
-*.bak
+# Entornos virtuales
+venv/
+env/
+ENV/
+
+# Configuraciones de IDEs y editores
+.vscode/
+.idea/
 *.swp
+*.swo
+*~
+
+# Archivos temporales
+*.bak
 *.tmp
