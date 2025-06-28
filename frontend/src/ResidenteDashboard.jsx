@@ -4,6 +4,7 @@ import { API_URL } from "./api";
 import "./GuardiaDashboard.css";
 import './App.css';
 import './ResidenteDashboard.css'; // Agrega este import para los nuevos estilos
+import SocialDashboard from "./SocialDashboard";
 
 // Tarjeta de notificación reutilizable
 function Notification({ message, type, onClose }) {
@@ -40,6 +41,10 @@ function MainMenuResidente({ nombre, rol, onLogout, onSelectVista }) {
         <button className="main-menu-card" onClick={() => onSelectVista("notificaciones")}>
           <span>🔔</span>
           <div>Notificaciones</div>
+        </button>
+        <button className="main-menu-card" onClick={() => onSelectVista("social")}>
+          <span>💬</span>
+          <div>Social</div>
         </button>
       </div>
     </div>
@@ -361,6 +366,12 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
                     ))}
                   </ul>
                 )}
+              </section>
+            )}
+
+            {vista === "social" && (
+              <section className="admin-section">
+                <SocialDashboard token={token} rol={ResInfo?.rol || "residente"} />
               </section>
             )}
           </main>

@@ -3,6 +3,7 @@ import axios from "axios";
 import { API_URL } from "./api";
 import { Pie, Bar } from "react-chartjs-2";
 import { Chart, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from "chart.js";
+import SocialDashboard from "./SocialDashboard";
 Chart.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 // Iconos
@@ -41,26 +42,12 @@ function MainMenu({ nombre, rol, onLogout, onSelectVista }) {
       </div>
       <h1 className="main-menu-title">Panel Principal</h1>
       <div className="main-menu-cards">
-        <button className="main-menu-card" onClick={() => onSelectVista("usuarios")}>
-          <span>👥</span>
-          <div>Gestión de Usuarios</div>
-        </button>
-        <button className="main-menu-card" onClick={() => onSelectVista("historial")}>
-          <span>📋</span>
-          <div>Historial de Visitas</div>
-        </button>
-        <button className="main-menu-card" onClick={() => onSelectVista("crear")}>
-          <span>➕</span>
-          <div>Crear Usuario</div>
-        </button>
-        <button className="main-menu-card" onClick={() => onSelectVista("estadisticas")}>
-          <span>📊</span>
-          <div>Estadísticas</div>
-        </button>
-        <button className="main-menu-card" onClick={() => onSelectVista("escaneos")}>
-          <span>🕒</span>
-          <div>Escaneos</div>
-        </button>
+        <button className="main-menu-card" onClick={() => onSelectVista("usuarios")}>👥<div>Gestión de Usuarios</div></button>
+        <button className="main-menu-card" onClick={() => onSelectVista("historial")}>📋<div>Historial de Visitas</div></button>
+        <button className="main-menu-card" onClick={() => onSelectVista("crear")}>➕<div>Crear Usuario</div></button>
+        <button className="main-menu-card" onClick={() => onSelectVista("estadisticas")}>📊<div>Estadísticas</div></button>
+        <button className="main-menu-card" onClick={() => onSelectVista("escaneos")}>🕒<div>Escaneos</div></button>
+        <button className="main-menu-card" onClick={() => onSelectVista("social")}>💬<div>Social</div></button>
       </div>
     </div>
   );
@@ -388,14 +375,6 @@ function AdminDashboard({ token, nombre, onLogout }) {
             <option value="entrada">Entrada</option>
             <option value="salida">Salida</option>
           </select>
-          {/* <select value={filtroEscEstado} onChange={e => setFiltroEscEstado(e.target.value)}>
-            <option value="">Todos los estados</option>
-            <option value="pendiente">Pendiente</option>
-            <option value="rechazado">Rechazado</option>
-            <option value="aprobado">Aprobado</option>
-            <option value="completado">Completado</option>
-            <option value="expirado">Expirado</option>
-          </select> */}
         </div>
         <table className="admin-table">
           <thead>
@@ -771,6 +750,11 @@ function AdminDashboard({ token, nombre, onLogout }) {
                       cargarFn={cargarEscaneosTotales}/>
                   </>
                 )}
+              </section>
+            )}
+            {vista === "social" && (
+              <section className="admin-section">
+                <SocialDashboard token={token} rol={adminInfo?.rol || "admin"} />
               </section>
             )}
           </main>
