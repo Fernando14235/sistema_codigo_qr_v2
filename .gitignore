@@ -10,14 +10,18 @@ node_modules/
 frontend/.env
 backend/.env
 
+# Ignorar archivos de configuración de IDEs
+backend/app/alembic.ini
+
 # Ignorar archivos de caché de Python
-__pycache__/
+**/__pycache__/
 backend/__pycache__/
-__init__.py
+**/__init__.py
 backend/__init__.py
 *.pyc
 *.pyo
 *.pyd
+
 
 # Ignorar archivos de logs
 *.log
