@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, Form
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from app.schemas.social_schema import SocialCreate, SocialResponse
-from app.services.social_service import crear_publicacion_service, listar_publicaciones_service, obtener_publicacion_service, actualizar_publicacion_service, eliminar_publicacion_service, mis_publicaciones_service
+from app.schemas.social_schema import SocialCreate, SocialResponse, SocialOpcionCreate, SocialVotoCreate, SocialVotoResponse
+from app.services.social_service import crear_publicacion_service, listar_publicaciones_service, obtener_publicacion_service, actualizar_publicacion_service, eliminar_publicacion_service, mis_publicaciones_service, votar_encuesta_service, resultados_encuesta_service
 from app.database import get_db
 from app.utils.security import get_current_user, verify_role
 from app.models.usuario import Usuario
+from app.models.social import Social, SocialOpcion, SocialVoto
 import json
 
 router = APIRouter(prefix="/social", tags=["Social"])
@@ -81,3 +82,13 @@ def mis_publicaciones(
     current_user: Usuario = Depends(get_current_user)
 ):
     return mis_publicaciones_service(db, current_user)
+
+# Endpoint para votar en una encuesta (residente)
+@router.post("/votar/residente/{id}", response_model=SocialVotoResponse, dependencies=[Depends(verify_role(["residente"]))])
+def votar_encuesta(id: int, voto: SocialVotoCreate, db: Session = Depends(get_db), current_user: Usuario = Depends(get_current_user)):
+    return votar_encuesta_service(db, id, current_user.id, voto.opcion_id)
+
+# Endpoint para ver resultados de una encuesta (admin)
+@router.get("/resultados/admin/{id}", dependencies=[Depends(verify_role(["admin"]))])
+def resultados_encuesta(id: int, db: Session = Depends(get_db), current_user: Usuario = Depends(get_current_user)):
+    return resultados_encuesta_service(db, id)

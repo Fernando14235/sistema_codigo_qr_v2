@@ -18,6 +18,8 @@ class Social(Base):
 
     imagenes = relationship("SocialImagen", back_populates="social", cascade="all, delete-orphan")
     destinatarios = relationship("SocialDestinatario", back_populates="social", cascade="all, delete-orphan")
+    opciones = relationship("SocialOpcion", back_populates="social", cascade="all, delete-orphan")
+    votos = relationship("SocialVoto", back_populates="social", cascade="all, delete-orphan")
 
 
 class SocialImagen(Base):
@@ -38,3 +40,27 @@ class SocialDestinatario(Base):
     residente_id = Column(Integer, ForeignKey("residentes.id", ondelete="CASCADE"), nullable=False)
 
     social = relationship("Social", back_populates="destinatarios")
+
+
+class SocialVoto(Base):
+    __tablename__ = "social_votos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    social_id = Column(Integer, ForeignKey("social.id", ondelete="CASCADE"), nullable=False)
+    residente_id = Column(Integer, ForeignKey("residentes.id", ondelete="CASCADE"), nullable=False)
+    opcion_id = Column(Integer, ForeignKey("social_opciones.id", ondelete="CASCADE"), nullable=False)
+    fecha_voto = Column(DateTime, default=datetime.utcnow)
+
+    social = relationship("Social", back_populates="votos")
+    opcion = relationship("SocialOpcion", back_populates="votos")
+
+
+class SocialOpcion(Base):
+    __tablename__ = "social_opciones"
+
+    id = Column(Integer, primary_key=True, index=True)
+    social_id = Column(Integer, ForeignKey("social.id", ondelete="CASCADE"), nullable=False)
+    texto = Column(String(200), nullable=False)
+
+    social = relationship("Social", back_populates="opciones")
+    votos = relationship("SocialVoto", back_populates="opcion", cascade="all, delete-orphan")

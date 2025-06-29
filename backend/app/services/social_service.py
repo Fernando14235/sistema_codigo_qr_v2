@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from app.models.social import Social, SocialImagen, SocialDestinatario
+from app.models.social import Social, SocialImagen, SocialDestinatario, SocialOpcion, SocialVoto
 from app.schemas.social_schema import SocialCreate, SocialResponse, SocialImagenCreate, SocialDestinatarioCreate
 from app.models.usuario import Usuario
 from app.models.residente import Residente
@@ -55,6 +55,11 @@ def create_social(db: Session, social_data: SocialCreate, imagenes: Optional[Lis
         if not social_data.para_todos and social_data.destinatarios:
             for dest in social_data.destinatarios:
                 db.add(SocialDestinatario(social_id=social.id, residente_id=dest.residente_id))
+
+        # Opciones de encuesta
+        if social_data.tipo_publicacion == "encuesta" and hasattr(social_data, "opciones") and social_data.opciones:
+            for opcion in social_data.opciones:
+                db.add(SocialOpcion(social_id=social.id, texto=opcion.texto))
 
         db.commit()
         db.refresh(social)
@@ -162,6 +167,15 @@ def update_social(db: Session, social_id: int, data: SocialCreate, imagenes: Opt
         for dest in data.destinatarios:
             db.add(SocialDestinatario(social_id=social_id, residente_id=dest.residente_id))
 
+    # Actualizar opciones de encuesta
+    if data.tipo_publicacion == "encuesta":
+        db.query(SocialOpcion).filter(SocialOpcion.social_id == social_id).delete()
+        if hasattr(data, "opciones") and data.opciones:
+            for opcion in data.opciones:
+                db.add(SocialOpcion(social_id=social_id, texto=opcion.texto))
+    else:
+        db.query(SocialOpcion).filter(SocialOpcion.social_id == social_id).delete()
+
     db.commit()
     db.refresh(social)
     return social
@@ -236,3 +250,38 @@ def mis_publicaciones_service(db: Session, current_user: Usuario):
     if not residente:
         raise HTTPException(status_code=404, detail="Residente no encontrado")
     return get_social_residente(db, residente.id)
+
+def votar_encuesta_service(db: Session, social_id: int, usuario_id: int, opcion_id: int):
+    # Buscar el residente correspondiente al usuario
+    residente = db.query(Residente).filter(Residente.usuario_id == usuario_id).first()
+    if not residente:
+        raise HTTPException(status_code=404, detail="Residente no encontrado")
+    residente_id = residente.id
+
+    social = db.query(Social).filter(Social.id == social_id, Social.tipo_publicacion == "encuesta").first()
+    if not social:
+        raise HTTPException(status_code=404, detail="Encuesta no encontrada")
+    existente = db.query(SocialVoto).filter_by(social_id=social_id, residente_id=residente_id).first()
+    if existente:
+        raise HTTPException(status_code=400, detail="Ya has votado en esta encuesta")
+    opcion = db.query(SocialOpcion).filter_by(id=opcion_id, social_id=social_id).first()
+    if not opcion:
+        raise HTTPException(status_code=400, detail="Opción inválida")
+    voto_nuevo = SocialVoto(social_id=social_id, residente_id=residente_id, opcion_id=opcion_id)
+    db.add(voto_nuevo)
+    db.commit()
+    db.refresh(voto_nuevo)
+    return voto_nuevo
+
+def resultados_encuesta_service(db: Session, social_id: int):
+    social = db.query(Social).filter(Social.id == social_id, Social.tipo_publicacion == "encuesta").first()
+    if not social:
+        raise HTTPException(status_code=404, detail="Encuesta no encontrada")
+    opciones = db.query(SocialOpcion).filter_by(social_id=social_id).all()
+    votos = db.query(SocialVoto).filter_by(social_id=social_id).all()
+    resultados = []
+    for opcion in opciones:
+        conteo = sum(1 for v in votos if v.opcion_id == opcion.id)
+        resultados.append({"opcion_id": opcion.id, "texto": opcion.texto, "votos": conteo})
+    return {"pregunta": social.contenido, "opciones": resultados, "total_votos": len(votos)}
+

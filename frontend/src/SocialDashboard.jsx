@@ -2,6 +2,10 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { API_URL } from "./api";
 import styles from "./SocialDashboard.module.css";
+import Select from "react-select";
+import { Pie } from "react-chartjs-2";
+import { Chart, ArcElement, Tooltip, Legend } from "chart.js";
+Chart.register(ArcElement, Tooltip, Legend);
 
 function SocialDashboard({ token, rol }) {
   const [tab, setTab] = useState(rol === "admin" ? "admin" : "residente");
@@ -23,6 +27,16 @@ function SocialDashboard({ token, rol }) {
   });
   const [fileList, setFileList] = useState([]);
   const [mensaje, setMensaje] = useState("");
+  const [residentes, setResidentes] = useState([]);
+  const [opcionesEncuesta, setOpcionesEncuesta] = useState([""]);
+  const [votoRealizado, setVotoRealizado] = useState(null);
+  const [resultadosEncuesta, setResultadosEncuesta] = useState(null);
+  // Estado para detalle de encuesta
+  const [detalleEncuestaId, setDetalleEncuestaId] = useState(null);
+  const [detalleEncuesta, setDetalleEncuesta] = useState(null);
+  const [detalleVotoRealizado, setDetalleVotoRealizado] = useState(null);
+  const [detalleResultados, setDetalleResultados] = useState(null);
+  const [detalleMensaje, setDetalleMensaje] = useState("");
 
   const isAdmin = rol === "admin";
 
@@ -48,14 +62,58 @@ function SocialDashboard({ token, rol }) {
     setLoading(false);
   };
 
+  // Cargar residentes si el admin quiere seleccionar destinatarios
+  useEffect(() => {
+    if (isAdmin && showForm && !formData.para_todos) {
+      axios.get(`${API_URL}/usuarios/residentes`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      .then(res => setResidentes(res.data))
+      .catch(() => setResidentes([]));
+    }
+  }, [isAdmin, showForm, formData.para_todos, token]);
+
   useEffect(() => { cargarPublicaciones(); /* eslint-disable-next-line */ }, [tab, filtros]);
 
   // Manejo de formulario de creación/edición
   const handleInputChange = e => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+    if (name === "tipo_publicacion" && value === "encuesta") {
+      setFormData(prev => ({ ...prev, [name]: value, requiere_respuesta: true }));
+    } else if (name === "tipo_publicacion") {
+      setFormData(prev => ({ ...prev, [name]: value, requiere_respuesta: false }));
+    } else if (name === "requiere_respuesta" && formData.tipo_publicacion === "encuesta") {
+      // No permitir desmarcar si es encuesta
+      return;
+    } else {
+      setFormData(prev => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+    }
   };
   const handleFileChange = e => setFileList([...e.target.files]);
+
+  // Manejo de selección múltiple de destinatarios con react-select
+  const handleDestinatariosChange = selectedOptions => {
+    const selected = (selectedOptions || []).map(opt => ({ residente_id: opt.value }));
+    setFormData(prev => ({ ...prev, destinatarios: selected }));
+  };
+
+  // Opciones para react-select
+  const residentesOptions = residentes.map(r => ({
+    value: r.id,
+    label: `${r.nombre} (${r.unidad_residencial || 'Sin unidad'})`
+  }));
+
+  // Manejo de opciones de encuesta (solo frontend)
+  const handleOpcionesEncuestaChange = (idx, val) => {
+    setOpcionesEncuesta(prev => prev.map((op, i) => i === idx ? val : op));
+  };
+  const handleAgregarOpcion = () => setOpcionesEncuesta(prev => [...prev, ""]);
+  const handleEliminarOpcion = idx => setOpcionesEncuesta(prev => prev.filter((_, i) => i !== idx));
+
+  // Al abrir el form, limpiar opciones si no es encuesta
+  useEffect(() => {
+    if (showForm && formData.tipo_publicacion !== "encuesta") setOpcionesEncuesta([""]);
+  }, [showForm, formData.tipo_publicacion]);
 
   const handleCrear = async e => {
     e.preventDefault();
@@ -165,7 +223,7 @@ function SocialDashboard({ token, rol }) {
   // Renderizado de publicaciones
   const renderPublicaciones = () => (
     <div>
-      {renderFiltros()}
+      {showForm ? null : renderFiltros()}
       {loading ? <div>Cargando...</div> : error ? <div style={{ color: "red" }}>{error}</div> : (
         <table className={styles["social-table"]}>
           <thead>
@@ -201,6 +259,63 @@ function SocialDashboard({ token, rol }) {
     </div>
   );
 
+  // useEffect para cargar detalle de encuesta, voto y resultados
+  useEffect(() => {
+    if (detalle && detalle.tipo_publicacion === "encuesta") {
+      setDetalleEncuestaId(detalle.id);
+      setDetalleEncuesta(detalle);
+      setDetalleMensaje("");
+      setDetalleVotoRealizado(null);
+      setDetalleResultados(null);
+      if (rol === "admin") cargarResultadosEncuesta(detalle.id).then();
+      if (rol === "residente" && detalle.votos && detalle.votos.length > 0) {
+        try {
+          const tokenData = JSON.parse(atob(token.split('.')[1]));
+          const miVoto = detalle.votos.find(v => v.residente_id === tokenData.user_id);
+          if (miVoto) setDetalleVotoRealizado(miVoto.opcion_id);
+        } catch {}
+      }
+    } else {
+      setDetalleEncuestaId(null);
+      setDetalleEncuesta(null);
+      setDetalleVotoRealizado(null);
+      setDetalleResultados(null);
+      setDetalleMensaje("");
+    }
+    // eslint-disable-next-line
+  }, [detalle]);
+
+  // Votar en encuesta (solo residentes)
+  const votarEnEncuesta = async (socialId, opcionId) => {
+    setDetalleMensaje("Enviando voto...");
+    try {
+      await axios.post(`${API_URL}/social/votar/residente/${socialId}`, { opcion_id: opcionId }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setDetalleMensaje("¡Voto registrado!");
+      setDetalleVotoRealizado(opcionId);
+      cargarPublicaciones();
+    } catch (err) {
+      if (err.response && err.response.data && err.response.data.detail) {
+        setDetalleMensaje("Error: " + err.response.data.detail);
+      } else {
+        setDetalleMensaje("Error al votar");
+      }
+    }
+  };
+
+  // Cargar resultados de encuesta (admin)
+  const cargarResultadosEncuesta = async (id) => {
+    try {
+      const res = await axios.get(`${API_URL}/social/resultados/admin/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setResultadosEncuesta(res.data);
+    } catch {
+      setResultadosEncuesta(null);
+    }
+  };
+
   // Renderizado de detalle
   const renderDetalle = () => (
     <div className={styles["social-detail-card"]}>
@@ -217,6 +332,70 @@ function SocialDashboard({ token, rol }) {
           )) : <span style={{color:'#888',marginLeft:8}}>Sin imágenes</span>}
         </div>
       </div>
+      {/* Opciones de encuesta y votación */}
+      {detalle.tipo_publicacion === "encuesta" && (
+        <div className={styles["social-detail-row"]}>
+          <b>Opciones de encuesta:</b>
+          <div style={{marginTop:8, marginBottom:8}}>
+            {detalle.opciones && detalle.opciones.length > 0 ? (
+              <>
+                {rol === "residente" && (
+                  <>
+                    {detalleVotoRealizado ? (
+                      <div style={{color:'#1976d2',marginBottom:8}}>
+                        Ya votaste por: <b>{detalle.opciones.find(o => o.id === detalleVotoRealizado)?.texto || "-"}</b>
+                      </div>
+                    ) : (
+                      <>
+                        {detalle.opciones.map(op => (
+                          <button key={op.id} style={{marginRight:8,marginBottom:4}} onClick={()=>votarEnEncuesta(detalle.id, op.id)} disabled={!!detalleVotoRealizado}>{op.texto}</button>
+                        ))}
+                      </>
+                    )}
+                  </>
+                )}
+                {rol === "admin" && (
+                  <div style={{marginTop:8}}>
+                    <b>Resultados:</b>
+                    {resultadosEncuesta && resultadosEncuesta.opciones && resultadosEncuesta.opciones.length > 0 ? (
+                      <>
+                        <ul style={{marginTop:4}}>
+                          {resultadosEncuesta.opciones.map(res => (
+                            <li key={res.opcion_id}>{res.texto}: <b>{res.votos}</b> voto(s)</li>
+                          ))}
+                        </ul>
+                        <div>Total de votos: <b>{resultadosEncuesta.total_votos}</b></div>
+                        {/* Gráfico de pastel */}
+                        <div style={{maxWidth:320,marginTop:16}}>
+                          <Pie
+                            data={{
+                              labels: resultadosEncuesta.opciones.map(o => o.texto),
+                              datasets: [{
+                                data: resultadosEncuesta.opciones.map(o => o.votos),
+                                backgroundColor: [
+                                  '#1976d2','#43a047','#e53935','#fbc02d','#8e24aa','#00bcd4','#ff9800','#c2185b'
+                                ],
+                              }]
+                            }}
+                            options={{
+                              plugins: { legend: { position: 'bottom' } },
+                              responsive: true,
+                              maintainAspectRatio: false
+                            }}
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{color:'#888',marginTop:8}}>Aún no hay votos registrados para esta encuesta.</div>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : <span style={{color:'#888'}}>Sin opciones</span>}
+          </div>
+          {detalleMensaje && <div style={{color: detalleMensaje.includes("Error") ? "#e53935" : "#1976d2", marginTop: 8}}>{detalleMensaje}</div>}
+        </div>
+      )}
       <button onClick={() => setDetalle(null)} style={{ marginTop: 12 }}>Cerrar</button>
     </div>
   );
@@ -227,20 +406,66 @@ function SocialDashboard({ token, rol }) {
       <h3>{editId ? "Editar Publicación" : "Nueva Publicación"}</h3>
       <label>Título</label>
       <input name="titulo" placeholder="Título" value={formData.titulo} onChange={handleInputChange} required />
-      <label>Contenido</label>
-      <textarea name="contenido" placeholder="Contenido" value={formData.contenido} onChange={handleInputChange} required />
+      {/* Si es encuesta, mostrar campo de pregunta y opciones */}
+      {formData.tipo_publicacion === "encuesta" ? (
+        <>
+          <label>Pregunta de la encuesta</label>
+          <input name="contenido" placeholder="Pregunta de la encuesta" value={formData.contenido} onChange={handleInputChange} required />
+          <label>Opciones de respuesta (solo para mostrar, no se guardan en BD)</label>
+          {opcionesEncuesta.map((op, idx) => (
+            <div key={idx} style={{display:'flex',gap:8,marginBottom:4}}>
+              <input type="text" value={op} onChange={e => handleOpcionesEncuestaChange(idx, e.target.value)} placeholder={`Opción ${idx+1}`} style={{flex:1}} />
+              {opcionesEncuesta.length > 1 && (
+                <button type="button" onClick={() => handleEliminarOpcion(idx)} style={{background:'#e53935',color:'#fff',border:'none',borderRadius:4,padding:'0 8px',cursor:'pointer'}}>✕</button>
+              )}
+            </div>
+          ))}
+          <button type="button" onClick={handleAgregarOpcion} style={{marginBottom:8,background:'#1976d2',color:'#fff',border:'none',borderRadius:4,padding:'4px 12px',cursor:'pointer'}}>+ Agregar opción</button>
+        </>
+      ) : (
+        <>
+          <label>Contenido</label>
+          <textarea name="contenido" placeholder="Contenido" value={formData.contenido} onChange={handleInputChange} required />
+        </>
+      )}
       <label>Tipo de publicación</label>
       <select name="tipo_publicacion" value={formData.tipo_publicacion} onChange={handleInputChange} required>
         <option value="comunicado">Comunicado</option>
         <option value="publicacion">Publicación</option>
         <option value="encuesta">Encuesta</option>
       </select>
-      <label>
-        <input type="checkbox" name="requiere_respuesta" checked={formData.requiere_respuesta} onChange={handleInputChange} /> Requiere respuesta (solo para encuesta)
-      </label>
+      {/* Solo mostrar el checkbox si es encuesta, y siempre marcado y deshabilitado */}
+      {formData.tipo_publicacion === "encuesta" && (
+        <label>
+          <input type="checkbox" name="requiere_respuesta" checked readOnly disabled /> Requiere respuesta (solo para encuesta)
+        </label>
+      )}
+      {formData.tipo_publicacion !== "encuesta" && (
+        <label>
+          <input type="checkbox" name="requiere_respuesta" checked={formData.requiere_respuesta} onChange={handleInputChange} /> Requiere respuesta (solo para encuesta)
+        </label>
+      )}
       <label>
         <input type="checkbox" name="para_todos" checked={formData.para_todos} onChange={handleInputChange} /> Para todos los residentes
       </label>
+      {/* Select múltiple de destinatarios si no es para todos */}
+      {isAdmin && !formData.para_todos && (
+        <div style={{marginBottom:8}}>
+          <label>Destinatarios (selecciona uno o más residentes):</label>
+          <Select
+            isMulti
+            options={residentesOptions}
+            value={residentesOptions.filter(opt => formData.destinatarios.some(d => d.residente_id === opt.value))}
+            onChange={handleDestinatariosChange}
+            placeholder="Buscar y seleccionar residentes..."
+            classNamePrefix="react-select"
+            styles={{
+              menu: base => ({ ...base, zIndex: 9999 }),
+              container: base => ({ ...base, width: '100%' })
+            }}
+          />
+        </div>
+      )}
       <label>Imágenes</label>
       <input type="file" multiple onChange={handleFileChange} />
       {renderPreviewImgs()}

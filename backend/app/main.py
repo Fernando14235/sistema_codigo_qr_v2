@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.database import SessionLocal
 from typing import Optional, List
-from app.routers import auth, visitas, notificaciones, historial_visitas, estadisticas, sociales
+from app.routers import auth, usuarios, visitas, notificaciones, historial_visitas, estadisticas, sociales
 from app.services import user_service
 from app.schemas.usuario_schema import Usuario, UsuarioCreate
 from app.utils.security import get_current_user, verify_role
@@ -20,6 +20,7 @@ app.include_router(notificaciones.router)
 app.include_router(historial_visitas.router)
 app.include_router(estadisticas.router)
 app.include_router(sociales.router)
+app.include_router(usuarios.router)
 
 # Llamada a la función de expiración de visitas
 def actu_visita_expiracion():
@@ -84,7 +85,7 @@ def obtener_usuario_por_id(id: int, usuario_actual=Depends(verify_role(["admin"]
 
 # Crear un nuevo usuario
 @app.post('/create_usuarios/admin', response_model=Usuario, tags=["Usuarios"])
-def crear_nuevo_usuario(usuario: UsuarioCreate, db: Session = Depends(get_db)):
+def crear_nuevo_usuario(usuario: UsuarioCreate, usuario_actual=Depends(verify_role(["admin"])), db: Session = Depends(get_db)):
     try:
         db_usuario = user_service.crear_usuario(db, usuario)
         return db_usuario
