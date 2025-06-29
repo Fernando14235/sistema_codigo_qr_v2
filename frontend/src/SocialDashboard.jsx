@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { API_URL } from "./api";
+import styles from "./SocialDashboard.module.css";
 
 function SocialDashboard({ token, rol }) {
   const [tab, setTab] = useState(rol === "admin" ? "admin" : "residente");
@@ -22,6 +23,8 @@ function SocialDashboard({ token, rol }) {
   });
   const [fileList, setFileList] = useState([]);
   const [mensaje, setMensaje] = useState("");
+
+  const isAdmin = rol === "admin";
 
   // Cargar publicaciones según rol y filtros
   const cargarPublicaciones = async () => {
@@ -123,29 +126,48 @@ function SocialDashboard({ token, rol }) {
     }
   };
 
+  // Iconos para acciones
+  const IconVer = () => <span title="Ver" style={{cursor:'pointer'}} role="img" aria-label="ver">🔍</span>;
+  const IconEditar = () => <span title="Editar" style={{cursor:'pointer'}} role="img" aria-label="editar">✏️</span>;
+  const IconEliminar = () => <span title="Eliminar" style={{cursor:'pointer', color:'#e53935'}} aria-label="eliminar">🗑️</span>;
+
+  // Renderizado de filtros
+  const renderFiltros = () => (
+    <div className={styles["social-filtros"]} style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap',alignItems:'center'}}>
+      <select name="tipo_publicacion" value={filtros.tipo_publicacion} onChange={e => setFiltros(f => ({ ...f, tipo_publicacion: e.target.value }))}>
+        <option value="">Tipo</option>
+        <option value="comunicado">Comunicado</option>
+        <option value="publicacion">Publicación</option>
+        <option value="encuesta">Encuesta</option>
+      </select>
+      <select name="estado" value={filtros.estado} onChange={e => setFiltros(f => ({ ...f, estado: e.target.value }))}>
+        <option value="">Estado</option>
+        <option value="publicado">Publicado</option>
+        <option value="fallido">Fallido</option>
+        <option value="archivado">Archivado</option>
+      </select>
+      <input type="date" value={filtros.fecha} onChange={e => setFiltros(f => ({ ...f, fecha: e.target.value }))} placeholder="Fecha de publicación" style={{minWidth:120}} />
+      {isAdmin && (
+        <button style={{marginLeft:8}} onClick={e=>{e.preventDefault(); setShowForm(true); setEditId(null);}}>+ Nueva Publicación</button>
+      )}
+    </div>
+  );
+
+  // Previsualización de imágenes seleccionadas
+  const renderPreviewImgs = () => fileList.length > 0 && (
+    <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:8}}>
+      {Array.from(fileList).map((file,idx) => (
+        <img key={idx} src={URL.createObjectURL(file)} alt="preview" style={{width:60,height:60,objectFit:'cover',borderRadius:6,border:'1px solid #ccc'}} />
+      ))}
+    </div>
+  );
+
   // Renderizado de publicaciones
   const renderPublicaciones = () => (
     <div>
-      <div style={{ marginBottom: 12 }}>
-        <select name="tipo_publicacion" value={filtros.tipo_publicacion} onChange={e => setFiltros(f => ({ ...f, tipo_publicacion: e.target.value }))}>
-          <option value="">Todos los tipos</option>
-          <option value="comunicado">Comunicado</option>
-          <option value="publicacion">Publicación</option>
-          <option value="encuesta">Encuesta</option>
-        </select>
-        <select name="estado" value={filtros.estado} onChange={e => setFiltros(f => ({ ...f, estado: e.target.value }))} style={{ marginLeft: 8 }}>
-          <option value="">Todos los estados</option>
-          <option value="publicado">Publicado</option>
-          <option value="fallido">Fallido</option>
-          <option value="archivado">Archivado</option>
-        </select>
-        <input type="date" value={filtros.fecha} onChange={e => setFiltros(f => ({ ...f, fecha: e.target.value }))} style={{ marginLeft: 8 }} />
-        {rol === "admin" && tab === "admin" && (
-          <button style={{ marginLeft: 12 }} onClick={() => { setShowForm(true); setEditId(null); }}>+ Nueva Publicación</button>
-        )}
-      </div>
+      {renderFiltros()}
       {loading ? <div>Cargando...</div> : error ? <div style={{ color: "red" }}>{error}</div> : (
-        <table className="admin-table">
+        <table className={styles["social-table"]}>
           <thead>
             <tr>
               <th>Título</th>
@@ -162,12 +184,12 @@ function SocialDashboard({ token, rol }) {
                 <td>{pub.tipo_publicacion}</td>
                 <td>{pub.estado}</td>
                 <td>{new Date(pub.fecha_creacion).toLocaleString()}</td>
-                <td>
-                  <button onClick={() => setDetalle(pub)}>Ver</button>
-                  {rol === "admin" && tab === "admin" && (
+                <td className={styles["social-table-actions"]} style={{display:'flex',gap:4}}>
+                  <span onClick={() => setDetalle(pub)}><IconVer /></span>
+                  {isAdmin && (
                     <>
-                      <button onClick={() => handleEditar(pub)} style={{ marginLeft: 4 }}>Editar</button>
-                      <button onClick={() => handleEliminar(pub.id)} style={{ marginLeft: 4, color: "red" }}>Eliminar</button>
+                      <span onClick={() => handleEditar(pub)}><IconEditar /></span>
+                      <span onClick={() => handleEliminar(pub.id)}><IconEliminar /></span>
                     </>
                   )}
                 </td>
@@ -181,18 +203,18 @@ function SocialDashboard({ token, rol }) {
 
   // Renderizado de detalle
   const renderDetalle = () => (
-    <div style={{ border: "1px solid #ccc", padding: 16, margin: 16 }}>
+    <div className={styles["social-detail-card"]}>
       <h3>{detalle.titulo}</h3>
-      <p><b>Tipo:</b> {detalle.tipo_publicacion}</p>
-      <p><b>Estado:</b> {detalle.estado}</p>
-      <p><b>Contenido:</b> {detalle.contenido}</p>
-      <p><b>Fecha:</b> {new Date(detalle.fecha_creacion).toLocaleString()}</p>
-      <div>
+      <div className={styles["social-detail-row"]}><b>Tipo:</b> {detalle.tipo_publicacion}</div>
+      <div className={styles["social-detail-row"]}><b>Estado:</b> {detalle.estado}</div>
+      <div className={styles["social-detail-row"]}><b>Contenido:</b> {detalle.contenido}</div>
+      <div className={styles["social-detail-row"]}><b>Fecha:</b> {new Date(detalle.fecha_creacion).toLocaleString()}</div>
+      <div className={styles["social-detail-row"]}>
         <b>Imágenes:</b>
-        <div style={{ display: "flex", gap: 8 }}>
-          {detalle.imagenes?.map(img => (
-            <img key={img.id} src={API_URL + img.imagen_url} alt="img" style={{ width: 80, borderRadius: 4 }} />
-          ))}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {detalle.imagenes?.length > 0 ? detalle.imagenes.map(img => (
+            <img key={img.id} src={API_URL + img.imagen_url} alt="img" className={styles["social-detail-img"]} />
+          )) : <span style={{color:'#888',marginLeft:8}}>Sin imágenes</span>}
         </div>
       </div>
       <button onClick={() => setDetalle(null)} style={{ marginTop: 12 }}>Cerrar</button>
@@ -201,10 +223,13 @@ function SocialDashboard({ token, rol }) {
 
   // Renderizado de formulario de creación/edición
   const renderForm = () => (
-    <form onSubmit={handleCrear} style={{ border: "1px solid #ccc", padding: 16, margin: 16 }}>
+    <form onSubmit={handleCrear} className={styles["social-form"]}>
       <h3>{editId ? "Editar Publicación" : "Nueva Publicación"}</h3>
+      <label>Título</label>
       <input name="titulo" placeholder="Título" value={formData.titulo} onChange={handleInputChange} required />
+      <label>Contenido</label>
       <textarea name="contenido" placeholder="Contenido" value={formData.contenido} onChange={handleInputChange} required />
+      <label>Tipo de publicación</label>
       <select name="tipo_publicacion" value={formData.tipo_publicacion} onChange={handleInputChange} required>
         <option value="comunicado">Comunicado</option>
         <option value="publicacion">Publicación</option>
@@ -216,23 +241,20 @@ function SocialDashboard({ token, rol }) {
       <label>
         <input type="checkbox" name="para_todos" checked={formData.para_todos} onChange={handleInputChange} /> Para todos los residentes
       </label>
+      <label>Imágenes</label>
       <input type="file" multiple onChange={handleFileChange} />
-      {/* Aquí podrías agregar selección de destinatarios si para_todos es false */}
-      <button type="submit">{editId ? "Actualizar" : "Crear"}</button>
-      <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} style={{ marginLeft: 8 }}>Cancelar</button>
-      <div>{mensaje}</div>
+      {renderPreviewImgs()}
+      <div className={styles["social-form-btns"]}>
+        <button type="submit">{editId ? "Actualizar" : "Crear"}</button>
+        <button type="button" onClick={() => { setShowForm(false); setEditId(null); }}>Cancelar</button>
+      </div>
+      <div className={styles["mensaje"]}>{mensaje}</div>
     </form>
   );
 
   return (
-    <div className="social-dashboard">
+    <div className={styles["social-dashboard"]}>
       <h2>Sección Social</h2>
-      {rol === "admin" && (
-        <div style={{ marginBottom: 16 }}>
-          <button onClick={() => setTab("admin")} disabled={tab === "admin"}>Vista Admin</button>
-          <button onClick={() => setTab("residente")} disabled={tab === "residente"} style={{ marginLeft: 8 }}>Vista Residente</button>
-        </div>
-      )}
       {showForm && renderForm()}
       {detalle ? renderDetalle() : renderPublicaciones()}
     </div>
