@@ -310,7 +310,7 @@ function SocialDashboard({ token, rol }) {
   // Obtener el nombre del admin cuando se abre el detalle
   useEffect(() => {
     if (detalle && detalle.admin_id) {
-      axios.get(`${API_URL}/usuarios/admin/${detalle.admin_id}`, {
+      axios.get(`${API_URL}/usuarios/usuario_nombre/${detalle.admin_id}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       .then(res => setAdminNombre(res.data.nombre))
@@ -355,7 +355,9 @@ function SocialDashboard({ token, rol }) {
   const renderDetalle = () => (
     <div className={styles["social-detail-card"]}>
       <h3>{detalle.titulo}</h3>
-      <div className={styles["social-detail-row"]}><h3><b>Creado por:</b> {adminNombre || `ID: ${detalle.admin_id}`}</h3></div>
+      <div className={styles["social-detail-row"]}>
+        <b>Creado por:</b>{adminNombre ? ` ${adminNombre}` : ""}
+      </div>
       <div className={styles["social-detail-row"]}><b>Tipo:</b> {detalle.tipo_publicacion}</div>
       <div className={styles["social-detail-row"]}>
         <b>Estado:</b> 
@@ -368,7 +370,32 @@ function SocialDashboard({ token, rol }) {
           {detalle.estado}
         </span>
       </div>
-      
+      {/* Solo mostrar destinatarios si es admin */}
+      {rol === "admin" && (
+        <div className={styles["social-detail-row"]}>
+          <b>Destinatarios:</b> 
+          {detalle.para_todos ? (
+            <span style={{color: "#2e7d32", marginLeft: "8px"}}>Todos los residentes</span>
+          ) : (
+            <div style={{marginTop: "4px"}}>
+              {detalle.destinatarios && detalle.destinatarios.length > 0 ? (
+                <ul style={{margin: "0", paddingLeft: "20px"}}>
+                  {detalle.destinatarios.map(dest => {
+                    const residente = residentes.find(r => r.residente_id === dest.residente_id || r.id === dest.residente_id);
+                    return (
+                      <li key={dest.id}>
+                        {residente ? residente.nombre : `ID: ${dest.residente_id}`}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <span style={{color: "#d32f2f"}}>No se especificaron destinatarios</span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       <div className={styles["social-detail-row"]}>
         <b>Contenido:</b> 
         <div style={{marginTop: "4px"}}>
@@ -389,30 +416,6 @@ function SocialDashboard({ token, rol }) {
         </div>
       </div>
       <div className={styles["social-detail-row"]}><b>Fecha:</b> {new Date(detalle.fecha_creacion).toLocaleString()}</div>
-      <div className={styles["social-detail-row"]}>
-        <b>Destinatarios:</b> 
-        {detalle.para_todos ? (
-          <span style={{color: "#2e7d32", marginLeft: "8px"}}>Todos los residentes</span>
-        ) : (
-          <div style={{marginTop: "4px"}}>
-            {detalle.destinatarios && detalle.destinatarios.length > 0 ? (
-              <ul style={{margin: "0", paddingLeft: "20px"}}>
-                {detalle.destinatarios.map(dest => {
-                  // Buscar el nombre del residente en el array de residentes
-                  const residente = residentes.find(r => r.residente_id === dest.residente_id || r.id === dest.residente_id);
-                  return (
-                    <li key={dest.id}>
-                      {residente ? residente.nombre : `ID: ${dest.residente_id}`}
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <span style={{color: "#d32f2f"}}>No se especificaron destinatarios</span>
-            )}
-          </div>
-        )}
-      </div>
       <div className={styles["social-detail-row"]}>
         <b>Imágenes:</b>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

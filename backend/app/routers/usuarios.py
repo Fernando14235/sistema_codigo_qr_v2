@@ -27,4 +27,9 @@ def listar_residentes_full(db: Session = Depends(get_db)):
             "telefono": r.telefono,
             "usuario_id": r.usuario_id
         })
-    return resultado 
+    return resultado
+
+@router.get("/usuario_nombre/{id}", dependencies=[Depends(verify_role(["admin", "residente"]))])
+def obtener_nombre_usuario(id: int, db: Session = Depends(get_db)):
+    usuario = db.query(Usuario).filter(Usuario.id == id).first()
+    return {"nombre": usuario.nombre if usuario else None} 
