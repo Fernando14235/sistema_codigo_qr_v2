@@ -32,7 +32,23 @@ def create_social(db: Session, social_data: SocialCreate, imagenes: Optional[Lis
     admin_id = current_user.id if current_user else None
     if not admin_id:
         raise ValueError("admin_id es requerido")
+    
+    error_message = None
+    
     try:
+        # Validar que si no es para todos, debe tener destinatarios
+        if not social_data.para_todos and (not social_data.destinatarios or len(social_data.destinatarios) == 0):
+            error_message = "Si la publicación no es para todos, debe especificar al menos un destinatario"
+            raise ValueError(error_message)
+        
+        # Validar que los destinatarios existan si se especifican
+        if social_data.destinatarios:
+            for dest in social_data.destinatarios:
+                residente = db.query(Residente).filter(Residente.id == dest.residente_id).first()
+                if not residente:
+                    error_message = f"El residente con ID {dest.residente_id} no existe"
+                    raise ValueError(error_message)
+        
         social = Social(
             admin_id=admin_id,
             titulo=social_data.titulo,
@@ -43,7 +59,7 @@ def create_social(db: Session, social_data: SocialCreate, imagenes: Optional[Lis
             estado="publicado"
         )
         db.add(social)
-        db.flush()  # Para obtener el ID
+        db.flush()
 
         # Imágenes
         if imagenes:
@@ -51,10 +67,11 @@ def create_social(db: Session, social_data: SocialCreate, imagenes: Optional[Lis
                 img = SocialImagen(social_id=social.id, imagen_url=url)
                 db.add(img)
 
-        # Destinatarios
+        # Destinatarios - solo si no es para todos
         if not social_data.para_todos and social_data.destinatarios:
             for dest in social_data.destinatarios:
-                db.add(SocialDestinatario(social_id=social.id, residente_id=dest.residente_id))
+                destinatario = SocialDestinatario(social_id=social.id, residente_id=dest.residente_id)
+                db.add(destinatario)
 
         # Opciones de encuesta
         if social_data.tipo_publicacion == "encuesta" and hasattr(social_data, "opciones") and social_data.opciones:
@@ -66,12 +83,12 @@ def create_social(db: Session, social_data: SocialCreate, imagenes: Optional[Lis
         return social
     except Exception as e:
         db.rollback()
-        # Si ocurre un error, crear el registro con estado fallido
+        # Si ocurre un error, crear el registro con estado fallido y mensaje de error
         social = Social(
             admin_id=admin_id,
             titulo=social_data.titulo,
             contenido=social_data.contenido,
-            tipo_publicacion=social_data.tipo_publicacion or "comunicado",
+            tipo_publicacion=social_data.tipo_publicacion,
             requiere_respuesta=social_data.requiere_respuesta if social_data.tipo_publicacion == "encuesta" else False,
             para_todos=social_data.para_todos,
             estado="fallido"
@@ -79,6 +96,13 @@ def create_social(db: Session, social_data: SocialCreate, imagenes: Optional[Lis
         db.add(social)
         db.commit()
         db.refresh(social)
+        
+        # Guardar el mensaje de error en el contenido si es fallido
+        if error_message:
+            social.contenido = f"{social.contenido}\n\n[ERROR: {error_message}]"
+            db.commit()
+            db.refresh(social)
+        
         return social
 
 def get_social_list(
@@ -96,14 +120,19 @@ def get_social_list(
         query = query.filter(Social.estado == estado)
     if fecha:
         query = query.filter(Social.fecha_creacion >= fecha)
+    
     if rol == "admin":
         return query.order_by(Social.fecha_creacion.desc()).all()
     else:
-        # Para residentes: publicaciones para todos o donde es destinatario
+        # Para residentes: publicaciones para todos O donde es destinatario específico
+        residente = db.query(Residente).filter(Residente.usuario_id == user_id).first()
+        if not residente:
+            return []
+        
         return (
             query.filter(
                 (Social.para_todos == True) |
-                (Social.destinatarios.any(SocialDestinatario.residente_id == user_id))
+                (Social.destinatarios.any(SocialDestinatario.residente_id == residente.id))
             )
             .order_by(Social.fecha_creacion.desc())
             .all()
@@ -129,7 +158,7 @@ def can_user_access_social(db: Session, social: Social, user: Usuario) -> bool:
         if not residente:
             return False
         
-        # Verificar si es para todos o si es destinatario específico
+        # Verificar si es para todos
         if social.para_todos:
             return True
         
@@ -148,37 +177,64 @@ def update_social(db: Session, social_id: int, data: SocialCreate, imagenes: Opt
     social = db.query(Social).filter(Social.id == social_id).first()
     if not social:
         return None
-    social.titulo = data.titulo
-    social.contenido = data.contenido
-    social.tipo_publicacion = data.tipo_publicacion or "comunicado"
-    social.requiere_respuesta = data.requiere_respuesta if data.tipo_publicacion == "encuesta" else False
-    social.para_todos = data.para_todos
-    social.estado = data.estado
+    
+    error_message = None
+    
+    try:
+        # Validar que si no es para todos, debe tener destinatarios
+        if not data.para_todos and (not data.destinatarios or len(data.destinatarios) == 0):
+            error_message = "Si la publicación no es para todos, debe especificar al menos un destinatario"
+            raise ValueError(error_message)
+        
+        # Validar que los destinatarios existan si se especifican
+        if data.destinatarios:
+            for dest in data.destinatarios:
+                residente = db.query(Residente).filter(Residente.id == dest.residente_id).first()
+                if not residente:
+                    error_message = f"El residente con ID {dest.residente_id} no existe"
+                    raise ValueError(error_message)
+        
+        social.titulo = data.titulo
+        social.contenido = data.contenido
+        social.tipo_publicacion = data.tipo_publicacion or "comunicado"
+        social.requiere_respuesta = data.requiere_respuesta if data.tipo_publicacion == "encuesta" else False
+        social.para_todos = data.para_todos
+        social.estado = "publicado"  # Resetear a publicado si se actualiza correctamente
 
-    # Actualizar imágenes
-    db.query(SocialImagen).filter(SocialImagen.social_id == social_id).delete()
-    if imagenes:
-        for url in imagenes:
-            db.add(SocialImagen(social_id=social_id, imagen_url=url))
+        # Actualizar imágenes
+        db.query(SocialImagen).filter(SocialImagen.social_id == social_id).delete()
+        if imagenes:
+            for url in imagenes:
+                db.add(SocialImagen(social_id=social_id, imagen_url=url))
 
-    # Actualizar destinatarios
-    db.query(SocialDestinatario).filter(SocialDestinatario.social_id == social_id).delete()
-    if not data.para_todos and data.destinatarios:
-        for dest in data.destinatarios:
-            db.add(SocialDestinatario(social_id=social_id, residente_id=dest.residente_id))
+        # Actualizar destinatarios - solo si no es para todos
+        db.query(SocialDestinatario).filter(SocialDestinatario.social_id == social_id).delete()
+        if not data.para_todos and data.destinatarios:
+            for dest in data.destinatarios:
+                destinatario = SocialDestinatario(social_id=social_id, residente_id=dest.residente_id)
+                db.add(destinatario)
 
-    # Actualizar opciones de encuesta
-    if data.tipo_publicacion == "encuesta":
-        db.query(SocialOpcion).filter(SocialOpcion.social_id == social_id).delete()
-        if hasattr(data, "opciones") and data.opciones:
-            for opcion in data.opciones:
-                db.add(SocialOpcion(social_id=social_id, texto=opcion.texto))
-    else:
-        db.query(SocialOpcion).filter(SocialOpcion.social_id == social_id).delete()
+        # Actualizar opciones de encuesta
+        if data.tipo_publicacion == "encuesta":
+            db.query(SocialOpcion).filter(SocialOpcion.social_id == social_id).delete()
+            if hasattr(data, "opciones") and data.opciones:
+                for opcion in data.opciones:
+                    db.add(SocialOpcion(social_id=social_id, texto=opcion.texto))
+        else:
+            db.query(SocialOpcion).filter(SocialOpcion.social_id == social_id).delete()
 
-    db.commit()
-    db.refresh(social)
-    return social
+        db.commit()
+        db.refresh(social)
+        return social
+    except Exception as e:
+        db.rollback()
+        # Si ocurre un error, marcar como fallido y guardar el mensaje de error
+        social.estado = "fallido"
+        if error_message:
+            social.contenido = f"{data.contenido}\n\n[ERROR: {error_message}]"
+        db.commit()
+        db.refresh(social)
+        return social
 
 def delete_social(db: Session, social_id: int):
     social = db.query(Social).filter(Social.id == social_id).first()

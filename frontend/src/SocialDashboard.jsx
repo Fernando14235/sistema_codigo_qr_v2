@@ -37,6 +37,7 @@ function SocialDashboard({ token, rol }) {
   const [detalleVotoRealizado, setDetalleVotoRealizado] = useState(null);
   const [detalleResultados, setDetalleResultados] = useState(null);
   const [detalleMensaje, setDetalleMensaje] = useState("");
+  const [adminNombre, setAdminNombre] = useState("");
 
   const isAdmin = rol === "admin";
 
@@ -62,16 +63,16 @@ function SocialDashboard({ token, rol }) {
     setLoading(false);
   };
 
-  // Cargar residentes si el admin quiere seleccionar destinatarios
+  // Cargar residentes si el admin quiere seleccionar destinatarios o ver detalle
   useEffect(() => {
-    if (isAdmin && showForm && !formData.para_todos) {
-      axios.get(`${API_URL}/usuarios/residentes`, {
+    if (isAdmin && ((showForm && !formData.para_todos) || detalle)) {
+      axios.get(`${API_URL}/usuarios/residentes_full`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       .then(res => setResidentes(res.data))
       .catch(() => setResidentes([]));
     }
-  }, [isAdmin, showForm, formData.para_todos, token]);
+  }, [isAdmin, showForm, formData.para_todos, detalle, token]);
 
   useEffect(() => { cargarPublicaciones(); /* eslint-disable-next-line */ }, [tab, filtros]);
 
@@ -99,7 +100,7 @@ function SocialDashboard({ token, rol }) {
 
   // Opciones para react-select
   const residentesOptions = residentes.map(r => ({
-    value: r.id,
+    value: r.residente_id || r.id,
     label: `${r.nombre} (${r.unidad_residencial || 'Sin unidad'})`
   }));
 
@@ -117,14 +118,23 @@ function SocialDashboard({ token, rol }) {
 
   const handleCrear = async e => {
     e.preventDefault();
+    // Validar que si no es para todos, debe tener destinatarios
+    if (!formData.para_todos && (!formData.destinatarios || formData.destinatarios.length === 0)) {
+      setMensaje("Error: Si la publicación no es para todos, debe seleccionar al menos un destinatario");
+      return;
+    }
     setMensaje(editId ? "Actualizando publicación..." : "Creando publicación...");
     try {
-      const data = new FormData();
-      data.append("social_data", JSON.stringify({
+      // Forzar el formato correcto de destinatarios
+      const destinatariosFormateados = formData.para_todos ? [] : formData.destinatarios.map(d => ({ residente_id: d.residente_id }));
+      const socialData = {
         ...formData,
         imagenes: [],
-        destinatarios: formData.para_todos ? [] : formData.destinatarios
-      }));
+        destinatarios: destinatariosFormateados
+      };
+      console.log("SOCIAL_DATA ENVIADO:", JSON.stringify(socialData));
+      const data = new FormData();
+      data.append("social_data", JSON.stringify(socialData));
       fileList.forEach(f => data.append("imagenes", f));
       if (editId) {
         await axios.put(`${API_URL}/social/actualizar_social/admin/${editId}`, data, {
@@ -151,7 +161,11 @@ function SocialDashboard({ token, rol }) {
       setFileList([]);
       cargarPublicaciones();
     } catch (err) {
-      setMensaje("Error al guardar publicación");
+      if (err.response && err.response.data && err.response.data.detail) {
+        setMensaje("Error: " + err.response.data.detail);
+      } else {
+        setMensaje("Error al guardar publicación");
+      }
     }
   };
 
@@ -237,10 +251,18 @@ function SocialDashboard({ token, rol }) {
           </thead>
           <tbody>
             {publicaciones.map(pub => (
-              <tr key={pub.id}>
+              <tr key={pub.id} style={pub.estado === "fallido" ? {backgroundColor: "#ffebee"} : {}}>
                 <td>{pub.titulo}</td>
                 <td>{pub.tipo_publicacion}</td>
-                <td>{pub.estado}</td>
+                <td>
+                  <span style={{
+                    color: pub.estado === "fallido" ? "#d32f2f" : 
+                           pub.estado === "publicado" ? "#2e7d32" : "#f57c00",
+                    fontWeight: "bold"
+                  }}>
+                    {pub.estado}
+                  </span>
+                </td>
                 <td>{new Date(pub.fecha_creacion).toLocaleString()}</td>
                 <td className={styles["social-table-actions"]} style={{display:'flex',gap:4}}>
                   <span onClick={() => setDetalle(pub)}><IconVer /></span>
@@ -285,6 +307,19 @@ function SocialDashboard({ token, rol }) {
     // eslint-disable-next-line
   }, [detalle]);
 
+  // Obtener el nombre del admin cuando se abre el detalle
+  useEffect(() => {
+    if (detalle && detalle.admin_id) {
+      axios.get(`${API_URL}/usuarios/admin/${detalle.admin_id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      .then(res => setAdminNombre(res.data.nombre))
+      .catch(() => setAdminNombre(""));
+    } else {
+      setAdminNombre("");
+    }
+  }, [detalle, token]);
+
   // Votar en encuesta (solo residentes)
   const votarEnEncuesta = async (socialId, opcionId) => {
     setDetalleMensaje("Enviando voto...");
@@ -320,10 +355,64 @@ function SocialDashboard({ token, rol }) {
   const renderDetalle = () => (
     <div className={styles["social-detail-card"]}>
       <h3>{detalle.titulo}</h3>
+      <div className={styles["social-detail-row"]}><h3><b>Creado por:</b> {adminNombre || `ID: ${detalle.admin_id}`}</h3></div>
       <div className={styles["social-detail-row"]}><b>Tipo:</b> {detalle.tipo_publicacion}</div>
-      <div className={styles["social-detail-row"]}><b>Estado:</b> {detalle.estado}</div>
-      <div className={styles["social-detail-row"]}><b>Contenido:</b> {detalle.contenido}</div>
+      <div className={styles["social-detail-row"]}>
+        <b>Estado:</b> 
+        <span style={{
+          color: detalle.estado === "fallido" ? "#d32f2f" : 
+                 detalle.estado === "publicado" ? "#2e7d32" : "#f57c00",
+          fontWeight: "bold",
+          marginLeft: "8px"
+        }}>
+          {detalle.estado}
+        </span>
+      </div>
+      
+      <div className={styles["social-detail-row"]}>
+        <b>Contenido:</b> 
+        <div style={{marginTop: "4px"}}>
+          {detalle.contenido}
+          {detalle.estado === "fallido" && detalle.contenido.includes("[ERROR:") && (
+            <div style={{
+              backgroundColor: "#ffebee",
+              border: "1px solid #d32f2f",
+              borderRadius: "4px",
+              padding: "8px",
+              marginTop: "8px",
+              color: "#d32f2f",
+              fontWeight: "bold"
+            }}>
+              ⚠️ Error: {detalle.contenido.split("[ERROR:")[1]?.split("]")[0] || "Error desconocido"}
+            </div>
+          )}
+        </div>
+      </div>
       <div className={styles["social-detail-row"]}><b>Fecha:</b> {new Date(detalle.fecha_creacion).toLocaleString()}</div>
+      <div className={styles["social-detail-row"]}>
+        <b>Destinatarios:</b> 
+        {detalle.para_todos ? (
+          <span style={{color: "#2e7d32", marginLeft: "8px"}}>Todos los residentes</span>
+        ) : (
+          <div style={{marginTop: "4px"}}>
+            {detalle.destinatarios && detalle.destinatarios.length > 0 ? (
+              <ul style={{margin: "0", paddingLeft: "20px"}}>
+                {detalle.destinatarios.map(dest => {
+                  // Buscar el nombre del residente en el array de residentes
+                  const residente = residentes.find(r => r.residente_id === dest.residente_id || r.id === dest.residente_id);
+                  return (
+                    <li key={dest.id}>
+                      {residente ? residente.nombre : `ID: ${dest.residente_id}`}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <span style={{color: "#d32f2f"}}>No se especificaron destinatarios</span>
+            )}
+          </div>
+        )}
+      </div>
       <div className={styles["social-detail-row"]}>
         <b>Imágenes:</b>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -451,7 +540,9 @@ function SocialDashboard({ token, rol }) {
       {/* Select múltiple de destinatarios si no es para todos */}
       {isAdmin && !formData.para_todos && (
         <div style={{marginBottom:8}}>
-          <label>Destinatarios (selecciona uno o más residentes):</label>
+          <label style={{color: formData.destinatarios.length === 0 ? "#d32f2f" : "#000"}}>
+            Destinatarios (selecciona uno o más residentes) {formData.destinatarios.length === 0 && "*Obligatorio*"}:
+          </label>
           <Select
             isMulti
             options={residentesOptions}
@@ -461,9 +552,19 @@ function SocialDashboard({ token, rol }) {
             classNamePrefix="react-select"
             styles={{
               menu: base => ({ ...base, zIndex: 9999 }),
-              container: base => ({ ...base, width: '100%' })
+              container: base => ({ ...base, width: '100%' }),
+              control: (base, state) => ({
+                ...base,
+                borderColor: formData.destinatarios.length === 0 ? "#d32f2f" : base.borderColor,
+                boxShadow: formData.destinatarios.length === 0 ? "0 0 0 1px #d32f2f" : base.boxShadow
+              })
             }}
           />
+          {formData.destinatarios.length === 0 && (
+            <div style={{color: "#d32f2f", fontSize: "12px", marginTop: "4px"}}>
+              Debe seleccionar al menos un residente como destinatario
+            </div>
+          )}
         </div>
       )}
       <label>Imágenes</label>

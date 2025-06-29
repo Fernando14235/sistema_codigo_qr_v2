@@ -120,6 +120,7 @@ def obtener_usuario(db: Session, id: int = None, nombre: str = None, rol: str = 
                 if residente:
                     usuario_data["telefono"] = residente.telefono
                     usuario_data["unidad_residencial"] = residente.unidad_residencial
+                    usuario_data["residente_id"] = residente.id
             elif usuario.rol == "guardia":
                 guardia = db.query(Guardia).filter(Guardia.usuario_id == usuario.id).first()
                 if guardia:

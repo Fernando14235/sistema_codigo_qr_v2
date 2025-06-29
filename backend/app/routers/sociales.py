@@ -20,6 +20,7 @@ async def crear_publicacion(
 ):
     try:
         social_data_dict = json.loads(social_data)
+        print('SOCIAL_DATA_DICT:', social_data_dict)  # DEPURACIÓN
         social_data_obj = SocialCreate(**social_data_dict)
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Error en el formato de social_data: {e}")

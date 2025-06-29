@@ -4,9 +4,27 @@ from typing import List
 from app.services.user_service import obtener_usuario
 from app.database import get_db
 from app.utils.security import verify_role
-
+from app.models.residente import Residente
+from app.models.usuario import Usuario
+    
 router = APIRouter(prefix="/usuarios", tags=["Usuarios"])
 
 @router.get("/residentes", dependencies=[Depends(verify_role(["admin"]))])
 def listar_residentes(db: Session = Depends(get_db)):
-    return obtener_usuario(db, rol="residente") 
+    return obtener_usuario(db, rol="residente")
+
+@router.get("/residentes_full", dependencies=[Depends(verify_role(["admin"]))])
+def listar_residentes_full(db: Session = Depends(get_db)):
+    residentes = db.query(Residente).all()
+    resultado = []
+    for r in residentes:
+        usuario = db.query(Usuario).filter(Usuario.id == r.usuario_id).first()
+        resultado.append({
+            "residente_id": r.id,
+            "nombre": usuario.nombre if usuario else None,
+            "email": usuario.email if usuario else None,
+            "unidad_residencial": r.unidad_residencial,
+            "telefono": r.telefono,
+            "usuario_id": r.usuario_id
+        })
+    return resultado 
