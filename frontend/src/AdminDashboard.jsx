@@ -247,30 +247,18 @@ function AdminDashboard({ token, nombre, onLogout }) {
   const [filtroEscTipo, setFiltroEscTipo] = useState("");
   const [ordenEscaneos, setOrdenEscaneos] = useState({ campo: "fecha_escaneo", asc: false });
   const [vista, setVista] = useState("menu");
-  const [adminInfo, setAdminInfo] = useState(null);
+  const [usuario, setUsuario] = useState(null);
   const [usuarioEditar, setUsuarioEditar] = useState(null);
   const [notification, setNotification] = useState({ message: "", type: "" });
   const [vistaEscaneos, setVistaEscaneos] = useState("diario");
   const [filtroEscEstado, setFiltroEscEstado] = useState("");
-  const [usuarioActual, setUsuarioActual] = useState(null);
 
-  // Llama endpoint de info admin
+  // Obtener datos completos del usuario autenticado
   useEffect(() => {
-    axios.get(`${API_URL}/auth/admin`, {
+    axios.get(`${API_URL}/usuario/actual`, {
       headers: { Authorization: `Bearer ${token}` }
-    }).then(res => setAdminInfo(res.data)).catch(() => {});
-    // eslint-disable-next-line
-  }, []);
-
-  // Obtener datos del usuario actual (incluye última conexión)
-  useEffect(() => {
-    axios.get(`${API_URL}/usuarios/admin`, {
-      headers: { Authorization: `Bearer ${token}` },
-      params: { nombre }
-    }).then(res => {
-      if (res.data && res.data.length > 0) setUsuarioActual(res.data[0]);
-    });
-  }, [token, nombre]);
+    }).then(res => setUsuario(res.data)).catch(() => {});
+  }, [token]);
 
   // Cargar usuarios con filtros y orden
   const cargarUsuarios = async () => {
@@ -423,17 +411,17 @@ function AdminDashboard({ token, nombre, onLogout }) {
     <div className="admin-dashboard">
       <Notification {...notification} onClose={() => setNotification({ message: "", type: "" })} />
       <UserMenu
-        usuario={usuarioActual || { nombre, rol: adminInfo?.rol || "admin" }}
-        ultimaConexion={usuarioActual?.ult_conexion}
+        usuario={usuario || { nombre, rol: "admin" }}
+        ultimaConexion={usuario?.ult_conexion}
         onLogout={onLogout}
         onSelect={setVista}
         selected={vista}
       />
       <div style={{ marginTop: 60 }}>
-        {vista === 'perfil' && <PerfilUsuario usuario={usuarioActual} />}
+        {vista === 'perfil' && <PerfilUsuario usuario={usuario} />}
         {vista === 'config' && <ConfiguracionUsuario />}
         {vista === 'menu' && (
-          <MainMenu nombre={nombre} rol={adminInfo?.rol} onLogout={onLogout} onSelectVista={setVista} />
+          <MainMenu nombre={usuario?.nombre || nombre} rol={usuario?.rol} onLogout={onLogout} onSelectVista={setVista} />
         )}
         {vista === 'usuarios' && (
           <section className="admin-section">
@@ -740,7 +728,7 @@ function AdminDashboard({ token, nombre, onLogout }) {
         {vista === 'social' && (
           <section className="admin-section">
             <BtnRegresar onClick={() => setVista('menu')} />
-            <SocialDashboard token={token} rol={adminInfo?.rol || "admin"} />
+            <SocialDashboard token={token} rol={usuario?.rol || "admin"} />
           </section>
         )}
       </div>
