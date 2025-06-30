@@ -418,8 +418,8 @@ function AdminDashboard({ token, nombre, onLogout }) {
         selected={vista}
       />
       <div style={{ marginTop: 60 }}>
-        {vista === 'perfil' && <PerfilUsuario usuario={usuario} />}
-        {vista === 'config' && <ConfiguracionUsuario />}
+        {vista === 'perfil' && <PerfilUsuario usuario={usuario} onRegresar={() => setVista('menu')} />}
+        {vista === 'config' && <ConfiguracionUsuario onRegresar={() => setVista('menu')} />}
         {vista === 'menu' && (
           <MainMenu nombre={usuario?.nombre || nombre} rol={usuario?.rol} onLogout={onLogout} onSelectVista={setVista} />
         )}

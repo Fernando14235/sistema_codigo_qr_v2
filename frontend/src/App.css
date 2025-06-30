@@ -184,11 +184,46 @@ body, html { margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; 
 }
 .btn-secondary:hover { background: #bdbdbd; }
 
+/* --- PWA DOWNLOAD BUTTON --- */
+.pwa-download-button {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 1000;
+  background: linear-gradient(135deg, #1976d2, #1565c0);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.pwa-download-button:hover {
+  background: linear-gradient(135deg, #1565c0, #0d47a1);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 16px rgba(25, 118, 210, 0.4);
+}
+
+.pwa-download-button:active {
+  transform: translateY(0) scale(0.98);
+}
+
 /* --- RESPONSIVE --- */
 @media (max-width: 900px) {
   .admin-dashboard, .main-menu { max-width: 98vw; padding: 8px; }
   .estadisticas-cards { flex-direction: column; gap: 10px; }
 }
+
 @media (max-width: 700px) {
   .main-menu, .admin-dashboard, .admin-section, .crear-usuario-form, .guardia-main-menu, .guardia-section {
     max-width: 99vw; padding: 6vw 2vw;
@@ -196,6 +231,33 @@ body, html { margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; 
   .main-menu-cards, .estadisticas-cards { flex-direction: column; gap: 10px; }
   .admin-table, .estadisticas-table { font-size: 0.92em; }
   .admin-search input, .admin-search select { min-width: 70px; font-size: 0.9em; padding: 4px 6px; }
+  
+  /* Ajustes para el botón PWA en móviles */
+  .pwa-download-button {
+    top: 5px;
+    left: 5px;
+    padding: 8px 12px;
+    font-size: 12px;
+    border-radius: 10px;
+  }
+}
+
+@media (max-width: 500px) {
+  .main-menu, .admin-dashboard, .admin-section, .crear-usuario-form, .guardia-main-menu, .guardia-section {
+    padding: 2vw 1vw;
+  }
+  .main-menu-title { font-size: 1.2em; }
+  .admin-table th, .admin-table td, .estadisticas-table th, .estadisticas-table td { padding: 4px 4px; }
+  .btn-regresar, .btn-primary, .btn-secondary { font-size: 0.95em; padding: 6px 10px; }
+  
+  /* Ajustes adicionales para el botón PWA en pantallas muy pequeñas */
+  .pwa-download-button {
+    top: 3px;
+    left: 3px;
+    padding: 6px 10px;
+    font-size: 11px;
+    gap: 4px;
+  }
 }
 @media (max-width: 500px) {
   .main-menu, .admin-dashboard, .admin-section, .crear-usuario-form, .guardia-main-menu, .guardia-section {

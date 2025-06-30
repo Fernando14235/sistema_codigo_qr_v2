@@ -9,6 +9,7 @@ import 'webrtc-adapter';
 import AdminDashboard from './AdminDashboard';
 import GuardiaDashboard from './GuardiaDashboard';
 import ResidenteDashboard from './ResidenteDashboard';
+import PWADownloadButton from './PWADownloadButton';
 
 // Notificación tipo tarjeta
 function Notification({ message, type, onClose }) {
@@ -131,6 +132,7 @@ function App() {
   return (
     <Router>
       <div>
+        <PWADownloadButton />
         <Notification {...notification} onClose={() => setNotification({ message: "", type: "" })} />
         <Routes>
           {!token && [
