@@ -13,6 +13,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from fastapi.staticfiles import StaticFiles
 import os
+from app.models.usuario import Usuario as UsuarioModel
+from app.models.residente import Residente
+from app.models.guardia import Guardia
+from app.models.admin import Administrador
 
 app = FastAPI()
 add_cors(app)
@@ -61,6 +65,37 @@ def obtener_todos_usuarios(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error al obtener usuarios"
         )
+
+@app.get('/usuario/actual', tags=["Usuarios"])
+def obtener_usuario_actual(usuario_actual: UsuarioModel = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        data = {
+            "id": usuario_actual.id,
+            "nombre": usuario_actual.nombre,
+            "email": usuario_actual.email,
+            "rol": usuario_actual.rol,
+            "fecha_creacion": usuario_actual.fecha_creacion,
+            "fecha_actualizacion": usuario_actual.fecha_actualizacion,
+            "ult_conexion": usuario_actual.ult_conexion,
+            "telefono": None,
+            "unidad_residencial": None
+        }
+        if usuario_actual.rol == "residente":
+            residente = db.query(Residente).filter(Residente.usuario_id == usuario_actual.id).first()
+            if residente:
+                data["telefono"] = residente.telefono
+                data["unidad_residencial"] = residente.unidad_residencial
+        elif usuario_actual.rol == "guardia":
+            guardia = db.query(Guardia).filter(Guardia.usuario_id == usuario_actual.id).first()
+            if guardia:
+                data["telefono"] = guardia.telefono
+        elif usuario_actual.rol == "admin":
+            admin = db.query(Administrador).filter(Administrador.usuario_id == usuario_actual.id).first()
+            if admin:
+                data["telefono"] = admin.telefono
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener usuario actual: {str(e)}")
 
 # Obtener usuario por ID
 @app.get('/usuarios/admin/{id}', response_model=Usuario, tags=["Usuarios"])

@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Text, Boolean, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
-from datetime import datetime
 from app.database import Base
+from app.utils.time import get_current_time
 
 class Social(Base):
     __tablename__ = "social"
@@ -14,7 +14,7 @@ class Social(Base):
     requiere_respuesta = Column(Boolean, default=False)
     para_todos = Column(Boolean, default=False)
     estado = Column(String(20), nullable=False)
-    fecha_creacion = Column(DateTime, default=datetime.utcnow)
+    fecha_creacion = Column(DateTime(timezone=True), default=get_current_time)
 
     imagenes = relationship("SocialImagen", back_populates="social", cascade="all, delete-orphan")
     destinatarios = relationship("SocialDestinatario", back_populates="social", cascade="all, delete-orphan")
@@ -49,7 +49,7 @@ class SocialVoto(Base):
     social_id = Column(Integer, ForeignKey("social.id", ondelete="CASCADE"), nullable=False)
     residente_id = Column(Integer, ForeignKey("residentes.id", ondelete="CASCADE"), nullable=False)
     opcion_id = Column(Integer, ForeignKey("social_opciones.id", ondelete="CASCADE"), nullable=False)
-    fecha_voto = Column(DateTime, default=datetime.utcnow)
+    fecha_voto = Column(DateTime(timezone=True), default=get_current_time)
 
     social = relationship("Social", back_populates="votos")
     opcion = relationship("SocialOpcion", back_populates="votos")

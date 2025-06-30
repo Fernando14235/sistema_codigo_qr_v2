@@ -3,6 +3,17 @@ import QrScannerGuardia from "./QrScannerGuardia";
 import axios from "axios";
 import { API_URL } from "./api";
 import "./GuardiaDashboard.css";
+import UserMenu from "./UserMenu";
+import PerfilUsuario from "./PerfilUsuario";
+import ConfiguracionUsuario from "./ConfiguracionUsuario";
+
+function BtnRegresar({ onClick }) {
+  return (
+    <button className="btn-regresar" onClick={onClick}>
+      ← Regresar
+    </button>
+  );
+}
 
 // Menú principal para guardia
 function MainMenuGuardia({ nombre, rol, onLogout, onSelectVista }) {
@@ -16,18 +27,9 @@ function MainMenuGuardia({ nombre, rol, onLogout, onSelectVista }) {
       </div>
       <h1 className="guardia-main-menu-title">Panel Guardia</h1>
       <div className="guardia-main-menu-cards">
-        <button className="guardia-main-menu-card" onClick={() => onSelectVista("entrada")}>
-          <span>🚪</span>
-          <div>Registrar Entrada</div>
-        </button>
-        <button className="guardia-main-menu-card" onClick={() => onSelectVista("salida")}>
-          <span>🚗</span>
-          <div>Registrar Salida</div>
-        </button>
-        <button className="guardia-main-menu-card" onClick={() => onSelectVista("escaneos")}>
-          <span>🕒</span>
-          <div>Mis Escaneos del Día</div>
-        </button>
+        <button className="guardia-main-menu-card" onClick={() => onSelectVista("entrada")}>🚪<div>Registrar Entrada</div></button>
+        <button className="guardia-main-menu-card" onClick={() => onSelectVista("salida")}>🚗<div>Registrar Salida</div></button>
+        <button className="guardia-main-menu-card" onClick={() => onSelectVista("escaneos")}>🕒<div>Mis Escaneos del Día</div></button>
       </div>
     </div>
   );
@@ -77,22 +79,20 @@ function TablaEscaneosGuardia({ escaneos }) {
 }
 
 function GuardiaDashboard({ nombre, token, onLogout }) {
-  const [vista, setVista] = useState("menu"); // menu | entrada | salida | escaneos
+  const [vista, setVista] = useState("menu");
   const [escaneos, setEscaneos] = useState([]);
+  const [usuario, setUsuario] = useState(null);
   const [cargando, setCargando] = useState(false);
-  const [ResInfo, setResInfo] = useState(null);
   const [error, setError] = useState("");
   const [mostrarScanner, setMostrarScanner] = useState(false);
   const [modoScanner, setModoScanner] = useState(null);
 
   useEffect(() => {
-    axios.get(`${API_URL}/auth/guardia`, {
+    axios.get(`${API_URL}/usuario/actual`, {
       headers: { Authorization: `Bearer ${token}` }
-    }).then(res => setResInfo(res.data)).catch(() => {});
-    // eslint-disable-next-line
-  }, []);
+    }).then(res => setUsuario(res.data)).catch(() => {});
+  }, [token]);
 
-  // Cargar escaneos del día
   const cargarEscaneos = async () => {
     setCargando(true);
     setError("");
@@ -111,61 +111,60 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
     if (vista === "escaneos") {
       cargarEscaneos();
     }
-    // eslint-disable-next-line
   }, [vista]);
 
-  // Función para abrir el scanner
-  const handleAbrirScanner = (modo) => {
-    setModoScanner(modo);
-    setMostrarScanner(true);
-  };
-
-  // Función para cerrar el scanner y recargar escaneos si es necesario
-  const handleCerrarScanner = () => {
-    setMostrarScanner(false);
-    setModoScanner(null);
-    if (vista === "escaneos") cargarEscaneos();
-  };
+  const handleVolver = () => setVista("menu");
 
   // Renderizado de vistas
   return (
     <div className="guardia-dashboard">
-      {vista === "menu" && (
-        <MainMenuGuardia nombre={nombre} onLogout={onLogout} onSelectVista={setVista} />
-      )}
-      {vista === "entrada" && (
-        <div className="guardia-section">
-          <button className="btn-regresar" onClick={() => setVista("menu")}>← Regresar</button>
-          <h3>Registrar Entrada</h3>
-          <button className="btn-primary" onClick={() => handleAbrirScanner("entrada")}>
-            Activar Cámara para Escanear QR
-          </button>
-          {mostrarScanner && modoScanner === "entrada" && (
-            <QrScannerGuardia modo="entrada" token={token} onClose={handleCerrarScanner} />
-          )}
-        </div>
-      )}
-      {vista === "salida" && (
-        <div className="guardia-section">
-          <button className="btn-regresar" onClick={() => setVista("menu")}>← Regresar</button>
-          <h3>Registrar Salida</h3>
-          <button className="btn-primary" onClick={() => handleAbrirScanner("salida")}>
-            Activar Cámara para Escanear QR
-          </button>
-          {mostrarScanner && modoScanner === "salida" && (
-            <QrScannerGuardia modo="salida" token={token} onClose={handleCerrarScanner} />
-          )}
-        </div>
-      )}
-      {vista === "escaneos" && (
-        <div className="guardia-section">
-          <button className="btn-regresar" onClick={() => setVista("menu")}>← Regresar</button>
-          <h3>Mis Escaneos del Día</h3>
-          {cargando && <p>Cargando escaneos...</p>}
-          {error && <p style={{ color: "red" }}>{error}</p>}
-          {!cargando && <TablaEscaneosGuardia escaneos={escaneos} />}
-        </div>
-      )}
+      <UserMenu
+        usuario={usuario || { nombre, rol: "guardia" }}
+        ultimaConexion={usuario?.ult_conexion}
+        onLogout={onLogout}
+        onSelect={setVista}
+        selected={vista}
+      />
+      <div style={{ marginTop: 60 }}>
+        {vista === 'perfil' && <PerfilUsuario usuario={usuario} onRegresar={() => setVista('menu')} />}
+        {vista === 'config' && <ConfiguracionUsuario onRegresar={() => setVista('menu')} />}
+        {vista === 'menu' && (
+          <MainMenuGuardia nombre={usuario?.nombre || nombre} rol={usuario?.rol} onLogout={onLogout} onSelectVista={setVista} />
+        )}
+        {vista === 'entrada' && (
+          <div className="guardia-section">
+            <BtnRegresar onClick={() => setVista('menu')} />
+            <h3>Registrar Entrada</h3>
+            <button className="btn-primary" onClick={() => { setModoScanner("entrada"); setMostrarScanner(true); }}>
+              Activar Cámara para Escanear QR
+            </button>
+            {mostrarScanner && modoScanner === "entrada" && (
+              <QrScannerGuardia modo="entrada" token={token} onClose={() => { setMostrarScanner(false); setModoScanner(null); }} />
+            )}
+          </div>
+        )}
+        {vista === 'salida' && (
+          <div className="guardia-section">
+            <BtnRegresar onClick={() => setVista('menu')} />
+            <h3>Registrar Salida</h3>
+            <button className="btn-primary" onClick={() => { setModoScanner("salida"); setMostrarScanner(true); }}>
+              Activar Cámara para Escanear QR
+            </button>
+            {mostrarScanner && modoScanner === "salida" && (
+              <QrScannerGuardia modo="salida" token={token} onClose={() => { setMostrarScanner(false); setModoScanner(null); }} />
+            )}
+          </div>
+        )}
+        {vista === 'escaneos' && (
+          <div className="guardia-section">
+            <BtnRegresar onClick={() => setVista('menu')} />
+            <h3>Mis Escaneos del Día</h3>
+            {cargando && <p>Cargando escaneos...</p>}
+            {error && <p style={{ color: "red" }}>{error}</p>}
+            {!cargando && <TablaEscaneosGuardia escaneos={escaneos} />}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

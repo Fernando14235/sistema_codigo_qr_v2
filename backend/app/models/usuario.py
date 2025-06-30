@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, DateTime, Boolean, Index
 from sqlalchemy.orm import relationship
 from app.database import Base
 from datetime import datetime
+from app.utils.time import get_current_time
 import enum
 
 class Rol(str, enum.Enum):
@@ -17,8 +18,9 @@ class Usuario(Base):
     email = Column(String(150), unique=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
     rol = Column(String(20), nullable=False)
-    fecha_creacion = Column(DateTime, default=datetime.utcnow)
-    fecha_actualizacion = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    fecha_creacion = Column(DateTime(timezone=True), default=get_current_time)
+    fecha_actualizacion = Column(DateTime(timezone=True), default=get_current_time, onupdate=get_current_time)
+    ult_conexion = Column(DateTime(timezone=True), nullable=True)
     
     # relaciones con otras tablas
     guardia = relationship("Guardia", back_populates="usuario", cascade="all, delete-orphan", uselist=False)

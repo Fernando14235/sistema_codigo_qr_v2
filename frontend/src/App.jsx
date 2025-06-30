@@ -106,14 +106,26 @@ function App() {
     setNotification({ message: `Bienvenido ${nombre} (${rol})`, type: "success" });
   };
 
-  const handleLogout = () => {
-    setToken(null);
-    setNombre("");
-    setRol("");
-    localStorage.removeItem("token");
-    localStorage.removeItem("nombre");
-    localStorage.removeItem("rol");
-    setNotification({ message: "Sesión cerrada correctamente", type: "info" });
+  const handleLogout = async () => {
+    try {
+      await axios.post(`${API_URL}/auth/logout`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotification({ message: "Sesión cerrada correctamente.", type: "info" });
+    } catch (error) {
+      console.error("Error al cerrar sesión en el backend:", error);
+      setNotification({
+        message: "Cerrando sesión. No se pudo notificar al servidor.",
+        type: "warning",
+      });
+    } finally {
+      setToken(null);
+      setNombre("");
+      setRol("");
+      localStorage.removeItem("token");
+      localStorage.removeItem("nombre");
+      localStorage.removeItem("rol");
+    }
   };
 
   return (

@@ -1,4 +1,6 @@
 from user_agents import parse
+from datetime import datetime, timedelta
+import pytz
 
 def extraer_modelo_dispositivo(user_agent_str: str) -> str:
     try:
@@ -17,3 +19,13 @@ def extraer_modelo_dispositivo(user_agent_str: str) -> str:
         return os
     except Exception:
         return "desconocido"
+
+def get_honduras_time():
+    honduras_tz = pytz.timezone('America/Tegucigalpa')
+    return datetime.now(honduras_tz)
+
+def get_current_time():
+    return get_honduras_time()
+
+def get_expiration_time(minutes: int):
+    return get_current_time() + timedelta(minutes=minutes)

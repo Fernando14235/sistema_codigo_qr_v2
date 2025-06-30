@@ -4,6 +4,9 @@ import { API_URL } from "./api";
 import { Pie, Bar } from "react-chartjs-2";
 import { Chart, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from "chart.js";
 import SocialDashboard from "./SocialDashboard";
+import UserMenu from "./UserMenu";
+import PerfilUsuario from "./PerfilUsuario";
+import ConfiguracionUsuario from "./ConfiguracionUsuario";
 Chart.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 // Iconos
@@ -29,7 +32,6 @@ function Notification({ message, type, onClose }) {
   );
 }
 
-// Pantalla principal para seleccionar vista
 function MainMenu({ nombre, rol, onLogout, onSelectVista }) {
   return (
     <div className="main-menu">
@@ -62,7 +64,6 @@ function BtnRegresar({ onClick }) {
   );
 }
 
-// Crear Usuario Component
 function CrearUsuario({ token, onUsuarioCreado, usuarioEditar, setUsuarioEditar }) {
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
@@ -79,7 +80,7 @@ function CrearUsuario({ token, onUsuarioCreado, usuarioEditar, setUsuarioEditar 
       setRol(usuarioEditar.rol || "residente");
       setTelefono(usuarioEditar.telefono ? usuarioEditar.telefono.replace("+504", "") : "");
       setUnidadResidencial(usuarioEditar.unidad_residencial || "");
-      setPassword(""); // Por seguridad, pide nueva contraseña
+      setPassword("");
       setMensaje("Editando usuario");
     } else {
       setNombre(""); setEmail(""); setRol("residente"); setPassword(""); setTelefono(""); setUnidadResidencial(""); setMensaje("");
@@ -184,7 +185,50 @@ function CrearUsuario({ token, onUsuarioCreado, usuarioEditar, setUsuarioEditar 
   );
 }
 
-// Dashboard para admin
+// Tabla de escaneos con el mismo diseño que las otras tablas
+function TablaEscaneos({ escaneos, titulo }) {
+  if (!escaneos || escaneos.length === 0) {
+    return <p style={{ textAlign: 'center', color: '#888' }}>No hay escaneos registrados.</p>;
+  }
+  return (
+    <div style={{ width: '100%', marginBottom: 20 }}>
+      <h3 style={{ marginTop: 0, color: '#1976d2' }}>{titulo}</h3>
+      <div style={{ overflowX: 'auto' }}>
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Tipo</th>
+              <th>Visitante</th>
+              <th>Vehículo</th>
+              <th>Residente</th>
+              <th>Unidad</th>
+              <th>Estado</th>
+              <th>Dispositivo</th>
+              <th>Guardia</th>
+            </tr>
+          </thead>
+          <tbody>
+            {escaneos.map(e => (
+              <tr key={e.id_escaneo}>
+                <td>{new Date(e.fecha_escaneo).toLocaleString()}</td>
+                <td>{e.tipo_escaneo}</td>
+                <td>{e.nombre_visitante}</td>
+                <td>{e.tipo_vehiculo} - {e.placa_vehiculo}</td>
+                <td>{e.nombre_residente}</td>
+                <td>{e.unidad_residencial}</td>
+                <td>{e.estado_visita}</td>
+                <td>{e.dispositivo}</td>
+                <td>{e.nombre_guardia}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function AdminDashboard({ token, nombre, onLogout }) {
   const [usuarios, setUsuarios] = useState([]);
   const [busqueda, setBusqueda] = useState("");
@@ -208,6 +252,7 @@ function AdminDashboard({ token, nombre, onLogout }) {
   const [notification, setNotification] = useState({ message: "", type: "" });
   const [vistaEscaneos, setVistaEscaneos] = useState("diario");
   const [filtroEscEstado, setFiltroEscEstado] = useState("");
+  const [usuarioActual, setUsuarioActual] = useState(null);
 
   // Llama endpoint de info admin
   useEffect(() => {
@@ -216,6 +261,16 @@ function AdminDashboard({ token, nombre, onLogout }) {
     }).then(res => setAdminInfo(res.data)).catch(() => {});
     // eslint-disable-next-line
   }, []);
+
+  // Obtener datos del usuario actual (incluye última conexión)
+  useEffect(() => {
+    axios.get(`${API_URL}/usuarios/admin`, {
+      headers: { Authorization: `Bearer ${token}` },
+      params: { nombre }
+    }).then(res => {
+      if (res.data && res.data.length > 0) setUsuarioActual(res.data[0]);
+    });
+  }, [token, nombre]);
 
   // Cargar usuarios con filtros y orden
   const cargarUsuarios = async () => {
@@ -355,7 +410,6 @@ function AdminDashboard({ token, nombre, onLogout }) {
     // eslint-disable-next-line
   }, [filtroEscGuardia, filtroEscTipo, ordenEscaneos, vista]);
 
-  // ...otros useEffect...
   useEffect(() => {
     if (vista === "estadisticas") cargarEstadisticas();
     // eslint-disable-next-line
@@ -364,402 +418,332 @@ function AdminDashboard({ token, nombre, onLogout }) {
   // Botón regresar al menú principal
   const handleRegresar = () => setVista("menu");
 
-  // Componente reutilizable para la tabla de escaneos
-  function TablaEscaneos({ datos, ordenEscaneos, handleOrden, cargarFn }) {
-    return (
-      <>
-        <div className="admin-search">
-          <input type="text" placeholder="Guardia" value={filtroEscGuardia} onChange={e => setFiltroEscGuardia(e.target.value)} />
-          <select value={filtroEscTipo} onChange={e => setFiltroEscTipo(e.target.value)}>
-            <option value="">Todos los tipos</option>
-            <option value="entrada">Entrada</option>
-            <option value="salida">Salida</option>
-          </select>
-        </div>
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th onClick={() => handleOrden("fecha_escaneo", ordenEscaneos, setOrdenEscaneos, cargarFn)} style={{ cursor: "pointer" }}>
-                Fecha {ordenEscaneos.campo === "fecha_escaneo"}
-              </th>
-              <th onClick={() => handleOrden("nombre_guardia", ordenEscaneos, setOrdenEscaneos, cargarFn)} style={{ cursor: "pointer" }}>
-                Guardia {ordenEscaneos.campo === "nombre_guardia"}
-              </th>
-              <th>Visitante</th>
-              <th>Residente</th>
-              <th>Unidad</th>
-              <th onClick={() => handleOrden("tipo_escaneo", ordenEscaneos, setOrdenEscaneos, cargarFn)} style={{ cursor: "pointer" }}>
-                Tipo {ordenEscaneos.campo === "tipo_escaneo"}
-              </th>
-              <th>Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            {datos?.escaneos?.map((e, i) => (
-              <tr key={e.id_escaneo || i}>
-                <td>{e.fecha_escaneo ? new Date(e.fecha_escaneo).toLocaleString() : "-"}</td>
-                <td>{e.nombre_guardia}</td>
-                <td>{e.nombre_visitante}</td>
-                <td>{e.nombre_residente}</td>
-                <td>{e.unidad_residencial}</td>
-                <td>{e.tipo_escaneo}</td>
-                <td>{e.estado_visita}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div style={{ marginTop: 10 }}>
-          <b>Total escaneos:</b> {datos?.total_escaneos || 0}
-        </div>
-      </>
-    );
-  }
-
   // Renderizado de vistas
   return (
     <div className="admin-dashboard">
       <Notification {...notification} onClose={() => setNotification({ message: "", type: "" })} />
-      {vista === "menu" ? (
-        <MainMenu nombre={nombre} rol={adminInfo?.rol} onLogout={onLogout} onSelectVista={setVista} />
-      ) : (
-        <>
-          <div className="admin-header">
-            <div>
-              <span className="main-menu-user">👤 {nombre}</span>
-              <span className="main-menu-role">{adminInfo?.rol && `(${adminInfo.rol})`}</span>
+      <UserMenu
+        usuario={usuarioActual || { nombre, rol: adminInfo?.rol || "admin" }}
+        ultimaConexion={usuarioActual?.ult_conexion}
+        onLogout={onLogout}
+        onSelect={setVista}
+        selected={vista}
+      />
+      <div style={{ marginTop: 60 }}>
+        {vista === 'perfil' && <PerfilUsuario usuario={usuarioActual} />}
+        {vista === 'config' && <ConfiguracionUsuario />}
+        {vista === 'menu' && (
+          <MainMenu nombre={nombre} rol={adminInfo?.rol} onLogout={onLogout} onSelectVista={setVista} />
+        )}
+        {vista === 'usuarios' && (
+          <section className="admin-section">
+            <BtnRegresar onClick={() => setVista('menu')} />
+            <h3>Usuarios</h3>
+            <div className="admin-search">
+              <input
+                type="text"
+                placeholder="Buscar por nombre"
+                value={busqueda}
+                onChange={e => setBusqueda(e.target.value)}
+              />
+              <select value={filtroRol} onChange={e => setFiltroRol(e.target.value)}>
+                <option value="">Todos los roles</option>
+                <option value="residente">Residente</option>
+                <option value="guardia">Guardia</option>
+                <option value="admin">Admin</option>
+              </select>
             </div>
-            <button className="logout-btn" onClick={onLogout}>Cerrar sesión</button>
-          </div>
-          <BtnRegresar onClick={handleRegresar} />
-          <main className="admin-main">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th onClick={() => handleOrden("id", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
+                    ID {ordenUsuarios.campo === "id"}
+                  </th>
+                  <th onClick={() => handleOrden("nombre", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
+                    Nombre {ordenUsuarios.campo === "nombre"}
+                  </th>
+                  <th onClick={() => handleOrden("email", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
+                    Email {ordenUsuarios.campo === "email"}
+                  </th>
+                  <th onClick={() => handleOrden("rol", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
+                    Rol {ordenUsuarios.campo === "rol"}
+                  </th>
+                  <th>Teléfono</th>
+                  <th onClick={() => handleOrden("unidad_residencial", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
+                    Unidad Residencial {ordenUsuarios.campo === "unidad_residencial"}
+                  </th>
+                  <th onClick={() => handleOrden("fecha_creacion", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
+                    Fecha Creación {ordenUsuarios.campo === "fecha_creacion"}
+                  </th>
+                  <th onClick={() => handleOrden("fecha_actualizacion", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
+                    Fecha Actualización {ordenUsuarios.campo === "fecha_actualizacion"}
+                  </th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {usuarios.map(u => (
+                  <tr key={u.id}>
+                    <td>{u.id}</td>
+                    <td>{u.nombre}</td>
+                    <td>{u.email}</td>
+                    <td>{u.rol}</td>
+                    <td>{u.telefono || "N/A"}</td>
+                    <td>{u.unidad_residencial || "-"}</td>
+                    <td>{new Date(u.fecha_creacion).toLocaleDateString()}</td>
+                    <td>{u.fecha_actualizacion ? new Date(u.fecha_actualizacion).toLocaleDateString() : "-"}</td>
+                    <td>
+                      <span onClick={() => eliminarUsuario(u.id)}><DeleteIcon /></span>
+                      <span onClick={() => editarUsuario(u)}><EditIcon /></span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        )}
+        {vista === 'crear' && (
+          <section className="admin-section">
+            <BtnRegresar onClick={() => setVista('menu')} />
+            <CrearUsuario token={token} onUsuarioCreado={cargarUsuarios} usuarioEditar={usuarioEditar} setUsuarioEditar={setUsuarioEditar} />
+          </section>
+        )}
+        {vista === 'historial' && (
+          <section className="admin-section">
+            <BtnRegresar onClick={() => setVista('menu')} />
+            <h3>Historial de Visitas</h3>
+            <div className="admin-search">
+              <input
+                type="text"
+                placeholder="Residente"
+                value={filtroHistResidente}
+                onChange={e => setFiltroHistResidente(e.target.value)}
+              />
+              <input
+                type="text"
+                placeholder="Unidad Residencial"
+                value={filtroHistUnidad}
+                onChange={e => setFiltroHistUnidad(e.target.value)}
+              />
+              <input
+                type="text"
+                placeholder="Visitante"
+                value={filtroHistVisitante}
+                onChange={e => setFiltroHistVisitante(e.target.value)}
+              />
+              <select value={filtroHistEstado} onChange={e => setFiltroHistEstado(e.target.value)}>
+                <option value="">Todos los estados</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="rechazado">Rechazado</option>
+                <option value="aprobado">Aprobado</option>
+                <option value="completado">Completado</option>
+                <option value="expirado">Expirado</option>
+              </select>
+            </div>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th onClick={() => handleOrden("nombre_residente", ordenHistorial, setOrdenHistorial, cargarHistorial)} style={{ cursor: "pointer" }}>
+                    Residente {ordenHistorial.campo === "nombre_residente"}
+                  </th>
+                  <th onClick={() => handleOrden("unidad_residencial", ordenHistorial, setOrdenHistorial, cargarHistorial)} style={{ cursor: "pointer" }}>
+                    Unidad Residencial {ordenHistorial.campo === "unidad_residencial"}
+                  </th>
+                  <th onClick={() => handleOrden("nombre_visitante", ordenHistorial, setOrdenHistorial, cargarHistorial)} style={{ cursor: "pointer" }}>
+                    Visitante {ordenHistorial.campo === "nombre_visitante"}
+                  </th>
+                  <th>Motivo</th>
+                  <th onClick={() => handleOrden("fecha_entrada", ordenHistorial, setOrdenHistorial, cargarHistorial)} style={{ cursor: "pointer" }}>
+                    Fecha Entrada {ordenHistorial.campo === "fecha_entrada"}
+                  </th>
+                  <th>Fecha Salida</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historial.map((h, i) => (
+                  <tr key={i}>
+                    <td>{h.nombre_residente}</td>
+                    <td>{h.unidad_residencial}</td>
+                    <td>{h.nombre_visitante}</td>
+                    <td>{h.motivo_visita}</td>
+                    <td>{h.fecha_entrada ? new Date(h.fecha_entrada).toLocaleString() : "Pendiente"}</td>
+                    <td>{h.fecha_salida ? new Date(h.fecha_salida).toLocaleString() : "Pendiente"}</td>
+                    <td>{h.estado}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        )}
+        {vista === 'estadisticas' && estadisticas && (
+          <section className="admin-section">
+            <BtnRegresar onClick={() => setVista('menu')} />
+            <h3>📊 Estadísticas Generales</h3>
+            <div className="estadisticas-cards">
+              <div className="estadistica-card">
+                <b>Total Visitas:</b> {estadisticas.estadisticas_generales.total_visitas}
+              </div>
+              <div className="estadistica-card">
+                <b>Pendientes:</b> {estadisticas.estadisticas_generales.visitas_pendientes}
+              </div>
+              <div className="estadistica-card">
+                <b>Aprobadas:</b> {estadisticas.estadisticas_generales.visitas_aprobadas}
+              </div>
+              <div className="estadistica-card">
+                <b>Completadas:</b> {estadisticas.estadisticas_generales.visitas_completadas}
+              </div>
+              <div className="estadistica-card">
+                <b>Rechazadas:</b> {estadisticas.estadisticas_generales.visitas_rechazadas}
+              </div>
+              <div className="estadistica-card">
+                <b>Expiradas:</b> {estadisticas.estadisticas_generales.visitas_expiradas}
+              </div>
+              <div className="estadistica-card">
+                <b>Escaneos hoy:</b> {estadisticas.estadisticas_generales.total_escaneos_hoy}
+              </div>
+              <div className="estadistica-card">
+                <b>Entradas hoy:</b> {estadisticas.estadisticas_generales.escaneos_entrada_hoy}
+              </div>
+              <div className="estadistica-card">
+                <b>Salidas hoy:</b> {estadisticas.estadisticas_generales.escaneos_salida_hoy}
+              </div>
+            </div>
 
-            {vista === "usuarios" && (
-              <section className="admin-section">
-                <h3>Usuarios</h3>
-                <div className="admin-search">
-                  <input
-                    type="text"
-                    placeholder="Buscar por nombre"
-                    value={busqueda}
-                    onChange={e => setBusqueda(e.target.value)}
-                  
-                  />
-                  <select value={filtroRol} onChange={e => setFiltroRol(e.target.value)}>
-                    <option value="">Todos los roles</option>
-                    <option value="residente">Residente</option>
-                    <option value="guardia">Guardia</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th onClick={() => handleOrden("id", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
-                        ID {ordenUsuarios.campo === "id"}
-                      </th>
-                      <th onClick={() => handleOrden("nombre", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
-                        Nombre {ordenUsuarios.campo === "nombre"}
-                      </th>
-                      <th onClick={() => handleOrden("email", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
-                        Email {ordenUsuarios.campo === "email"}
-                      </th>
-                      <th onClick={() => handleOrden("rol", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
-                        Rol {ordenUsuarios.campo === "rol"}
-                      </th>
-                      <th>Teléfono</th>
-                      <th onClick={() => handleOrden("unidad_residencial", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
-                        Unidad Residencial {ordenUsuarios.campo === "unidad_residencial"}
-                      </th>
-                      <th onClick={() => handleOrden("fecha_creacion", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
-                        Fecha Creación {ordenUsuarios.campo === "fecha_creacion"}
-                      </th>
-                      <th onClick={() => handleOrden("fecha_actualizacion", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
-                        Fecha Actualización {ordenUsuarios.campo === "fecha_actualizacion"}
-                      </th>
-                      <th>Acciones</th>
+            {estadisticas.estados_visitas && estadisticas.estados_visitas.length > 0 && (
+              <div style={{ maxWidth: 400, margin: "30px auto" }}>
+                <h4>Estados de Visitas (Gráfico de Pastel)</h4>
+                <Pie
+                  data={{
+                    labels: estadisticas.estados_visitas.map(e => e.estado),
+                    datasets: [{
+                      data: estadisticas.estados_visitas.map(e => e.cantidad),
+                      backgroundColor: [
+                        "#1976d2", "#43a047", "#e53935", "#fbc02d", "#8e24aa", "#00bcd4"
+                      ],
+                    }]
+                  }}
+                  options={{
+                    plugins: {
+                      legend: { position: "bottom" }
+                    }
+                  }}
+                />
+              </div>
+            )}
+
+            {estadisticas.horarios_actividad && estadisticas.horarios_actividad.length > 0 && (
+              <div style={{ maxWidth: 600, margin: "30px auto" }}>
+                <h4>Horarios de Actividad (Gráfico de Barras)</h4>
+                <Bar
+                  data={{
+                    labels: estadisticas.horarios_actividad.map(h => `${h.hora}:00`),
+                    datasets: [
+                      {
+                        label: "Entradas",
+                        data: estadisticas.horarios_actividad.map(h => h.cantidad_entradas),
+                        backgroundColor: "#1976d2"
+                      },
+                      {
+                        label: "Salidas",
+                        data: estadisticas.horarios_actividad.map(h => h.cantidad_salidas),
+                        backgroundColor: "#43a047"
+                      }
+                    ]
+                  }}
+                  options={{
+                    responsive: true,
+                    plugins: {
+                      legend: { position: "top" }
+                    },
+                    scales: {
+                      x: { stacked: true },
+                      y: { beginAtZero: true, stacked: true }
+                    }
+                  }}
+                />
+              </div>
+            )}
+
+            <div className="estadisticas-section">
+              <h4>Actividad de los Guardias (hoy)</h4>
+              <table className="estadisticas-table">
+                <thead>
+                  <tr>
+                    <th>Guardia</th>
+                    <th>Total Escaneos</th>
+                    <th>Entradas</th>
+                    <th>Salidas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(estadisticas.guardias_actividad?.length > 0 ? estadisticas.guardias_actividad : [{nombre_guardia: "Sin datos", total_escaneos: 0, escaneos_entrada: 0, escaneos_salida: 0}]).map((g, i) => (
+                    <tr key={i}>
+                      <td>{g.nombre_guardia}</td>
+                      <td>{g.total_escaneos}</td>
+                      <td>{g.escaneos_entrada}</td>
+                      <td>{g.escaneos_salida}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {usuarios.map(u => (
-                      <tr key={u.id}>
-                        <td>{u.id}</td>
-                        <td>{u.nombre}</td>
-                        <td>{u.email}</td>
-                        <td>{u.rol}</td>
-                        <td>{u.telefono || "N/A"}</td>
-                        <td>{u.unidad_residencial || "-"}</td>
-                        <td>{new Date(u.fecha_creacion).toLocaleDateString()}</td>
-                        <td>{u.fecha_actualizacion ? new Date(u.fecha_actualizacion).toLocaleDateString() : "-"}</td>
-                        <td>
-                          <span onClick={() => eliminarUsuario(u.id)}><DeleteIcon /></span>
-                          <span onClick={() => editarUsuario(u)}><EditIcon /></span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </section>
-            )}
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-            {vista === "crear" && (
-              <section className="admin-section">
-                <CrearUsuario token={token} onUsuarioCreado={cargarUsuarios} usuarioEditar={usuarioEditar} setUsuarioEditar={setUsuarioEditar} />
-              </section>
-            )}
-
-            {vista === "historial" && (
-              <section className="admin-section">
-                <h3>Historial de Visitas</h3>
-                <div className="admin-search">
-                  <input
-                    type="text"
-                    placeholder="Residente"
-                    value={filtroHistResidente}
-                    onChange={e => setFiltroHistResidente(e.target.value)}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Unidad Residencial"
-                    value={filtroHistUnidad}
-                    onChange={e => setFiltroHistUnidad(e.target.value)}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Visitante"
-                    value={filtroHistVisitante}
-                    onChange={e => setFiltroHistVisitante(e.target.value)}
-                  />
-                  <select value={filtroHistEstado} onChange={e => setFiltroHistEstado(e.target.value)}>
-                    <option value="">Todos los estados</option>
-                    <option value="pendiente">Pendiente</option>
-                    <option value="rechazado">Rechazado</option>
-                    <option value="aprobado">Aprobado</option>
-                    <option value="completado">Completado</option>
-                    <option value="expirado">Expirado</option>
-                  </select>
-                </div>
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th onClick={() => handleOrden("nombre_residente", ordenHistorial, setOrdenHistorial, cargarHistorial)} style={{ cursor: "pointer" }}>
-                        Residente {ordenHistorial.campo === "nombre_residente"}
-                      </th>
-                      <th onClick={() => handleOrden("unidad_residencial", ordenHistorial, setOrdenHistorial, cargarHistorial)} style={{ cursor: "pointer" }}>
-                        Unidad Residencial {ordenHistorial.campo === "unidad_residencial"}
-                      </th>
-                      <th onClick={() => handleOrden("nombre_visitante", ordenHistorial, setOrdenHistorial, cargarHistorial)} style={{ cursor: "pointer" }}>
-                        Visitante {ordenHistorial.campo === "nombre_visitante"}
-                      </th>
-                      <th>Motivo</th>
-                      <th onClick={() => handleOrden("fecha_entrada", ordenHistorial, setOrdenHistorial, cargarHistorial)} style={{ cursor: "pointer" }}>
-                        Fecha Entrada {ordenHistorial.campo === "fecha_entrada"}
-                      </th>
-                      <th>Fecha Salida</th>
-                      <th>Estado</th>
+            <div className="estadisticas-section">
+              <h4>Residentes más activos</h4>
+              <table className="estadisticas-table">
+                <thead>
+                  <tr>
+                    <th>Residente</th>
+                    <th>Unidad</th>
+                    <th>Total Visitas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(estadisticas.residentes_activos?.length > 0 ? estadisticas.residentes_activos : [{nombre_residente: "Sin datos", unidad_residencial: "-", total_visitas: 0}]).map((r, i) => (
+                    <tr key={i}>
+                      <td>{r.nombre_residente}</td>
+                      <td>{r.unidad_residencial}</td>
+                      <td>{r.total_visitas}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {historial.map((h, i) => (
-                      <tr key={i}>
-                        <td>{h.nombre_residente}</td>
-                        <td>{h.unidad_residencial}</td>
-                        <td>{h.nombre_visitante}</td>
-                        <td>{h.motivo_visita}</td>
-                        <td>{h.fecha_entrada ? new Date(h.fecha_entrada).toLocaleString() : "Pendiente"}</td>
-                        <td>{h.fecha_salida ? new Date(h.fecha_salida).toLocaleString() : "Pendiente"}</td>
-                        <td>{h.estado}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </section>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ marginTop: 20 }}>
+              <b>Consulta realizada:</b> {estadisticas.fecha_consulta ? new Date(estadisticas.fecha_consulta).toLocaleString() : new Date().toLocaleString()}
+            </div>
+          </section>
+        )}
+        {vista === 'escaneos' && (
+          <section className="admin-section">
+            <BtnRegresar onClick={() => setVista('menu')} />
+            <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
+              <button
+                className={`main-menu-card${vistaEscaneos === "diario" ? " selected" : ""}`}
+                style={{ padding: "10px 18px", fontSize: "1em" }}
+                onClick={() => setVistaEscaneos("diario")}>Escaneos Diario</button>
+              <button
+                className={`main-menu-card${vistaEscaneos === "historicos" ? " selected" : ""}`}
+                style={{ padding: "10px 18px", fontSize: "1em" }}
+                onClick={() => setVistaEscaneos("historicos")}>Escaneos Históricos</button>
+            </div>
+            {vistaEscaneos === "diario" && escaneosDia && (
+              <TablaEscaneos escaneos={escaneosDia.escaneos || []} titulo="Escaneos Diarios" />
             )}
-            {vista === "estadisticas" && estadisticas && (
-              <section className="admin-section">
-                <h3>📊 Estadísticas Generales</h3>
-                <div className="estadisticas-cards">
-                  <div className="estadistica-card">
-                    <b>Total Visitas:</b> {estadisticas.estadisticas_generales.total_visitas}
-                  </div>
-                  <div className="estadistica-card">
-                    <b>Pendientes:</b> {estadisticas.estadisticas_generales.visitas_pendientes}
-                  </div>
-                  <div className="estadistica-card">
-                    <b>Aprobadas:</b> {estadisticas.estadisticas_generales.visitas_aprobadas}
-                  </div>
-                  <div className="estadistica-card">
-                    <b>Completadas:</b> {estadisticas.estadisticas_generales.visitas_completadas}
-                  </div>
-                  <div className="estadistica-card">
-                    <b>Rechazadas:</b> {estadisticas.estadisticas_generales.visitas_rechazadas}
-                  </div>
-                  <div className="estadistica-card">
-                    <b>Expiradas:</b> {estadisticas.estadisticas_generales.visitas_expiradas}
-                  </div>
-                  <div className="estadistica-card">
-                    <b>Escaneos hoy:</b> {estadisticas.estadisticas_generales.total_escaneos_hoy}
-                  </div>
-                  <div className="estadistica-card">
-                    <b>Entradas hoy:</b> {estadisticas.estadisticas_generales.escaneos_entrada_hoy}
-                  </div>
-                  <div className="estadistica-card">
-                    <b>Salidas hoy:</b> {estadisticas.estadisticas_generales.escaneos_salida_hoy}
-                  </div>
-                </div>
-
-                {estadisticas.estados_visitas && estadisticas.estados_visitas.length > 0 && (
-                  <div style={{ maxWidth: 400, margin: "30px auto" }}>
-                    <h4>Estados de Visitas (Gráfico de Pastel)</h4>
-                    <Pie
-                      data={{
-                        labels: estadisticas.estados_visitas.map(e => e.estado),
-                        datasets: [{
-                          data: estadisticas.estados_visitas.map(e => e.cantidad),
-                          backgroundColor: [
-                            "#1976d2", "#43a047", "#e53935", "#fbc02d", "#8e24aa", "#00bcd4"
-                          ],
-                        }]
-                      }}
-                      options={{
-                        plugins: {
-                          legend: { position: "bottom" }
-                        }
-                      }}
-                    />
-                  </div>
-                )}
-
-                {estadisticas.horarios_actividad && estadisticas.horarios_actividad.length > 0 && (
-                  <div style={{ maxWidth: 600, margin: "30px auto" }}>
-                    <h4>Horarios de Actividad (Gráfico de Barras)</h4>
-                    <Bar
-                      data={{
-                        labels: estadisticas.horarios_actividad.map(h => `${h.hora}:00`),
-                        datasets: [
-                          {
-                            label: "Entradas",
-                            data: estadisticas.horarios_actividad.map(h => h.cantidad_entradas),
-                            backgroundColor: "#1976d2"
-                          },
-                          {
-                            label: "Salidas",
-                            data: estadisticas.horarios_actividad.map(h => h.cantidad_salidas),
-                            backgroundColor: "#43a047"
-                          }
-                        ]
-                      }}
-                      options={{
-                        responsive: true,
-                        plugins: {
-                          legend: { position: "top" }
-                        },
-                        scales: {
-                          x: { stacked: true },
-                          y: { beginAtZero: true, stacked: true }
-                        }
-                      }}
-                    />
-                  </div>
-                )}
-
-                <div className="estadisticas-section">
-                  <h4>Actividad de los Guardias (hoy)</h4>
-                  <table className="estadisticas-table">
-                    <thead>
-                      <tr>
-                        <th>Guardia</th>
-                        <th>Total Escaneos</th>
-                        <th>Entradas</th>
-                        <th>Salidas</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(estadisticas.guardias_actividad?.length > 0 ? estadisticas.guardias_actividad : [{nombre_guardia: "Sin datos", total_escaneos: 0, escaneos_entrada: 0, escaneos_salida: 0}]).map((g, i) => (
-                        <tr key={i}>
-                          <td>{g.nombre_guardia}</td>
-                          <td>{g.total_escaneos}</td>
-                          <td>{g.escaneos_entrada}</td>
-                          <td>{g.escaneos_salida}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="estadisticas-section">
-                  <h4>Residentes más activos</h4>
-                  <table className="estadisticas-table">
-                    <thead>
-                      <tr>
-                        <th>Residente</th>
-                        <th>Unidad</th>
-                        <th>Total Visitas</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(estadisticas.residentes_activos?.length > 0 ? estadisticas.residentes_activos : [{nombre_residente: "Sin datos", unidad_residencial: "-", total_visitas: 0}]).map((r, i) => (
-                        <tr key={i}>
-                          <td>{r.nombre_residente}</td>
-                          <td>{r.unidad_residencial}</td>
-                          <td>{r.total_visitas}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div style={{ marginTop: 20 }}>
-                  <b>Consulta realizada:</b> {estadisticas.fecha_consulta ? new Date(estadisticas.fecha_consulta).toLocaleString() : new Date().toLocaleString()}
-                </div>
-              </section>
+            {vistaEscaneos === "historicos" && escaneosTotales && (
+              <TablaEscaneos escaneos={escaneosTotales.escaneos || []} titulo="Escaneos Históricos" />
             )}
-            
-            {vista === "escaneos" && (
-              <section className="admin-section">
-                <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
-                  <button
-                    className={`main-menu-card${vistaEscaneos === "diario" ? " selected" : ""}`}
-                    style={{ padding: "10px 18px", fontSize: "1em" }}
-                    onClick={() => setVistaEscaneos("diario")}>
-                    Escaneos Diario
-                  </button>
-                  <button
-                    className={`main-menu-card${vistaEscaneos === "historicos" ? " selected" : ""}`}
-                    style={{ padding: "10px 18px", fontSize: "1em" }}
-                    onClick={() => setVistaEscaneos("historicos")}>
-                    Escaneos Históricos
-                  </button>
-                </div>
-                {vistaEscaneos === "diario" && escaneosDia && (
-                  <>
-                    <h4>Escaneos Diarios</h4>
-                    <TablaEscaneos
-                      datos={escaneosDia}
-                      ordenEscaneos={ordenEscaneos}
-                      handleOrden={handleOrden}
-                      cargarFn={cargarEscaneosDia}/>
-                  </>
-                )}
-                {vistaEscaneos === "historicos" && escaneosTotales && (
-                  <>
-                    <h4>Escaneos Históricos</h4>
-                    <TablaEscaneos
-                      datos={escaneosTotales}
-                      ordenEscaneos={ordenEscaneos}
-                      handleOrden={handleOrden}
-                      cargarFn={cargarEscaneosTotales}/>
-                  </>
-                )}
-              </section>
-            )}
-            {vista === "social" && (
-              <section className="admin-section">
-                <SocialDashboard token={token} rol={adminInfo?.rol || "admin"} />
-              </section>
-            )}
-          </main>
-        </>
-      )}
+          </section>
+        )}
+        {vista === 'social' && (
+          <section className="admin-section">
+            <BtnRegresar onClick={() => setVista('menu')} />
+            <SocialDashboard token={token} rol={adminInfo?.rol || "admin"} />
+          </section>
+        )}
+      </div>
     </div>
   );
 }

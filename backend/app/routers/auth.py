@@ -1,4 +1,5 @@
-from datetime import timedelta
+from datetime import timedelta, datetime
+import pytz
 from app.core.config import settings
 from jose import JWTError, jwt
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -29,6 +30,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     if not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Contraseña incorrecta")
 
+    ult_conexion_anterior = user.ult_conexion
+
     token_data = {"sub": user.email, 
                   "rol": user.rol,
                   "usuario_id": user.id}
@@ -40,8 +43,28 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         "token_type": "bearer",
         "usuario": user.email,
         "rol": user.rol,
-        "refresh_token": refresh_token
+        "refresh_token": refresh_token,
+        "ult_conexion": ult_conexion_anterior
     }
+
+@router.post("/logout")
+def logout(db: Session = Depends(get_db), usuario_actual: Usuario = Depends(get_current_user)):
+    """
+    Registra la última hora de conexión del usuario al cerrar sesión.
+    """
+    if not usuario_actual:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No se pudo validar las credenciales",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Establecer la zona horaria de Honduras
+    honduras_tz = pytz.timezone('America/Tegucigalpa')
+    usuario_actual.ult_conexion = datetime.now(honduras_tz)
+    db.commit()
+    
+    return {"mensaje": "Cierre de sesión exitoso."}
 
 @router.post("/refresh", response_model=Token)
 def refresh_token(refresh_token: str):

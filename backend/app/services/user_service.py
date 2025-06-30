@@ -111,7 +111,8 @@ def obtener_usuario(db: Session, id: int = None, nombre: str = None, rol: str = 
                 "telefono": None,
                 "unidad_residencial": None,
                 "fecha_creacion": usuario.fecha_creacion,
-                "fecha_actualizacion": usuario.fecha_actualizacion
+                "fecha_actualizacion": usuario.fecha_actualizacion,
+                "ult_conexion": usuario.ult_conexion
             }
             
             # Obtener información específica según el rol
@@ -173,8 +174,6 @@ def actualizar_usuario(db: Session, user_id: int, usuario: UsuarioCreate) -> Usu
         if usuario.email and usuario.email != db_usuario.email:
             email_normalizado = validar_email_creacion_actualizacion(db, usuario.email, user_id)
             db_usuario.email = email_normalizado  # Usar email normalizado
-        
-        db_usuario.fecha_actualizacion = datetime.now(timezone.utc)
         
         # Validar y normalizar teléfono si corresponde
         telefono_normalizado = None

@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, ForeignKey, DateTime, Boolean, String, Text
 from sqlalchemy.orm import relationship
-from datetime import datetime
 from app.database import Base
+from app.utils.time import get_current_time
 
 class Visita(Base):
     __tablename__ = "visitas"
@@ -12,7 +12,7 @@ class Visita(Base):
     guardia_id = Column(Integer, ForeignKey("guardias.id", ondelete="SET NULL"), nullable=True)
     qr_code = Column(Text, nullable=False)
     qr_expiracion = Column(DateTime(timezone=True))
-    fecha_entrada = Column(DateTime(timezone=True))
+    fecha_entrada = Column(DateTime(timezone=True), default=get_current_time)
     fecha_salida = Column(DateTime(timezone=True), nullable=True)
     estado = Column(String, nullable=False, default="pendiente")
     notas = Column(Text)

@@ -1,38 +1,41 @@
 # Paquetes esenciales
-fastapi==0.95.2
-uvicorn==0.22.0
-python-dotenv==1.0.0
+fastapi==0.109.2
+uvicorn==0.27.1
+python-dotenv==1.0.1
 
 # Base de datos
-sqlalchemy==2.0.15
-psycopg2-binary==2.9.6  # Requerido para conexión PostgreSQL + SSL
-alembic==1.11.1
+sqlalchemy==2.0.28
+psycopg2-binary==2.9.9  # Requerido para conexión PostgreSQL + SSL
+alembic==1.13.1
 
 # Autenticación y seguridad
 python-jose[cryptography]==3.3.0
-bcrypt==4.0.1
+bcrypt==4.1.2
 passlib==1.7.4
 
 # Validación de datos
-pydantic==1.10.7  # Compatible con FastAPI < 0.100
-pydantic-settings==2.0.3
+pydantic==2.6.4
+pydantic-settings==2.2.1
 email-validator==2.2.0
 
 # Generación de códigos QR
 qrcode[pil]==7.4.2
-pillow==10.0.0
+pillow==10.2.0
 
 # Criptografía para QR seguro
-cryptography==41.0.1
+cryptography==42.0.5
 
 # Programación de tareas
-apscheduler==3.10.1
+apscheduler==3.10.4
 
 # Detección de dispositivos
 user-agents==2.2.0
 
 # Manejo de logs
-python-multipart==0.0.6
+python-multipart==0.0.9
 
 # CORS
-starlette==0.27.0
+starlette==0.36.3
+
+# Timezone handling
+pytz==2024.1

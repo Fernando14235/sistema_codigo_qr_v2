@@ -5,6 +5,9 @@ import "./GuardiaDashboard.css";
 import './App.css';
 import './ResidenteDashboard.css'; // Agrega este import para los nuevos estilos
 import SocialDashboard from "./SocialDashboard";
+import UserMenu from "./UserMenu";
+import PerfilUsuario from "./PerfilUsuario";
+import ConfiguracionUsuario from "./ConfiguracionUsuario";
 
 // Tarjeta de notificación reutilizable
 function Notification({ message, type, onClose }) {
@@ -239,19 +242,18 @@ function FormCrearVisita({ token, onSuccess, onCancel }) {
 function ResidenteDashboard({ token, nombre, onLogout }) {
   const [vista, setVista] = useState("menu");
   const [visitas, setVisitas] = useState([]);
-  const [ResInfo, setResInfo] = useState(null);
+  const [usuario, setUsuario] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
   const [notification, setNotification] = useState({ message: "", type: "" });
   const [notificaciones, setNotificaciones] = useState([]);
 
-  // Llama endpoint de info admin
+  // Obtener datos completos del usuario autenticado
   useEffect(() => {
-    axios.get(`${API_URL}/auth/residente`, {
+    axios.get(`${API_URL}/usuario/actual`, {
       headers: { Authorization: `Bearer ${token}` }
-    }).then(res => setResInfo(res.data)).catch(() => {});
-    // eslint-disable-next-line
-  }, []);
+    }).then(res => setUsuario(res.data)).catch(() => {});
+  }, [token]);
 
   // Cargar visitas del residente
   const cargarVisitas = async () => {
@@ -307,76 +309,74 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
   return (
     <div className="admin-dashboard">
       <Notification {...notification} onClose={() => setNotification({ message: "", type: "" })} />
-      {vista === "menu" ? (
-        <MainMenuResidente nombre={nombre} rol={ResInfo?.rol} onLogout={onLogout} onSelectVista={setVista} />
-      ) : (
-        <>
-          <div className="admin-header">
-            <div>
-              <span className="main-menu-user">👤 {nombre}</span>
-              <span className="main-menu-role">{ResInfo?.rol && `(${ResInfo.rol})`}</span>
-            </div>
-            <button className="logout-btn" onClick={onLogout}>Cerrar sesión</button>
-          </div>
-          <BtnRegresar onClick={handleVolver} />
-          <main className="admin-main">
-            
-            {vista === "visitas" && (
-              <section className="admin-section">
-                <h3>Mis Visitas</h3>
-                {cargando && <div>Cargando...</div>}
-                {error && <div className="qr-error">{error}</div>}
-                {!cargando && visitas.length === 0 && <div>No tienes visitas registradas.</div>}
-                {!cargando && visitas.length > 0 && (
-                  <TablaVisitasResidente visitas={visitas} />
-                )}
-              </section>
+      <UserMenu
+        usuario={usuario || { nombre, rol: "residente" }}
+        ultimaConexion={usuario?.ult_conexion}
+        onLogout={onLogout}
+        onSelect={setVista}
+        selected={vista}
+      />
+      <div style={{ marginTop: 60 }}>
+        {vista === 'perfil' && <PerfilUsuario usuario={usuario} onRegresar={() => setVista('menu')} />}
+        {vista === 'config' && <ConfiguracionUsuario onRegresar={() => setVista('menu')} />}
+        {vista === 'menu' && (
+          <MainMenuResidente nombre={usuario?.nombre || nombre} rol={usuario?.rol} onLogout={onLogout} onSelectVista={setVista} />
+        )}
+        {vista === 'visitas' && (
+          <section className="admin-section">
+            <BtnRegresar onClick={() => setVista('menu')} />
+            <h3>Mis Visitas</h3>
+            {cargando && <div>Cargando...</div>}
+            {error && <div className="qr-error">{error}</div>}
+            {!cargando && visitas.length === 0 && <div>No tienes visitas registradas.</div>}
+            {!cargando && visitas.length > 0 && (
+              <TablaVisitasResidente visitas={visitas} />
             )}
-
-            {vista === "crear" && (
-              <section className="admin-section">
-                <h3>Crear Nueva Visita</h3>
-                <FormCrearVisita
-                  token={token}
-                  onSuccess={() => {
-                    setNotification({ message: "Visita creada correctamente", type: "success" });
-                    setVista("visitas");
-                  }}
-                  onCancel={handleVolver}
-                />
-              </section>
+          </section>
+        )}
+        {vista === 'crear' && (
+          <section className="admin-section">
+            <BtnRegresar onClick={() => setVista('menu')} />
+            <h3>Crear Nueva Visita</h3>
+            <FormCrearVisita
+              token={token}
+              onSuccess={() => {
+                setNotification({ message: "Visita creada correctamente", type: "success" });
+                setVista("visitas");
+              }}
+              onCancel={handleVolver}
+            />
+          </section>
+        )}
+        {vista === 'notificaciones' && (
+          <section className="admin-section notificaciones-section">
+            <BtnRegresar onClick={() => setVista('menu')} />
+            <h3>Notificaciones</h3>
+            {cargando && <div>Cargando...</div>}
+            {error && <div className="qr-error">{error}</div>}
+            {!cargando && notificaciones.length === 0 && <div className="notificacion-vacia">No tienes notificaciones.</div>}
+            {!cargando && notificaciones.length > 0 && (
+              <ul className="notificaciones-lista">
+                {notificaciones.map((n, idx) => (
+                  <li key={idx} className="notificacion-card">
+                    <div className="notificacion-titulo">{n.titulo || "Notificación"}</div>
+                    <div className="notificacion-mensaje">{n.mensaje}</div>
+                    <div className="notificacion-fecha">
+                      {n.fecha_envio ? new Date(n.fecha_envio).toLocaleString() : ""}
+                    </div>
+                  </li>
+                ))}
+              </ul>
             )}
-
-            {vista === "notificaciones" && (
-              <section className="admin-section notificaciones-section">
-                <h3>Notificaciones</h3>
-                {cargando && <div>Cargando...</div>}
-                {error && <div className="qr-error">{error}</div>}
-                {!cargando && notificaciones.length === 0 && <div className="notificacion-vacia">No tienes notificaciones.</div>}
-                {!cargando && notificaciones.length > 0 && (
-                  <ul className="notificaciones-lista">
-                    {notificaciones.map((n, idx) => (
-                      <li key={idx} className="notificacion-card">
-                        <div className="notificacion-titulo">{n.titulo || "Notificación"}</div>
-                        <div className="notificacion-mensaje">{n.mensaje}</div>
-                        <div className="notificacion-fecha">
-                          {n.fecha_envio ? new Date(n.fecha_envio).toLocaleString() : ""}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            )}
-
-            {vista === "social" && (
-              <section className="admin-section">
-                <SocialDashboard token={token} rol={ResInfo?.rol || "residente"} />
-              </section>
-            )}
-          </main>
-        </>
-      )}
+          </section>
+        )}
+        {vista === 'social' && (
+          <section className="admin-section">
+            <BtnRegresar onClick={() => setVista('menu')} />
+            <SocialDashboard token={token} rol={usuario?.rol || "residente"} />
+          </section>
+        )}
+      </div>
     </div>
   );
 }
