@@ -11,6 +11,8 @@ from app.core.cors import add_cors
 from app.database import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from fastapi.staticfiles import StaticFiles
+import os
 
 app = FastAPI()
 add_cors(app)
@@ -125,3 +127,8 @@ def eliminar_usuario(id: int, usuario_actual=Depends(verify_role(["admin"])), db
             status_code=400,
             detail="Error al eliminar usuario"
         )
+
+# Ruta absoluta a la carpeta de uploads
+UPLOADS_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../uploads'))
+
+app.mount("/uploads", StaticFiles(directory=UPLOADS_PATH), name="uploads")
