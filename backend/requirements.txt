@@ -22,7 +22,7 @@ email-validator==2.2.0
 qrcode[pil]==7.4.2
 pillow==10.2.0
 
-# Criptografía para QR seguro
+# Criptografía
 cryptography==42.0.5
 
 # Programación de tareas
@@ -34,7 +34,7 @@ user-agents==2.2.0
 # Manejo de logs
 python-multipart==0.0.9
 
-# CORS
+# CORS y ASGI
 starlette==0.36.3
 
 # Timezone handling

@@ -1,7 +1,7 @@
 import React from "react";
-import './ConfiguracionUsuario.css';
-import PushNotificationSettings from './components/PushNotificationSettings';
-import NotificationTester from './components/NotificationTester';
+import './css/ConfiguracionUsuario.css';
+import PushNotificationSettings from './components/PWA/PushNotificationSettings';
+import NotificationTester from './components/PWA/NotificationTester';
 
 function ConfiguracionUsuario({ onRegresar, usuario }) {
   return (

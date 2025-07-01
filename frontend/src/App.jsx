@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import axios from "axios";
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, Navigate } from "react-router-dom";
-import './App.css';
+import './css/App.css';
 import { API_URL } from "./api";
 import 'webrtc-adapter';
 
@@ -9,8 +9,8 @@ import 'webrtc-adapter';
 import AdminDashboard from './AdminDashboard';
 import GuardiaDashboard from './GuardiaDashboard';
 import ResidenteDashboard from './ResidenteDashboard';
-import PWADownloadButton from './PWADownloadButton';
-import OfflineIndicator from './components/OfflineIndicator';
+import PWADownloadButton from './components/PWA/PWADownloadButton';
+import OfflineIndicator from './components/Offline/OfflineIndicator';
 
 // Notificación tipo tarjeta
 function Notification({ message, type, onClose }) {

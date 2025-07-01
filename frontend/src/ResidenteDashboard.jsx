@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { API_URL } from "./api";
-import "./GuardiaDashboard.css";
-import './App.css';
-import './ResidenteDashboard.css'; // Agrega este import para los nuevos estilos
+import "./css/GuardiaDashboard.css";
+import './css/App.css';
+import './css/ResidenteDashboard.css'; // Agrega este import para los nuevos estilos
 import SocialDashboard from "./SocialDashboard";
-import UserMenu from "./UserMenu";
+import UserMenu from "./components/UI/UserMenu";
 import PerfilUsuario from "./PerfilUsuario";
 import ConfiguracionUsuario from "./ConfiguracionUsuario";
 

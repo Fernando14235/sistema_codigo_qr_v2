@@ -1,5 +1,5 @@
 import React from "react";
-import './PerfilUsuario.css';
+import './css/PerfilUsuario.css';
 
 function PerfilUsuario({ usuario, onRegresar }) {
   if (!usuario) return null;

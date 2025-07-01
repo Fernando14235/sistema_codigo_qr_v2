@@ -2,13 +2,13 @@ import React, { useState, useEffect } from "react";
 import QrScannerGuardia from "./QrScannerGuardia";
 import axios from "axios";
 import { API_URL } from "./api";
-import "./GuardiaDashboard.css";
-import UserMenu from "./UserMenu";
+import "./css/GuardiaDashboard.css";
+import UserMenu from "./components/UI/UserMenu";
 import PerfilUsuario from "./PerfilUsuario";
 import ConfiguracionUsuario from "./ConfiguracionUsuario";
-import { useOfflineOperations } from "./hooks/useOfflineOperations";
-import OfflineMessage from "./components/OfflineMessage";
-import DataStatusIndicator from "./components/DataStatusIndicator";
+import { useOfflineOperations } from "./hooks/offline/useOfflineOperations";
+import OfflineMessage from "./components/Offline/OfflineMessage";
+import DataStatusIndicator from "./components/Offline/DataStatusIndicator";
 
 function BtnRegresar({ onClick }) {
   return (
