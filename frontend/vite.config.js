@@ -64,6 +64,10 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
+        // Configuración para notificaciones push
+        additionalManifestEntries: [
+          { url: '/sw.js', revision: '1' }
+        ],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -79,7 +83,75 @@ export default defineConfig({
               cacheName: 'google-fonts-webfonts',
             },
           },
+          // Cache para datos de la API
+          {
+            urlPattern: /.*\/admin\/estadisticas/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-estadisticas',
+              networkTimeoutSeconds: 3,
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 6 * 60 * 60, // 6 horas
+              },
+            },
+          },
+          {
+            urlPattern: /.*\/visitas\/admin\/historial/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-historial',
+              networkTimeoutSeconds: 3,
+              expiration: {
+                maxEntries: 20,
+                maxAgeSeconds: 24 * 60 * 60, // 24 horas
+              },
+            },
+          },
+          {
+            urlPattern: /.*\/visitas\/admin\/escaneos-dia/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-escaneos-dia',
+              networkTimeoutSeconds: 3,
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 24 * 60 * 60, // 24 horas
+              },
+            },
+          },
+          {
+            urlPattern: /.*\/social\/publicaciones/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-publicaciones',
+              networkTimeoutSeconds: 3,
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 12 * 60 * 60, // 12 horas
+              },
+            },
+          },
+          {
+            urlPattern: /.*\/comunicados/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-comunicados',
+              networkTimeoutSeconds: 3,
+              expiration: {
+                maxEntries: 30,
+                maxAgeSeconds: 12 * 60 * 60, // 12 horas
+              },
+            },
+          },
         ],
+        // Background sync para acciones offline
+        backgroundSync: {
+          name: 'residencial-sync',
+          options: {
+            maxRetentionTime: 24 * 60, // 24 horas
+          },
+        },
       }
     })
   ],

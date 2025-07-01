@@ -6,6 +6,9 @@ import "./GuardiaDashboard.css";
 import UserMenu from "./UserMenu";
 import PerfilUsuario from "./PerfilUsuario";
 import ConfiguracionUsuario from "./ConfiguracionUsuario";
+import { useOfflineOperations } from "./hooks/useOfflineOperations";
+import OfflineMessage from "./components/OfflineMessage";
+import DataStatusIndicator from "./components/DataStatusIndicator";
 
 function BtnRegresar({ onClick }) {
   return (
@@ -86,6 +89,10 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
   const [error, setError] = useState("");
   const [mostrarScanner, setMostrarScanner] = useState(false);
   const [modoScanner, setModoScanner] = useState(null);
+  const [dataSource, setDataSource] = useState(null);
+  
+  // Hook para operaciones offline
+  const { isOnline, registerEntry, registerExit, loadEscaneosGuardia } = useOfflineOperations(token, 'guardia');
 
   useEffect(() => {
     axios.get(`${API_URL}/usuario/actual`, {
@@ -97,10 +104,9 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
     setCargando(true);
     setError("");
     try {
-      const res = await axios.get(`${API_URL}/visitas/guardia/escaneos-dia`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setEscaneos(res.data.escaneos || []);
+      const result = await loadEscaneosGuardia();
+      setEscaneos(result.data.escaneos || []);
+      setDataSource(result.source);
     } catch (err) {
       setError("No se pudieron cargar los escaneos del día.");
     }
@@ -127,7 +133,7 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
       />
       <div style={{ marginTop: 60 }}>
         {vista === 'perfil' && <PerfilUsuario usuario={usuario} onRegresar={() => setVista('menu')} />}
-        {vista === 'config' && <ConfiguracionUsuario onRegresar={() => setVista('menu')} />}
+        {vista === 'config' && <ConfiguracionUsuario onRegresar={() => setVista('menu')} usuario={{ id: 2, rol: 'guardia' }} />}
         {vista === 'menu' && (
           <MainMenuGuardia nombre={usuario?.nombre || nombre} rol={usuario?.rol} onLogout={onLogout} onSelectVista={setVista} />
         )}
@@ -159,6 +165,8 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
           <div className="guardia-section">
             <BtnRegresar onClick={() => setVista('menu')} />
             <h3>Mis Escaneos del Día</h3>
+            {!isOnline && <OfflineMessage rol="guardia" />}
+            <DataStatusIndicator source={dataSource} isOnline={isOnline} />
             {cargando && <p>Cargando escaneos...</p>}
             {error && <p style={{ color: "red" }}>{error}</p>}
             {!cargando && <TablaEscaneosGuardia escaneos={escaneos} />}

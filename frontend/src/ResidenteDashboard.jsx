@@ -318,7 +318,7 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
       />
       <div style={{ marginTop: 60 }}>
         {vista === 'perfil' && <PerfilUsuario usuario={usuario} onRegresar={() => setVista('menu')} />}
-        {vista === 'config' && <ConfiguracionUsuario onRegresar={() => setVista('menu')} />}
+        {vista === 'config' && <ConfiguracionUsuario onRegresar={() => setVista('menu')} usuario={{ id: 3, rol: 'residente' }} />}
         {vista === 'menu' && (
           <MainMenuResidente nombre={usuario?.nombre || nombre} rol={usuario?.rol} onLogout={onLogout} onSelectVista={setVista} />
         )}

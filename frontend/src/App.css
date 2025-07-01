@@ -202,11 +202,15 @@ body, html { margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; 
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: all 0.3s ease;
+  transition: all 0.3s ease, opacity 0.3s ease, transform 0.3s ease;
   font-family: inherit;
   -webkit-user-select: none;
   user-select: none;
+  opacity: 1;
+  transform: translateY(0);
 }
+
+
 
 .pwa-download-button:hover {
   background: linear-gradient(135deg, #1565c0, #0d47a1);
@@ -216,6 +220,12 @@ body, html { margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; 
 
 .pwa-download-button:active {
   transform: translateY(0) scale(0.98);
+}
+
+.pwa-download-button.hidden {
+  opacity: 0;
+  transform: translateY(-20px);
+  pointer-events: none;
 }
 
 /* --- RESPONSIVE --- */

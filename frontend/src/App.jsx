@@ -10,6 +10,7 @@ import AdminDashboard from './AdminDashboard';
 import GuardiaDashboard from './GuardiaDashboard';
 import ResidenteDashboard from './ResidenteDashboard';
 import PWADownloadButton from './PWADownloadButton';
+import OfflineIndicator from './components/OfflineIndicator';
 
 // Notificación tipo tarjeta
 function Notification({ message, type, onClose }) {
@@ -133,6 +134,7 @@ function App() {
     <Router>
       <div>
         <PWADownloadButton />
+        <OfflineIndicator />
         <Notification {...notification} onClose={() => setNotification({ message: "", type: "" })} />
         <Routes>
           {!token && [

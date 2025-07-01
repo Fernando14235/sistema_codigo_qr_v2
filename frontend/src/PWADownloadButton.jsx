@@ -4,12 +4,15 @@ const PWADownloadButton = () => {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showButton, setShowButton] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const [isMainDashboard, setIsMainDashboard] = useState(false);
 
   useEffect(() => {
     // Verificar si la app ya está instalada
     const checkIfInstalled = () => {
       // Verificar modo standalone (PWA instalada)
       if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) {
+        console.log('PWA detectada en modo standalone');
         setIsInstalled(true);
         setShowButton(false);
         return true;
@@ -17,6 +20,7 @@ const PWADownloadButton = () => {
       
       // Verificar en iOS
       if (window.navigator.standalone === true) {
+        console.log('PWA detectada en iOS standalone');
         setIsInstalled(true);
         setShowButton(false);
         return true;
@@ -24,6 +28,7 @@ const PWADownloadButton = () => {
       
       // Verificar si está en modo fullscreen (algunos navegadores)
       if (document.fullscreenElement || document.webkitFullscreenElement) {
+        console.log('PWA detectada en modo fullscreen');
         setIsInstalled(true);
         setShowButton(false);
         return true;
@@ -34,6 +39,7 @@ const PWADownloadButton = () => {
 
     // Escuchar el evento beforeinstallprompt
     const handleBeforeInstallPrompt = (e) => {
+      console.log('beforeinstallprompt detectado');
       e.preventDefault();
       setDeferredPrompt(e);
       setShowButton(true);
@@ -41,27 +47,108 @@ const PWADownloadButton = () => {
 
     // Escuchar el evento appinstalled
     const handleAppInstalled = () => {
+      console.log('App instalada');
       setIsInstalled(true);
       setShowButton(false);
       setDeferredPrompt(null);
     };
 
-    // Verificar si ya está instalada al cargar
-    if (!checkIfInstalled()) {
-      // Mostrar el botón si no está instalada y es compatible
-      const isCompatible = 'serviceWorker' in navigator && 'PushManager' in window;
-      if (isCompatible) {
+    // Verificar compatibilidad y mostrar botón
+    const checkCompatibilityAndShow = () => {
+      const isCompatible = 'serviceWorker' in navigator;
+      console.log('Service Worker soportado:', isCompatible);
+      
+      if (isCompatible && !checkIfInstalled()) {
+        // Mostrar el botón si es compatible y no está instalada
+        console.log('Mostrando botón de instalación');
         setShowButton(true);
       }
-    }
+    };
+
+    // Verificar inmediatamente
+    checkCompatibilityAndShow();
+
+    // Verificar después de un pequeño delay para asegurar que todo esté cargado
+    const timer = setTimeout(checkCompatibilityAndShow, 1000);
+    
+    // Verificar después de 3 segundos como respaldo
+    const backupTimer = setTimeout(() => {
+      const isCompatible = 'serviceWorker' in navigator;
+      const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isChrome = /Chrome/.test(navigator.userAgent);
+      const isEdge = /Edg/.test(navigator.userAgent);
+      
+      if (isCompatible && !isInstalled && (isMobile || isChrome || isEdge)) {
+        console.log('Mostrando botón de instalación (respaldo)');
+        setShowButton(true);
+      }
+    }, 3000);
 
     // Agregar event listeners
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
 
+    // Detectar si estamos en el dashboard principal
+    const checkMainDashboard = () => {
+      const mainMenu = document.querySelector('.main-menu');
+      const guardiaMainMenu = document.querySelector('.guardia-main-menu');
+      const residenteMainMenu = document.querySelector('.residente-main-menu');
+      
+      // Verificar si estamos en el dashboard principal (vista 'menu')
+      const isMain = mainMenu || guardiaMainMenu || residenteMainMenu;
+      
+      // Verificar que no estamos en otras vistas específicas
+      const isInOtherView = document.querySelector('.crear-usuario-form') || 
+                           document.querySelector('.perfil-usuario') ||
+                           document.querySelector('.config-usuario-main') ||
+                           document.querySelector('.admin-section') ||
+                           document.querySelector('.guardia-section') ||
+                           document.querySelector('.residente-section');
+      
+      // Solo mostrar en dashboard principal, no en otras vistas
+      const shouldShow = isMain && !isInOtherView;
+      setIsMainDashboard(shouldShow);
+    };
+
+    // Detectar scroll para ocultar botón
+    const handleScroll = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      setIsVisible(scrollTop < 100); // Ocultar después de 100px de scroll
+    };
+
+    // Verificar dashboard inicialmente
+    checkMainDashboard();
+
+    // Verificar dashboard después de delays para asegurar que el DOM esté actualizado
+    const dashboardTimer1 = setTimeout(checkMainDashboard, 100);
+    const dashboardTimer2 = setTimeout(checkMainDashboard, 500);
+    const dashboardTimer3 = setTimeout(checkMainDashboard, 1000);
+
+    // Observar cambios en el DOM para detectar cambios de vista
+    const observer = new MutationObserver(() => {
+      checkMainDashboard();
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+
+    // Agregar event listeners
+    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('resize', checkMainDashboard);
+
     return () => {
+      clearTimeout(timer);
+      clearTimeout(backupTimer);
+      clearTimeout(dashboardTimer1);
+      clearTimeout(dashboardTimer2);
+      clearTimeout(dashboardTimer3);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', checkMainDashboard);
+      observer.disconnect();
     };
   }, []);
 
@@ -120,18 +207,65 @@ const PWADownloadButton = () => {
     alert(message);
   };
 
-  if (!showButton || isInstalled) {
+  // Mostrar el botón si no está instalada, independientemente del prompt
+  if (isInstalled) {
+    console.log('No mostrando botón: app ya instalada');
+    return null;
+  }
+
+  // Lógica simplificada: mostrar el botón si es compatible y no está instalada
+  const isCompatible = 'serviceWorker' in navigator;
+  const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isChrome = /Chrome/.test(navigator.userAgent);
+  const isEdge = /Edg/.test(navigator.userAgent);
+  const isFirefox = /Firefox/.test(navigator.userAgent);
+  
+  // Mostrar el botón si:
+  // 1. Está habilitado explícitamente, O
+  // 2. Es compatible y no está instalada, O
+  // 3. Es un navegador compatible (Chrome, Edge, Firefox, móvil)
+  const shouldShow = showButton || 
+                    (isCompatible && !isInstalled) || 
+                    (isChrome || isEdge || isFirefox || isMobile);
+  
+  console.log('Estado del botón:', {
+    showButton,
+    isCompatible,
+    isInstalled,
+    isMobile,
+    isChrome,
+    isEdge,
+    isFirefox,
+    shouldShow
+  });
+  
+  // Solo mostrar si:
+  // 1. No está instalada
+  // 2. Está en el dashboard principal
+  // 3. No se ha hecho scroll
+  if (isInstalled) {
+    console.log('No mostrando botón: app ya instalada');
+    return null;
+  }
+
+  if (!isMainDashboard) {
+    console.log('No mostrando botón: no está en dashboard principal');
+    return null;
+  }
+
+  if (!isVisible) {
+    console.log('No mostrando botón: se ha hecho scroll');
     return null;
   }
 
   return (
     <div 
-      className="pwa-download-button"
+      className={`pwa-download-button ${!isVisible ? 'hidden' : ''}`}
       onClick={handleInstallClick}
       title="Instalar aplicación en tu dispositivo"
     >
       <span style={{ fontSize: '16px' }}>📱</span>
-      <span>Instalar App</span>
+      <span>{isMobile ? 'Instalar' : 'Instalar App'}</span>
     </div>
   );
 };
