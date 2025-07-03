@@ -4,7 +4,7 @@ import { API_URL } from "./api";
 import { Pie, Bar } from "react-chartjs-2";
 import { Chart, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from "chart.js";
 import SocialDashboard from "./SocialDashboard";
-import UserMenu from "./UserMenu";
+import UserMenu from "./components/UI/UserMenu";
 import PerfilUsuario from "./PerfilUsuario";
 import ConfiguracionUsuario from "./ConfiguracionUsuario";
 Chart.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);

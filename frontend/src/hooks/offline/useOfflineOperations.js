@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
 import { useOffline } from './useOffline';
-import offlineStorage from '../services/offlineStorage';
+import offlineStorage from '../../services/offline/offlineStorage'; 
 import axios from 'axios';
-import { API_URL } from '../api';
+import { API_URL } from '../../api';
 
 export const useOfflineOperations = (token, rol) => {
   const { isOnline, addPendingAction } = useOffline();

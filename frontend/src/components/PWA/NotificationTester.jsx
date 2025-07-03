@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { usePushNotifications } from '../hooks/usePushNotifications';
+import { usePushNotifications } from '../../hooks/pwa/usePushNotifications';
 
 const NotificationTester = ({ userId, userRole }) => {
   const { showNotification, shouldReceiveNotification, getAllowedNotificationTypes } = usePushNotifications(userId, userRole);

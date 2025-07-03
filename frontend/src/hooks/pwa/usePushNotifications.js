@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import pushNotificationService from '../services/pushNotifications';
+import pushNotificationService from '../../services/pwa/pushNotifications';
 
 export const usePushNotifications = (userId, userRole) => {
   const [isSupported, setIsSupported] = useState(false);

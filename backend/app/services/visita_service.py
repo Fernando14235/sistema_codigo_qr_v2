@@ -13,6 +13,7 @@ from app.utils.qr import validar_payload_qr, generar_payload_qr, generar_qr_comp
 from app.utils.validators import validar_dni_visita_unico
 from datetime import datetime, timedelta, timezone
 import traceback
+from app.utils.time import get_honduras_time
 
 def to_utc(dt: datetime) -> datetime:
     if dt is None:
@@ -43,13 +44,13 @@ def crear_visita_con_qr(db: Session, visita_data: VisitaCreate, usuario_id: int,
                         detail="Todos los acompañantes deben ser nombres válidos."
                     )
                     
-        # 2. Asegurar que esté en zona horaria UTC
-        fecha_entrada = visita_data.fecha_entrada or datetime.now(timezone.utc)
+        # 2. Asegurar que esté en zona horaria de Honduras
+        fecha_entrada = visita_data.fecha_entrada or get_honduras_time()
         if fecha_entrada.tzinfo is None:
-            fecha_entrada = fecha_entrada.replace(tzinfo=timezone.utc)
+            fecha_entrada = get_honduras_time().tzinfo.localize(fecha_entrada)
         else:
-            fecha_entrada = fecha_entrada.astimezone(timezone.utc)
-        if fecha_entrada < datetime.now(timezone.utc):
+            fecha_entrada = fecha_entrada.astimezone(get_honduras_time().tzinfo)
+        if fecha_entrada < get_honduras_time():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No se puede crear una visita con fecha/hora pasada"
@@ -220,20 +221,18 @@ def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str =
         if not visita:
             return {"valido": False, "error": "No hay visitantes pendientes para este QR."}
 
-        now_utc = datetime.now(timezone.utc)
+        now_hn = get_honduras_time()
 
-        # Validar expiración - asegurar que ambas fechas estén en UTC
+        # Validar expiración en zona Honduras
         if visita.qr_expiracion:
-            qr_expiracion_utc = to_utc(visita.qr_expiracion)
-            if now_utc > qr_expiracion_utc:
+            if now_hn > visita.qr_expiracion:
                 visita.estado = "expirado"
                 db.commit()
                 return {"valido": False, "error": "El QR ha expirado"}
 
-        # Validar hora de entrada - asegurar que ambas fechas estén en UTC
+        # Validar hora de entrada en zona Honduras
         if visita.fecha_entrada:
-            fecha_entrada_utc = to_utc(visita.fecha_entrada)
-            if now_utc < fecha_entrada_utc:
+            if now_hn < visita.fecha_entrada:
                 return {
                     "valido": False,
                     "error": "Aún no es la hora de entrada programada para esta visita"

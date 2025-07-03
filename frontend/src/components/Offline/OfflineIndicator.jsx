@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useOffline } from '../hooks/useOffline';
-import offlineStorage from '../services/offlineStorage';
+import { useOffline } from '../../hooks/offline/useOffline';
 
 const OfflineIndicator = () => {
   const { isOnline, pendingActions } = useOffline();

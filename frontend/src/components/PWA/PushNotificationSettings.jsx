@@ -1,5 +1,5 @@
 import React from 'react';
-import { usePushNotifications } from '../hooks/usePushNotifications';
+import { usePushNotifications } from '../../hooks/pwa/usePushNotifications';
 
 const PushNotificationSettings = ({ userId, userRole }) => {
   const {

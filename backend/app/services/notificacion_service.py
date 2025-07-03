@@ -6,8 +6,7 @@ from app.models.guardia import Guardia
 from app.models.usuario import Usuario
 from app.schemas.usuario_schema import UsuarioCreate
 from app.utils.notificaciones import enviar_correo
-from app.utils.qr import generar_imagen_qr_base64
-from datetime import datetime
+from app.utils.time import get_honduras_time
 import traceback
 
 def enviar_notificacion_usuario_creado(usuario: Usuario, datos_creacion: UsuarioCreate):
@@ -158,9 +157,9 @@ def enviar_notificacion_residente(db: Session, visita, qr_img_b64: str, acompana
                     <h3>📝 Detalles de la visita</h3>
                     <ul>
                         <li><strong>Motivo:</strong> {visita.notas}</li>
-                        <li><strong>Fecha de entrada:</strong> {visita.fecha_entrada.strftime('%Y-%m-%d %H:%M:%S')}</li>
+                        <li><strong>Fecha de entrada:</strong> {(visita.fecha_entrada.astimezone(get_honduras_time().tzinfo) if visita.fecha_entrada.tzinfo else visita.fecha_entrada).strftime('%Y-%m-%d %H:%M:%S')}</li>
                         <br>
-                        <li><strong>Fecha de Expiracion:</strong> {visita.qr_expiracion.strftime('%Y-%m-%d %H:%M:%S')}</li>
+                        <li><strong>Fecha de Expiracion:</strong> {(visita.qr_expiracion.astimezone(get_honduras_time().tzinfo) if visita.qr_expiracion.tzinfo else visita.qr_expiracion).strftime('%Y-%m-%d %H:%M:%S')}</li>
                     </ul>
         """
         
@@ -182,7 +181,7 @@ def enviar_notificacion_residente(db: Session, visita, qr_img_b64: str, acompana
         notificacion = Notificacion(
             visita_id=visita.id,
             mensaje="Se creó correctamente la visita.",
-            fecha_envio=datetime.utcnow(),
+            fecha_envio=get_honduras_time(),
             estado=estado
         )
 
@@ -239,7 +238,7 @@ def enviar_notificacion_escaneo(db: Session, visita, guardia_nombre: str, es_sal
                 <html>
                     <body>
                         <p>El visitante <strong>{visitante.nombre_conductor}</strong> ha <strong>SALIDO</strong> de la residencial.</p>
-                        <p>La salida fue registrada por el guardia <strong>{guardia_nombre}</strong> el <strong>{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}</strong>.</p>
+                        <p>La salida fue registrada por el guardia <strong>{guardia_nombre}</strong> el <strong>{get_honduras_time().strftime('%Y-%m-%d %H:%M:%S')}</strong>.</p>
                         <p>La visita ha sido marcada como <strong>COMPLETADA</strong>.</p>
                         <p>Gracias por usar nuestro sistema de control de acceso.</p>
                     </body>
@@ -253,7 +252,7 @@ def enviar_notificacion_escaneo(db: Session, visita, guardia_nombre: str, es_sal
                     <body>
                         <h2>¡Actualización de tu visita {visitante.nombre_conductor}!</h2>
                         <p>El visitante <strong>{visitante.nombre_conductor}</strong> ha sido <strong>{visita.estado.upper()}</strong>.</p>
-                        <p>El escaneo fue realizado por el guardia <strong>{guardia_nombre}</strong> el <strong>{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}</strong>.</p>
+                        <p>El escaneo fue realizado por el guardia <strong>{guardia_nombre}</strong> el <strong>{get_honduras_time().strftime('%Y-%m-%d %H:%M:%S')}</strong>.</p>
                         <p>Gracias por usar nuestro sistema de control de acceso.</p>
                     </body>
                 </html>
@@ -267,7 +266,7 @@ def enviar_notificacion_escaneo(db: Session, visita, guardia_nombre: str, es_sal
         notificacion = Notificacion(
             visita_id=visita.id,
             mensaje=mensaje_notificacion,
-            fecha_envio=datetime.utcnow(),
+            fecha_envio=get_honduras_time(),
             estado=estado
         )
         
