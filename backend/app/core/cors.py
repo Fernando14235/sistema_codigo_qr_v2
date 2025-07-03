@@ -18,7 +18,7 @@ def add_cors(app):
             "http://192.168.1.34:3000",  # Cambia por tu IP local real
             "http://192.168.1.38:8081",  # Cambia por tu IP local real
             "http://192.168.60.150:3000",
-            #"*" #para permitir conexiones de cualquier origen de red
+            "*" #para permitir conexiones de cualquier origen de red
         ],
         allow_credentials=True,
         allow_methods=["*"],

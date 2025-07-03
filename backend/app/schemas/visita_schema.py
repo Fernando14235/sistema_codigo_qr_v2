@@ -10,7 +10,7 @@ class VisitaCreate(BaseModel):
     notas: str = Field(..., alias="motivo")
     fecha_entrada: Optional[datetime] = None
     acompanantes: Optional[List[str]] = None
-    
+
     @validator("fecha_entrada", pre=True)
     def parse_fecha_entrada(cls, v):
         if v == "" or v is None:
@@ -19,7 +19,8 @@ class VisitaCreate(BaseModel):
 
 class VisitaQRResponse(BaseModel):
     id: int
-    residente_id: int
+    residente_id: Optional[int] = None
+    admin_id: Optional[int] = None
     guardia_id: Optional[int] = None
     visitante: VisitanteResponse
     notas: Optional[str] = None
@@ -29,6 +30,7 @@ class VisitaQRResponse(BaseModel):
     qr_code: str
     qr_expiracion: datetime
     qr_code_img_base64: str
+    tipo_creador: str
 
     class Config:
         orm_mode = True
@@ -60,7 +62,8 @@ class HistorialVisitaResponse(BaseModel):
 
 class VisitaResponse(BaseModel):
     id: int
-    residente_id: int
+    residente_id: Optional[int] = None
+    admin_id: Optional[int] = None
     guardia_id: Optional[int] = None
     visitante: VisitanteResponse
     notas: Optional[str] = None
@@ -70,6 +73,7 @@ class VisitaResponse(BaseModel):
     qr_code: str
     qr_expiracion: datetime
     qr_code_img_base64: Optional[str] = ""
+    tipo_creador: str
 
     class Config:
         orm_mode = True
@@ -104,3 +108,15 @@ class HistorialEscaneosTotalesResponse(BaseModel):
     escaneos: List[EscaneoDiaItem]
     total_escaneos: int
     fecha_consulta: datetime
+
+class VisitaUpdate(BaseModel):
+    fecha_entrada: Optional[datetime] = None
+    notas: Optional[str] = None
+    acompanantes: Optional[List[str]] = None
+    visitante: Optional[VisitanteCreate] = None
+
+    @validator("fecha_entrada", pre=True)
+    def parse_fecha_entrada(cls, v):
+        if v == "" or v is None:
+            return None
+        return v

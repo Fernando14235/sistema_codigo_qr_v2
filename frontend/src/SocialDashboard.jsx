@@ -38,6 +38,7 @@ function SocialDashboard({ token, rol }) {
   const [detalleResultados, setDetalleResultados] = useState(null);
   const [detalleMensaje, setDetalleMensaje] = useState("");
   const [adminNombre, setAdminNombre] = useState("");
+  const [bloqueado, setBloqueado] = useState(false);
 
   const isAdmin = rol === "admin";
 
@@ -124,6 +125,7 @@ function SocialDashboard({ token, rol }) {
       return;
     }
     setMensaje(editId ? "Actualizando publicación..." : "Creando publicación...");
+    setBloqueado(true);
     try {
       // Forzar el formato correcto de destinatarios
       const destinatariosFormateados = formData.para_todos ? [] : formData.destinatarios.map(d => ({ residente_id: d.residente_id }));
@@ -132,7 +134,6 @@ function SocialDashboard({ token, rol }) {
         imagenes: [],
         destinatarios: destinatariosFormateados
       };
-      console.log("SOCIAL_DATA ENVIADO:", JSON.stringify(socialData));
       const data = new FormData();
       data.append("social_data", JSON.stringify(socialData));
       fileList.forEach(f => data.append("imagenes", f));
@@ -146,20 +147,22 @@ function SocialDashboard({ token, rol }) {
           headers: { Authorization: `Bearer ${token}` }
         });
         setMensaje("¡Publicación creada!");
+        setShowForm(false);
+        setEditId(null);
+        setFormData({
+          titulo: "",
+          contenido: "",
+          tipo_publicacion: "comunicado",
+          requiere_respuesta: false,
+          para_todos: true,
+          imagenes: [],
+          destinatarios: []
+        });
+        setFileList([]);
+        cargarPublicaciones();
+        // Redirigir a la sección principal de Social
+        window.scrollTo(0, 0);
       }
-      setShowForm(false);
-      setEditId(null);
-      setFormData({
-        titulo: "",
-        contenido: "",
-        tipo_publicacion: "comunicado",
-        requiere_respuesta: false,
-        para_todos: true,
-        imagenes: [],
-        destinatarios: []
-      });
-      setFileList([]);
-      cargarPublicaciones();
     } catch (err) {
       if (err.response && err.response.data && err.response.data.detail) {
         setMensaje("Error: " + err.response.data.detail);
@@ -167,6 +170,7 @@ function SocialDashboard({ token, rol }) {
         setMensaje("Error al guardar publicación");
       }
     }
+    setBloqueado(false);
   };
 
   // Editar publicación
@@ -235,36 +239,22 @@ function SocialDashboard({ token, rol }) {
   );
 
   // Renderizado de publicaciones
-  const renderPublicaciones = () => (
-    <div>
-      {showForm ? null : renderFiltros()}
-      {loading ? <div>Cargando...</div> : error ? <div style={{ color: "red" }}>{error}</div> : (
-        <table className={styles["social-table"]}>
-          <thead>
-            <tr>
-              <th>Título</th>
-              <th>Tipo</th>
-              <th>Estado</th>
-              <th>Fecha</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
+  const renderPublicaciones = () => {
+    const isMobile = window.innerWidth < 700;
+    if (isMobile) {
+      return (
+        <div>
+          {showForm ? null : renderFiltros()}
+          <div className="social-cards-mobile">
             {publicaciones.map(pub => (
-              <tr key={pub.id} style={pub.estado === "fallido" ? {backgroundColor: "#ffebee"} : {}}>
-                <td>{pub.titulo}</td>
-                <td>{pub.tipo_publicacion}</td>
-                <td>
-                  <span style={{
-                    color: pub.estado === "fallido" ? "#d32f2f" : 
-                           pub.estado === "publicado" ? "#2e7d32" : "#f57c00",
-                    fontWeight: "bold"
-                  }}>
-                    {pub.estado}
-                  </span>
-                </td>
-                <td>{new Date(pub.fecha_creacion).toLocaleString()}</td>
-                <td className={styles["social-table-actions"]} style={{display:'flex',gap:4}}>
+              <div className="social-card-mobile" key={pub.id} style={pub.estado === "fallido" ? {backgroundColor: "#ffebee"} : {}}>
+                <div className="social-card-mobile-info">
+                  <div><b>Título:</b> {pub.titulo}</div>
+                  <div><b>Tipo:</b> {pub.tipo_publicacion}</div>
+                  <div><b>Estado:</b> <span style={{ color: pub.estado === "fallido" ? "#d32f2f" : pub.estado === "publicado" ? "#2e7d32" : "#f57c00", fontWeight: "bold" }}>{pub.estado}</span></div>
+                  <div><b>Fecha:</b> {new Date(pub.fecha_creacion).toLocaleString()}</div>
+                </div>
+                <div className="social-card-mobile-actions" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', gap: 8 }}>
                   <span onClick={() => setDetalle(pub)}><IconVer /></span>
                   {isAdmin && (
                     <>
@@ -272,14 +262,55 @@ function SocialDashboard({ token, rol }) {
                       <span onClick={() => handleEliminar(pub.id)}><IconEliminar /></span>
                     </>
                   )}
-                </td>
-              </tr>
+                </div>
+              </div>
             ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
+          </div>
+        </div>
+      );
+    }
+    // Tabla para escritorio
+    return (
+      <table className={styles["social-table"]}>
+        <thead>
+          <tr>
+            <th>Título</th>
+            <th>Tipo</th>
+            <th>Estado</th>
+            <th>Fecha</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {publicaciones.map(pub => (
+            <tr key={pub.id} style={pub.estado === "fallido" ? {backgroundColor: "#ffebee"} : {}}>
+              <td>{pub.titulo}</td>
+              <td>{pub.tipo_publicacion}</td>
+              <td>
+                <span style={{
+                  color: pub.estado === "fallido" ? "#d32f2f" : 
+                         pub.estado === "publicado" ? "#2e7d32" : "#f57c00",
+                  fontWeight: "bold"
+                }}>
+                  {pub.estado}
+                </span>
+              </td>
+              <td>{new Date(pub.fecha_creacion).toLocaleString()}</td>
+              <td className={styles["social-table-actions"]} style={{display:'flex',gap:4}}>
+                <span onClick={() => setDetalle(pub)}><IconVer /></span>
+                {isAdmin && (
+                  <>
+                    <span onClick={() => handleEditar(pub)}><IconEditar /></span>
+                    <span onClick={() => handleEliminar(pub.id)}><IconEliminar /></span>
+                  </>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  };
 
   // useEffect para cargar detalle de encuesta, voto y resultados
   useEffect(() => {
@@ -497,31 +528,31 @@ function SocialDashboard({ token, rol }) {
     <form onSubmit={handleCrear} className={styles["social-form"]}>
       <h3>{editId ? "Editar Publicación" : "Nueva Publicación"}</h3>
       <label>Título</label>
-      <input name="titulo" placeholder="Título" value={formData.titulo} onChange={handleInputChange} required />
+      <input name="titulo" placeholder="Título" value={formData.titulo} onChange={handleInputChange} required disabled={bloqueado} />
       {/* Si es encuesta, mostrar campo de pregunta y opciones */}
       {formData.tipo_publicacion === "encuesta" ? (
         <>
           <label>Pregunta de la encuesta</label>
-          <input name="contenido" placeholder="Pregunta de la encuesta" value={formData.contenido} onChange={handleInputChange} required />
+          <input name="contenido" placeholder="Pregunta de la encuesta" value={formData.contenido} onChange={handleInputChange} required disabled={bloqueado} />
           <label>Opciones de respuesta (solo para mostrar, no se guardan en BD)</label>
           {opcionesEncuesta.map((op, idx) => (
             <div key={idx} style={{display:'flex',gap:8,marginBottom:4}}>
-              <input type="text" value={op} onChange={e => handleOpcionesEncuestaChange(idx, e.target.value)} placeholder={`Opción ${idx+1}`} style={{flex:1}} />
+              <input type="text" value={op} onChange={e => handleOpcionesEncuestaChange(idx, e.target.value)} placeholder={`Opción ${idx+1}`} style={{flex:1}} disabled={bloqueado} />
               {opcionesEncuesta.length > 1 && (
-                <button type="button" onClick={() => handleEliminarOpcion(idx)} style={{background:'#e53935',color:'#fff',border:'none',borderRadius:4,padding:'0 8px',cursor:'pointer'}}>✕</button>
+                <button type="button" onClick={() => handleEliminarOpcion(idx)} style={{background:'#e53935',color:'#fff',border:'none',borderRadius:4,padding:'0 8px',cursor:'pointer'}} disabled={bloqueado}>✕</button>
               )}
             </div>
           ))}
-          <button type="button" onClick={handleAgregarOpcion} style={{marginBottom:8,background:'#1976d2',color:'#fff',border:'none',borderRadius:4,padding:'4px 12px',cursor:'pointer'}}>+ Agregar opción</button>
+          <button type="button" onClick={handleAgregarOpcion} style={{marginBottom:8,background:'#1976d2',color:'#fff',border:'none',borderRadius:4,padding:'4px 12px',cursor:'pointer'}} disabled={bloqueado}>+ Agregar opción</button>
         </>
       ) : (
         <>
           <label>Contenido</label>
-          <textarea name="contenido" placeholder="Contenido" value={formData.contenido} onChange={handleInputChange} required />
+          <textarea name="contenido" placeholder="Contenido" value={formData.contenido} onChange={handleInputChange} required disabled={bloqueado} />
         </>
       )}
       <label>Tipo de publicación</label>
-      <select name="tipo_publicacion" value={formData.tipo_publicacion} onChange={handleInputChange} required>
+      <select name="tipo_publicacion" value={formData.tipo_publicacion} onChange={handleInputChange} required disabled={bloqueado}>
         <option value="comunicado">Comunicado</option>
         <option value="publicacion">Publicación</option>
         <option value="encuesta">Encuesta</option>
@@ -571,11 +602,11 @@ function SocialDashboard({ token, rol }) {
         </div>
       )}
       <label>Imágenes</label>
-      <input type="file" multiple onChange={handleFileChange} />
+      <input type="file" multiple onChange={handleFileChange} disabled={bloqueado} />
       {renderPreviewImgs()}
       <div className={styles["social-form-btns"]}>
-        <button type="submit">{editId ? "Actualizar" : "Crear"}</button>
-        <button type="button" onClick={() => { setShowForm(false); setEditId(null); }}>Cancelar</button>
+        <button type="submit" disabled={bloqueado}>{editId ? "Actualizar" : "Crear"}</button>
+        <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} disabled={bloqueado}>Cancelar</button>
       </div>
       <div className={styles["mensaje"]}>{mensaje}</div>
     </form>

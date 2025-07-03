@@ -1,9 +1,11 @@
 from sqlalchemy.orm import Session
 from app.models.notificacion import Notificacion
+from app.models.admin import Administrador
 from app.models.residente import Residente
 from app.models.visitante import Visitante
 from app.models.guardia import Guardia
 from app.models.usuario import Usuario
+from app.models.notificacion import Notificacion
 from app.schemas.usuario_schema import UsuarioCreate
 from app.utils.notificaciones import enviar_correo
 from app.utils.time import get_honduras_time
@@ -132,17 +134,28 @@ def enviar_notificacion_usuario_creado(usuario: Usuario, datos_creacion: Usuario
 
 def enviar_notificacion_residente(db: Session, visita, qr_img_b64: str, acompanantes=None):
     try:
-        residente = db.query(Residente).filter(Residente.id == visita.residente_id).first()
-        if not residente:
-            return
+        # Notificar al creador correcto según tipo_creador
+        if visita.tipo_creador == "admin":
+            admin = db.query(Administrador).filter(Administrador.id == visita.admin_id).first()
+            if not admin:
+                return
+            destinatario = admin.usuario
+            nombre_destinatario = admin.usuario.nombre
+            email_destinatario = admin.usuario.email
+        else:
+            residente = db.query(Residente).filter(Residente.id == visita.residente_id).first()
+            if not residente:
+                return
+            destinatario = residente.usuario
+            nombre_destinatario = residente.usuario.nombre
+            email_destinatario = residente.usuario.email
 
         asunto = "Nueva visita programada"
         mensaje_html = f"""
             <html>
                 <body>
-                    <h2>¡Hola {residente.usuario.nombre}!</h2>
+                    <h2>¡Hola {nombre_destinatario}!</h2>
                     <p>Tu visita fue creada exitosamente.</p>
-                    
                     <h3>👤 Datos del visitante</h3>
                     <ul>
                         <li><strong>Nombre del Visitante:</strong> {visita.visitante.nombre_conductor}</li>
@@ -153,7 +166,6 @@ def enviar_notificacion_residente(db: Session, visita, qr_img_b64: str, acompana
                         <li><strong>Color del Vehiculo:</strong> {visita.visitante.color_vehiculo}</li>
                         <li><strong>Placa del Vehiculo:</strong> {visita.visitante.placa_vehiculo}</li>
                     </ul>
-
                     <h3>📝 Detalles de la visita</h3>
                     <ul>
                         <li><strong>Motivo:</strong> {visita.notas}</li>
@@ -162,10 +174,8 @@ def enviar_notificacion_residente(db: Session, visita, qr_img_b64: str, acompana
                         <li><strong>Fecha de Expiracion:</strong> {(visita.qr_expiracion.astimezone(get_honduras_time().tzinfo) if visita.qr_expiracion.tzinfo else visita.qr_expiracion).strftime('%Y-%m-%d %H:%M:%S')}</li>
                     </ul>
         """
-        
         if acompanantes:
             mensaje_html += "<br><strong>Acompañantes:</strong> " + ", ".join(acompanantes)
-
         mensaje_html += """
                     <h3>🔐 Código QR</h3>
                     <p>Presentar este código al guardia en la entrada:</p>
@@ -174,30 +184,35 @@ def enviar_notificacion_residente(db: Session, visita, qr_img_b64: str, acompana
                 </body>
             </html>
         """
-        
-        exito = enviar_correo(residente.usuario.email, asunto, mensaje_html, qr_img_b64)
+        exito = enviar_correo(email_destinatario, asunto, mensaje_html, qr_img_b64)
         estado = "enviado" if exito else "fallido"
-
+        from app.models.notificacion import Notificacion
         notificacion = Notificacion(
             visita_id=visita.id,
             mensaje="Se creó correctamente la visita.",
             fecha_envio=get_honduras_time(),
             estado=estado
         )
-
         db.add(notificacion)
         db.commit()
-        
     except Exception as e:
         db.rollback()
         print(f"Error al enviar notificación: {str(e)}")
         print(traceback.format_exc())
-        
+
 #Enviar notificación al guardia cuando se crea una visita        
 def enviar_notificacion_guardia(db: Session, visita):
     try:
         guardias = db.query(Guardia).all()
-        residente = db.query(Residente).filter(Residente.id == visita.residente_id).first()
+        # Notificar con el nombre correcto según tipo_creador
+        if visita.tipo_creador == "admin":
+            from app.models.admin import Administrador
+            admin = db.query(Administrador).filter(Administrador.id == visita.admin_id).first()
+            nombre_creador = admin.usuario.nombre if admin else "Administrador"
+        else:
+            from app.models.residente import Residente
+            residente = db.query(Residente).filter(Residente.id == visita.residente_id).first()
+            nombre_creador = residente.usuario.nombre if residente else "Residente"
         asunto = "Nueva visita programada"
         for guardia in guardias:
             if guardia.usuario and guardia.usuario.email:
@@ -206,7 +221,7 @@ def enviar_notificacion_guardia(db: Session, visita):
                         <body>
                             <h2>¡Notificación de nueva visita!</h2>
                             <h2>¡Hola {guardia.usuario.nombre}!</h2>
-                            <h3>Se ha creado una nueva visita para el residente <strong>{residente.usuario.nombre}</strong>.</h3>
+                            <h3>Se ha creado una nueva visita para el usuario <strong>{nombre_creador}</strong>.</h3>
                             <h3>👤 Datos del visitante</h3>
                             <ul>
                                 <li><strong>Nombre del Visitante:</strong> {visita.visitante.nombre_conductor}</li>
@@ -276,4 +291,66 @@ def enviar_notificacion_escaneo(db: Session, visita, guardia_nombre: str, es_sal
     except Exception as e:
         db.rollback()
         print(f"Error al enviar notificación de escaneo: {str(e)}")
+        print(traceback.format_exc())
+
+def enviar_notificacion_visita_actualizada(db: Session, visita):
+    try:
+        # Notificar al creador correcto según tipo_creador
+        if visita.tipo_creador == "admin":
+            admin = db.query(Administrador).filter(Administrador.id == visita.admin_id).first()
+            if not admin:
+                return
+            destinatario = admin.usuario
+            nombre_destinatario = admin.usuario.nombre
+            email_destinatario = admin.usuario.email
+        else:
+            residente = db.query(Residente).filter(Residente.id == visita.residente_id).first()
+            if not residente:
+                return
+            destinatario = residente.usuario
+            nombre_destinatario = residente.usuario.nombre
+            email_destinatario = residente.usuario.email
+        visitante = db.query(Visitante).filter(Visitante.id == visita.visitante_id).first()
+        if not visitante:
+            return
+        asunto = "✅ Visita actualizada exitosamente"
+        mensaje_html = f"""
+            <html>
+                <body>
+                    <h2>¡Hola {nombre_destinatario}!</h2>
+                    <p>Tu visita ha sido <strong>actualizada exitosamente</strong>.</p>
+                    <h3>👤 Datos del visitante</h3>
+                    <ul>
+                        <li><strong>Nombre del Visitante:</strong> {visitante.nombre_conductor}</li>
+                        <li><strong>DNI del Visitante:</strong> {visitante.dni_conductor}</li>
+                        <li><strong>Teléfono del Visitante:</strong> {visitante.telefono}</li>
+                        <li><strong>Tipo de vehículo:</strong> {visitante.tipo_vehiculo}</li>
+                        <li><strong>Marca del Vehiculo:</strong> {visitante.marca_vehiculo}</li>
+                        <li><strong>Color del Vehiculo:</strong> {visitante.color_vehiculo}</li>
+                        <li><strong>Placa del Vehiculo:</strong> {visitante.placa_vehiculo}</li>
+                    </ul>
+                    <h3>📝 Detalles de la visita actualizada</h3>
+                    <ul>
+                        <li><strong>Motivo:</strong> {visita.notas}</li>
+                        <li><strong>Nueva fecha de entrada:</strong> {(visita.fecha_entrada.astimezone(get_honduras_time().tzinfo) if visita.fecha_entrada.tzinfo else visita.fecha_entrada).strftime('%Y-%m-%d %H:%M:%S')}</li>
+                        <li><strong>Fecha de Expiración:</strong> {(visita.qr_expiracion.astimezone(get_honduras_time().tzinfo) if visita.qr_expiracion.tzinfo else visita.qr_expiracion).strftime('%Y-%m-%d %H:%M:%S')}</li>
+                    </ul>
+                    <p>Se mantiene el mismo código QR, revisa la notificación anterior.</p>
+                    <p><br>Si no realizaste este cambio, por favor contacta al administrador.</br></p>
+                </body>
+            </html>
+        """
+        exito = enviar_correo(email_destinatario, asunto, mensaje_html)
+        estado = "enviado" if exito else "fallido"
+        notificacion = Notificacion(
+            visita_id=visita.id,
+            mensaje="La visita fue actualizada exitosamente.",
+            fecha_envio=get_honduras_time(),
+            estado=estado
+        )
+        db.add(notificacion)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"Error al enviar notificación de visita actualizada: {str(e)}")
         print(traceback.format_exc())

@@ -6,8 +6,8 @@ from app.models.usuario import Usuario
 from app.models.visita import Visita
 from app.models.visitante import Visitante
 from app.models.residente import Residente
-from app.services.notificacion_service import enviar_notificacion_residente, enviar_notificacion_guardia
-from app.schemas.visita_schema import VisitaCreate, VisitaQRResponse
+from app.services.notificacion_service import enviar_notificacion_residente, enviar_notificacion_guardia, enviar_notificacion_visita_actualizada
+from app.schemas.visita_schema import VisitaCreate, VisitaQRResponse, VisitaUpdate
 from app.schemas.visitante_schema import VisitanteCreate, VisitanteResponse
 from app.utils.qr import validar_payload_qr, generar_payload_qr, generar_qr_completo, generar_imagen_qr_personalizada
 from app.utils.validators import validar_dni_visita_unico
@@ -23,12 +23,31 @@ def to_utc(dt: datetime) -> datetime:
     return dt.astimezone(timezone.utc)
 
 # Creacion de visita y visitante, generacion codigo QR con validacion de fecha y hora 
-def crear_visita_con_qr(db: Session, visita_data: VisitaCreate, usuario_id: int, guardia_id: int = None) -> list[VisitaQRResponse]:
+def crear_visita_con_qr(db: Session, visita_data: VisitaCreate, admin_id: int = None, residente_id: int = None, tipo_creador: str = None, guardia_id: int = None) -> list[VisitaQRResponse]:
     try:
-        # 1. Buscar residente
-        residente = db.query(Residente).filter(Residente.usuario_id == usuario_id).first()
-        if not residente:
-            raise HTTPException(status_code=404, detail="Residente no encontrado")
+        # Validación de tipo_creador y asignación de ids
+        if tipo_creador == "admin":
+            if not admin_id or residente_id:
+                raise HTTPException(status_code=400, detail="Si el creador es admin, debe proporcionar admin_id y residente_id debe ser NULL.")
+        elif tipo_creador == "residente":
+            if not residente_id or admin_id:
+                raise HTTPException(status_code=400, detail="Si el creador es residente, debe proporcionar residente_id y admin_id debe ser NULL.")
+        else:
+            raise HTTPException(status_code=400, detail="Tipo de creador inválido.")
+
+        # Buscar el objeto correspondiente
+        admin = None
+        residente = None
+        if tipo_creador == "admin":
+            from app.models.admin import Administrador
+            admin = db.query(Administrador).filter(Administrador.usuario_id == admin_id).first()
+            if not admin:
+                raise HTTPException(status_code=404, detail="Administrador no encontrado")
+        elif tipo_creador == "residente":
+            from app.models.residente import Residente
+            residente = db.query(Residente).filter(Residente.usuario_id == residente_id).first()
+            if not residente:
+                raise HTTPException(status_code=404, detail="Residente no encontrado")
 
         acompanantes = getattr(visita_data, "acompanantes", None)
         if acompanantes is not None:
@@ -68,12 +87,15 @@ def crear_visita_con_qr(db: Session, visita_data: VisitaCreate, usuario_id: int,
             expiracion = fecha_entrada + timedelta(days=1)
 
             visita = Visita(
-                residente_id=residente.id,
+                admin_id=admin.id if admin else None,
+                residente_id=residente.id if residente else None,
                 visitante_id=visitante.id,
                 notas=visita_data.notas,
                 fecha_entrada=fecha_entrada,
                 qr_expiracion=expiracion,
-                qr_code="TEMPORAL"
+                qr_code="TEMPORAL",
+                tipo_creador=tipo_creador,
+                estado="pendiente"
             )
             db.add(visita)
             db.flush()
@@ -85,10 +107,10 @@ def crear_visita_con_qr(db: Session, visita_data: VisitaCreate, usuario_id: int,
             # Generar QR personalizado con información del residente y visitante
             qr_img_personalizado = generar_imagen_qr_personalizada(
                 qr_data=qr_code,
-                nombre_residente=residente.usuario.nombre,
+                nombre_residente=residente.usuario.nombre if residente else admin.usuario.nombre,
                 nombre_visitante=visitante.nombre_conductor,
                 nombre_residencial="Residencial Access",  # Puedes hacer esto configurable
-                unidad_residencial=residente.unidad_residencial,
+                unidad_residencial=residente.unidad_residencial if residente else "-",
                 fecha_creacion=datetime.now(timezone.utc),
                 fecha_expiracion=expiracion
             )
@@ -97,6 +119,7 @@ def crear_visita_con_qr(db: Session, visita_data: VisitaCreate, usuario_id: int,
                 VisitaQRResponse(
                     id=visita.id,
                     residente_id=visita.residente_id,
+                    admin_id=visita.admin_id,
                     visitante=visitante,
                     estado=visita.estado,
                     qr_expiracion=expiracion,
@@ -104,7 +127,9 @@ def crear_visita_con_qr(db: Session, visita_data: VisitaCreate, usuario_id: int,
                     qr_code_img_base64=qr_img_personalizado,
                     fecha_entrada=visita.fecha_entrada,
                     notas=visita.notas,
-                    visitante_id=visitante.id
+                    tipo_creador=tipo_creador,
+                    fecha_salida=visita.fecha_salida,
+                    guardia_id=visita.guardia_id
                 )
             )
             visitas.append(visita)
@@ -477,17 +502,30 @@ def obtener_historial_escaneos_totales(
     }
 
 def obtener_visitas_residente(db: Session, usuario_id: int):
-    from app.models.residente import Residente
-    from app.models.visita import Visita
-    from app.models.visitante import Visitante
-
     residente = db.query(Residente).filter(Residente.usuario_id == usuario_id).first()
-    if not residente:
+    from app.models.admin import Administrador
+    admin = db.query(Administrador).filter(Administrador.usuario_id == usuario_id).first()
+
+    # Si no es residente ni admin, retorna vacío
+    if not residente and not admin:
         return []
-    visitas = db.query(Visita).filter(Visita.residente_id == residente.id).order_by(Visita.fecha_entrada.desc()).all()
+
+    # Buscar visitas creadas por el residente o por el admin
+    query = db.query(Visita)
+    if residente and admin:
+        visitas = query.filter(
+            (Visita.residente_id == residente.id) | (Visita.admin_id == admin.id)
+        ).order_by(Visita.fecha_entrada.desc()).all()
+    elif residente:
+        visitas = query.filter(Visita.residente_id == residente.id).order_by(Visita.fecha_entrada.desc()).all()
+    else:  # solo admin
+        visitas = query.filter(Visita.admin_id == admin.id).order_by(Visita.fecha_entrada.desc()).all()
+
     result = []
     for v in visitas:
         visitante = db.query(Visitante).filter(Visitante.id == v.visitante_id).first()
+        # Si tipo_creador es None, asigna un valor por defecto
+        tipo_creador_val = v.tipo_creador if v.tipo_creador is not None else ("admin" if v.admin_id else "residente")
         result.append({
             "id": v.id,
             "residente_id": v.residente_id,
@@ -500,5 +538,58 @@ def obtener_visitas_residente(db: Session, usuario_id: int):
             "qr_code": v.qr_code,
             "qr_expiracion": v.qr_expiracion,
             "qr_code_img_base64": getattr(v, "qr_code_img_base64", ""),
+            "tipo_creador": tipo_creador_val,
         })
     return result
+
+def editar_visita_residente(db: Session, visita_id: int, usuario_id: int, visita_update: VisitaUpdate, rol: str = "residente"):
+    try:
+        visita = db.query(Visita).filter(Visita.id == visita_id).first()
+        if not visita:
+            raise HTTPException(status_code=404, detail="Visita no encontrada")
+        # Verificar que la visita pertenezca al usuario correcto según el rol
+        if rol == "residente":
+            from app.models.residente import Residente
+            residente = db.query(Residente).filter(Residente.id == visita.residente_id, Residente.usuario_id == usuario_id).first()
+            if not residente:
+                raise HTTPException(status_code=403, detail="No tienes permiso para editar esta visita")
+            if visita.tipo_creador != "residente":
+                raise HTTPException(status_code=403, detail="Solo puedes editar visitas creadas por residentes")
+        elif rol == "admin":
+            from app.models.admin import Administrador
+            admin = db.query(Administrador).filter(Administrador.id == visita.admin_id, Administrador.usuario_id == usuario_id).first()
+            if not admin:
+                raise HTTPException(status_code=403, detail="No tienes permiso para editar esta visita")
+            if visita.tipo_creador != "admin":
+                raise HTTPException(status_code=403, detail="Solo puedes editar visitas creadas por administradores")
+        else:
+            raise HTTPException(status_code=403, detail="Rol no autorizado para editar visitas")
+        # Solo se puede editar si está pendiente y no expirada
+        if visita.estado != "pendiente" or getattr(visita, "expiracion", "N") == "S":
+            raise HTTPException(status_code=400, detail="Solo puedes editar visitas en estado pendiente y no expiradas")
+        # Actualizar campos permitidos
+        if visita_update.fecha_entrada is not None:
+            visita.fecha_entrada = visita_update.fecha_entrada
+            visita.qr_expiracion = visita_update.fecha_entrada + timedelta(days=1)
+        if visita_update.notas is not None:
+            visita.notas = visita_update.notas
+        if visita_update.visitante is not None:
+            visitante = db.query(Visitante).filter(Visitante.id == visita.visitante_id).first()
+            if visitante:
+                for field, value in visita_update.visitante.dict(exclude_unset=True).items():
+                    setattr(visitante, field, value)
+        db.commit()
+        db.refresh(visita)
+        enviar_notificacion_visita_actualizada(db, visita)
+        return visita
+    except HTTPException as e:
+        db.rollback()
+        raise e
+    except Exception as e:
+        db.rollback()
+        print(f"Error al editar la visita: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al editar la visita: {str(e)}"
+        )

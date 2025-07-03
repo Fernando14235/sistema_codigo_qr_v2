@@ -10,3 +10,4 @@ class Administrador(Base):
     telefono = Column(String, nullable=False)
     
     usuario = relationship("Usuario", back_populates="admin")
+    visitas = relationship("Visita", back_populates="admin")

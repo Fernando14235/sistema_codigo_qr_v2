@@ -116,3 +116,52 @@
     max-width: 99vw;
   }
 }
+
+@media (max-width: 700px) {
+  .tabla-responsive { display: none; }
+  .visitas-cards-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin: 0 0 18px 0;
+  }
+  .visita-card-mobile {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px #1976d233;
+    padding: 18px 14px;
+    gap: 12px;
+  }
+  .visita-card-mobile-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 1em;
+  }
+  .visita-card-mobile-action {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    min-width: 40px;
+    height: 100%;
+  }
+}
+
+.tabla-responsive {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.admin-table {
+  width: 100%;
+  min-width: 800px;
+  table-layout: auto;
+  border-collapse: collapse;
+}
+.admin-table th, .admin-table td {
+  word-break: break-word;
+  white-space: normal;
+}

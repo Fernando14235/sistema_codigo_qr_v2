@@ -131,13 +131,37 @@ body, html { margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; 
 }
 .admin-search select { cursor: pointer; }
 .admin-table {
-  width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.98em;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #fff;
+  font-size: 0.7em;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px #1976d233;
+  margin-bottom: 18px;
 }
-.admin-table th, .admin-table td {
-  border: 1px solid #e0e0e0; padding: 7px 8px; text-align: left;
+.admin-table th {
+  background: #1976d2;
+  color: #fff;
+  font-weight: bold;
+  padding: 12px 10px;
+  text-align: left;
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
-.admin-table th { background: #f0f4f8; }
-.admin-table tr:nth-child(even) { background: #f6f8fa; }
+.admin-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #e3e3e3;
+  color: #222;
+}
+.admin-table tr:nth-child(even) {
+  background: #f6f8fa;
+}
+.admin-table tr:last-child td {
+  border-bottom: none;
+}
 .admin-btn-delete {
   background: #e53935; color: #fff; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;
 }
@@ -250,6 +274,120 @@ body, html { margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; 
     font-size: 12px;
     border-radius: 10px;
   }
+  .tabla-responsive, .admin-table { display: none; }
+  .visitas-cards-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin: 0 0 18px 0;
+  }
+  .visita-card-mobile {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px #1976d233;
+    padding: 18px 14px;
+    gap: 12px;
+  }
+  .visita-card-mobile-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 1em;
+  }
+  .visita-card-mobile-action {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    min-width: 40px;
+    height: 100%;
+  }
+  .admin-table { display: none; }
+  /* Usuarios */
+  .usuarios-cards-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin: 0 0 18px 0;
+  }
+  .usuario-card-mobile {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px #1976d233;
+    padding: 18px 14px;
+    gap: 12px;
+  }
+  .usuario-card-mobile-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 1em;
+  }
+  .usuario-card-mobile-actions {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    min-width: 40px;
+    height: 100%;
+    margin-left: auto;
+  }
+  /* Historial */
+  .historial-cards-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin: 0 0 18px 0;
+  }
+  .historial-card-mobile {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px #1976d233;
+    padding: 18px 14px;
+    margin-bottom: 8px;
+  }
+  .historial-card-mobile-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 1em;
+  }
+  /* Escaneos */
+  .escaneos-cards-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin: 0 0 18px 0;
+  }
+  .escaneo-card-mobile {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px #1976d233;
+    padding: 18px 14px;
+    margin-bottom: 8px;
+  }
+  .escaneo-card-mobile-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 1em;
+  }
+  /* Formulario Crear Usuario responsivo */
+  .crear-usuario-form-responsive .form-row {
+    flex-direction: column !important;
+    gap: 8px;
+  }
+  .crear-usuario-form-responsive input,
+  .crear-usuario-form-responsive select {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+  }
 }
 
 @media (max-width: 500px) {
@@ -276,4 +414,142 @@ body, html { margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; 
   .main-menu-title { font-size: 1.2em; }
   .admin-table th, .admin-table td, .estadisticas-table th, .estadisticas-table td { padding: 4px 4px; }
   .btn-regresar, .btn-primary, .btn-secondary { font-size: 0.95em; padding: 6px 10px; }
+}
+
+/* === FORMULARIO CREAR VISITA ADMIN === */
+.form-visita-admin {
+  max-width: 500px;
+  margin: 32px auto 0 auto;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 2px 16px #1976d233;
+  padding: 32px 28px 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.form-visita-admin h2 {
+  color: #1976d2;
+  text-align: center;
+  margin-bottom: 24px;
+  font-size: 1.5em;
+  font-weight: bold;
+}
+.form-visita-admin .form-row {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+}
+.form-visita-admin label {
+  font-weight: 500;
+  color: #1976d2;
+  margin-bottom: 4px;
+  font-size: 1em;
+}
+.form-visita-admin input,
+.form-visita-admin select {
+  padding: 10px 12px;
+  border: 1.5px solid #bdbdbd;
+  border-radius: 7px;
+  font-size: 1em;
+  background: #f5faff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+.form-visita-admin input:focus,
+.form-visita-admin select:focus {
+  border-color: #1976d2;
+  background: #e3f2fd;
+  box-shadow: 0 2px 8px #2196f321;
+}
+.form-visita-admin .input-prefix {
+  font-weight: bold;
+  color: #1976d2;
+  margin-right: 6px;
+}
+.form-visita-admin .form-actions {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 24px;
+}
+.form-visita-admin .btn-primary {
+  background: #1976d2;
+  color: #fff;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 7px;
+  font-weight: bold;
+  font-size: 1.08em;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.form-visita-admin .btn-primary:hover {
+  background: #125ea7;
+}
+.form-visita-admin .btn-regresar {
+  background: #e0e0e0;
+  color: #1976d2;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 7px;
+  font-weight: bold;
+  font-size: 1.08em;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.form-visita-admin .btn-regresar:hover {
+  background: #bbdefb;
+}
+.form-visita-admin .qr-error {
+  color: #e53935;
+  background: #fff3f3;
+  border-left: 4px solid #e53935;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  font-size: 1em;
+}
+
+@media (max-width: 600px) {
+  .form-visita-admin {
+    max-width: 98vw;
+    padding: 14px 4vw;
+  }
+  .form-visita-admin h2 { font-size: 1.1em; }
+  .form-visita-admin input, .form-visita-admin select { font-size: 0.98em; }
+}
+
+/* === SECCIÓN CREAR VISITA ADMIN === */
+.crear-visita-title {
+  color: #1976d2;
+  text-align: center;
+  margin-bottom: 18px;
+  font-size: 1.45em;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+.admin-section {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px 18px 32px 18px;
+  margin-bottom: 18px;
+  box-shadow: 0 2px 12px #1976d233;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+@media (max-width: 700px) {
+  .admin-section {
+    max-width: 99vw;
+    padding: 10vw 2vw;
+  }
+  .crear-visita-title { font-size: 1.1em; }
+}
+@media (min-width: 1100px) {
+  .admin-section {
+    max-width: 1100px;
+    margin-left: auto;
+    margin-right: auto;
+  }
 }
