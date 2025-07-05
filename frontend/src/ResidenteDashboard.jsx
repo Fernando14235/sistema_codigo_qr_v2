@@ -41,6 +41,10 @@ function MainMenuResidente({ nombre, rol, onLogout, onSelectVista }) {
           <span>➕</span>
           <div>Crear Visita</div>
         </button>
+        <button className="main-menu-card" onClick={() => onSelectVista("solicitar")}>
+          <span>📝</span>
+          <div>Solicitar Visita</div>
+        </button>
         <button className="main-menu-card" onClick={() => onSelectVista("notificaciones")}>
           <span>🔔</span>
           <div>Notificaciones</div>
@@ -77,7 +81,7 @@ function TablaVisitasResidente({ visitas, onEditar, onEliminar }) {
               <div><b>Teléfono:</b> {v.visitante?.telefono || '-'}</div>
               <div><b>Vehículo:</b> {v.visitante?.tipo_vehiculo || '-'}</div>
               <div><b>Motivo:</b> {v.visitante?.motivo_visita || '-'}</div>
-              <div><b>Estado:</b> {v.estado}</div>
+              <div><b>Estado:</b> {v.estado === 'solicitada' ? 'Solicitada' : v.estado}</div>
               <div><b>Expiración:</b> {v.expiracion == 'S' ? 'Sí' : 'No'}</div>
               <div><b>Fecha Entrada:</b> {v.fecha_entrada ? new Date(v.fecha_entrada).toLocaleString() : "-"}</div>
             </div>
@@ -125,7 +129,7 @@ function TablaVisitasResidente({ visitas, onEditar, onEliminar }) {
               <td>{v.visitante?.telefono || '-'}</td>
               <td>{v.visitante?.tipo_vehiculo || '-'}</td>
               <td>{v.visitante?.motivo_visita || '-'}</td>
-              <td>{v.estado}</td>
+              <td>{v.estado === 'solicitada' ? 'Solicitada' : v.estado}</td>
               <td>{v.expiracion == 'S' ? 'Sí' : 'No'}</td>
               <td>{v.fecha_entrada ? new Date(v.fecha_entrada).toLocaleString() : "-"}</td>
               <td>
@@ -419,6 +423,120 @@ function FormEditarVisitaResidente({ token, visita, onSuccess, onCancel, setVist
   );
 }
 
+// Formulario para solicitar visita al administrador
+const FormSolicitarVisita = ({ token, onSuccess, onCancel, setVista }) => {
+  const [nombreVisitante, setNombreVisitante] = useState("");
+  const [dniVisitante, setDniVisitante] = useState("");
+  const [telefonoVisitante, setTelefonoVisitante] = useState("");
+  const [fechaEntrada, setFechaEntrada] = useState("");
+  const [motivo, setMotivo] = useState("");
+  const [tipoVehiculo, setTipoVehiculo] = useState("carro");
+  const [marcaVehiculo, setMarcaVehiculo] = useState("");
+  const [colorVehiculo, setColorVehiculo] = useState("");
+  const [placaVehiculo, setPlacaVehiculo] = useState("");
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setCargando(true);
+    setError("");
+    try {
+      const data = {
+        nombre_visitante: nombreVisitante,
+        dni_visitante: dniVisitante || undefined,
+        telefono_visitante: telefonoVisitante || undefined,
+        fecha_entrada: fechaEntrada ? new Date(fechaEntrada).toISOString() : null,
+        motivo_visita: motivo,
+        tipo_vehiculo: tipoVehiculo,
+        marca_vehiculo: marcaVehiculo || undefined,
+        color_vehiculo: colorVehiculo || undefined,
+        placa_vehiculo: placaVehiculo || "sin placa"
+      };
+      await axios.post(`${API_URL}/visitas/residente/solicitar_visita`, data, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      onSuccess && onSuccess();
+      if (typeof setVista === 'function') setVista('visitas');
+    } catch (err) {
+      setError(
+        err.response?.data?.detail ||
+        "Error al enviar la solicitud. Verifica los datos."
+      );
+    }
+    setCargando(false);
+  };
+
+  const handleTelefonoChange = (e) => {
+    const value = e.target.value.replace(/\D/g, "").slice(0, 8);
+    setTelefonoVisitante(value);
+  };
+
+  return (
+    <form className="form-visita form-visita-residente" onSubmit={handleSubmit}>
+      <h2 className="crear-visita-title">Solicitar Visita al Administrador</h2>
+      <div className="form-row">
+        <label>Nombre del visitante:</label>
+        <input type="text" value={nombreVisitante} onChange={e => setNombreVisitante(e.target.value)} required disabled={cargando} />
+      </div>
+      <div className="form-row">
+        <label>DNI del visitante:</label>
+        <input type="text" value={dniVisitante} onChange={e => setDniVisitante(e.target.value)} disabled={cargando} />
+      </div>
+      <div className="form-row">
+        <label>Teléfono:</label>
+        <span className="input-prefix">+504</span>
+        <input placeholder="XXXXXXXX" value={telefonoVisitante} onChange={handleTelefonoChange} maxLength={8} disabled={cargando} />
+      </div>
+      <div className="form-row">
+        <label>Tipo de vehículo:</label>
+        <select value={tipoVehiculo} onChange={e => setTipoVehiculo(e.target.value)} required disabled={cargando}>
+          <option value="">Selecciona un tipo</option>
+          <option value="carro">Carro</option>
+          <option value="moto">Moto</option>
+          <option value="camioneta">Camioneta</option>
+          <option value="camion">Camión</option>
+          <option value="bus">Bus</option>
+          <option value="sin_vehiculo">Sin Vehículo</option>
+        </select>
+      </div>
+      {tipoVehiculo !== "sin_vehiculo" && (
+        <>
+          <div className="form-row">
+            <label>Color del vehículo:</label>
+            <input type="text" value={colorVehiculo} onChange={e => setColorVehiculo(e.target.value)} disabled={cargando} />
+          </div>
+          <div className="form-row">
+            <label>Marca del vehículo:</label>
+            <input type="text" value={marcaVehiculo} onChange={e => setMarcaVehiculo(e.target.value)} disabled={cargando} />
+          </div>
+          <div className="form-row">
+            <label>Placa del vehículo:</label>
+            <input type="text" value={placaVehiculo} onChange={e => setPlacaVehiculo(e.target.value)} disabled={cargando} />
+          </div>
+        </>
+      )}
+      <div className="form-row">
+        <label>Motivo de la visita:</label>
+        <input type="text" value={motivo} onChange={e => setMotivo(e.target.value)} required disabled={cargando} />
+      </div>
+      <div className="form-row">
+        <label>Fecha y hora de entrada:</label>
+        <input type="datetime-local" value={fechaEntrada} onChange={e => setFechaEntrada(e.target.value)} required disabled={cargando} />
+      </div>
+      {error && <div className="qr-error">{error}</div>}
+      <div className="form-actions">
+        <button className="btn-primary" type="submit" disabled={cargando}>
+          {cargando ? "Enviando..." : "Enviar Solicitud"}
+        </button>
+        <button className="btn-regresar" type="button" onClick={onCancel} style={{ marginLeft: 10 }} disabled={cargando} >
+          Cancelar
+        </button>
+      </div>
+    </form>
+  );
+};
+
 function ResidenteDashboard({ token, nombre, onLogout }) {
   const [vista, setVista] = useState("menu");
   const [visitas, setVisitas] = useState([]);
@@ -584,6 +702,21 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
           <section className="admin-section">
             <BtnRegresar onClick={() => setVista('menu')} />
             <SocialDashboard token={token} rol={usuario?.rol || "residente"} />
+          </section>
+        )}
+        {vista === 'solicitar' && (
+          <section className="admin-section">
+            <BtnRegresar onClick={() => setVista('menu')} />
+            <h3>Solicitar Visita</h3>
+            <FormSolicitarVisita
+              token={token}
+              onSuccess={() => {
+                setNotification({ message: "Solicitud enviada correctamente", type: "success" });
+                setVista("visitas");
+              }}
+              onCancel={handleVolver}
+              setVista={setVista}
+            />
           </section>
         )}
       </div>

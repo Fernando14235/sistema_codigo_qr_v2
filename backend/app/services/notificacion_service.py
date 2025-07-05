@@ -354,3 +354,251 @@ def enviar_notificacion_visita_actualizada(db: Session, visita):
         db.rollback()
         print(f"Error al enviar notificación de visita actualizada: {str(e)}")
         print(traceback.format_exc())
+
+def enviar_notificacion_solicitud_visita(db: Session, visita, residente):
+    try:
+        # Obtener todos los administradores
+        admins = db.query(Administrador).all()
+        
+        if not admins:
+            print("No hay administradores registrados para enviar notificación")
+            return
+
+        visitante = db.query(Visitante).filter(Visitante.id == visita.visitante_id).first()
+        if not visitante:
+            return
+
+        asunto = "📋 Nueva solicitud de visita pendiente"
+        
+        for admin in admins:
+            if admin.usuario and admin.usuario.email:
+                mensaje_html = f"""
+                    <html>
+                        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                            <div style="max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+                                <div style="background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                                    <h1 style="color: #2c3e50; text-align: center; margin-bottom: 30px;">
+                                        📋 Nueva Solicitud de Visita
+                                    </h1>
+                                    <p style="font-size: 16px; margin-bottom: 20px;">
+                                        Hola <strong>{admin.usuario.nombre}</strong>,
+                                    </p>
+                                    <p style="font-size: 16px; margin-bottom: 20px;">
+                                        El residente <strong>{residente.usuario.nombre}</strong> ha enviado una solicitud de visita que requiere tu aprobación.
+                                    </p>
+                                    
+                                    <div style="background-color: #e8f4fd; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                                        <h3 style="color: #2980b9; margin-top: 0;">👤 Datos del Residente</h3>
+                                        <ul style="list-style: none; padding: 0;">
+                                            <li style="margin-bottom: 10px;"><strong>Nombre: </strong> {residente.usuario.nombre}</li>
+                                            <li style="margin-bottom: 10px;"><strong>Email: </strong> {residente.usuario.email}</li>
+                                            <li style="margin-bottom: 10px;"><strong>Unidad Residencial: </strong> {residente.unidad_residencial}</li>
+                                            <li style="margin-bottom: 10px;"><strong>Teléfono: </strong> {residente.telefono}</li>
+                                        </ul>
+                                    </div>
+                                    
+                                    <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                                        <h3 style="color: #856404; margin-top: 0;">👥 Datos del Visitante</h3>
+                                        <ul style="list-style: none; padding: 0;">
+                                            <li style="margin-bottom: 10px;"><strong>Nombre: </strong> {visitante.nombre_conductor}</li>
+                                            <li style="margin-bottom: 10px;"><strong>DNI: </strong> {visitante.dni_conductor}</li>
+                                            <li style="margin-bottom: 10px;"><strong>Teléfono: </strong> {visitante.telefono}</li>
+                                            <li style="margin-bottom: 10px;"><strong>Tipo de Vehículo: </strong> {visitante.tipo_vehiculo}</li>
+                                            <li style="margin-bottom: 10px;"><strong>Marca: </strong> {visitante.marca_vehiculo or 'No especificado'}</li>
+                                            <li style="margin-bottom: 10px;"><strong>Color: </strong> {visitante.color_vehiculo or 'No especificado'}</li>
+                                            <li style="margin-bottom: 10px;"><strong>Placa: </strong> {visitante.placa_vehiculo}</li>
+                                        </ul>
+                                    </div>
+                                    
+                                    <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                                        <h3 style="color: #155724; margin-top: 0;">📅 Detalles de la Visita</h3>
+                                        <ul style="list-style: none; padding: 0;">
+                                            <li style="margin-bottom: 10px;"><strong>Fecha de Entrada: </strong> {(visita.fecha_entrada.astimezone(get_honduras_time().tzinfo) if visita.fecha_entrada.tzinfo else visita.fecha_entrada).strftime('%Y-%m-%d %H:%M:%S')}</li>
+                                            <li style="margin-bottom: 10px;"><strong>Motivo: </strong> {visita.notas}</li>
+                                            <li style="margin-bottom: 10px;"><strong>ID de Solicitud: </strong> {visita.id}</li>
+                                        </ul>
+                                    </div>
+                                    
+                                    <div style="background-color: #f8d7da; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                                        <h3 style="color: #721c24; margin-top: 0;">⚠️ Acción Requerida</h3>
+                                        <p style="font-size: 14px; color: #721c24;">
+                                            <strong>Importante:</strong> Esta solicitud requiere tu aprobación para convertirse en una visita activa. 
+                                            Por favor, revisa los datos y aprueba o rechaza la solicitud desde el panel de administración.
+                                        </p>
+                                    </div>
+                                    
+                                    <p style="text-align: center; margin-top: 30px; font-size: 14px; color: #666;">
+                                        Accede al panel de administración para gestionar esta solicitud.
+                                    </p>
+                                    <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                                    <p style="text-align: center; font-size: 12px; color: #999;">
+                                        Este es un mensaje automático del sistema Residencial Access.<br>
+                                        <strong>No respondas a este correo.</strong>
+                                    </p>
+                                </div>
+                            </div>
+                        </body>
+                    </html>
+                """
+                
+                exito = enviar_correo(admin.usuario.email, asunto, mensaje_html)
+                estado = "enviado" if exito else "fallido"
+                
+                # Crear notificación en la base de datos
+                notificacion = Notificacion(
+                    visita_id=visita.id,
+                    mensaje=f"Solicitud de visita enviada por {residente.usuario.nombre} - Pendiente de aprobación",
+                    fecha_envio=get_honduras_time(),
+                    estado=estado
+                )
+                db.add(notificacion)
+                
+    except Exception as e:
+        db.rollback()
+        print(f"Error al enviar notificación de solicitud de visita: {str(e)}")
+        print(traceback.format_exc())
+
+def enviar_notificacion_solicitud_aprobada(db: Session, visita, qr_img_b64: str):
+    try:
+        # Obtener el residente que creó la solicitud
+        residente = db.query(Residente).filter(Residente.id == visita.residente_id).first()
+        if not residente or not residente.usuario:
+            print("Residente no encontrado para enviar notificación de aprobación")
+            return
+
+        asunto = "✅ Tu solicitud de visita ha sido aprobada"
+        mensaje_html = f"""
+            <html>
+                <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                    <div style="max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+                        <div style="background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                            <h1 style="color: #2c3e50; text-align: center; margin-bottom: 30px;">
+                                ✅ Solicitud Aprobada
+                            </h1>
+                            <p style="font-size: 16px; margin-bottom: 20px;">
+                                ¡Hola <strong>{residente.usuario.nombre}</strong>!
+                            </p>
+                            <p style="font-size: 16px; margin-bottom: 20px;">
+                                Tu solicitud de visita ha sido <strong>APROBADA</strong> por el administrador. 
+                                Ya puedes usar el código QR para que tu visitante ingrese al residencial.
+                            </p>
+                            
+                            <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                                <h3 style="color: #155724; margin-top: 0;">👤 Datos del Visitante</h3>
+                                <ul style="list-style: none; padding: 0;">
+                                    <li style="margin-bottom: 10px;"><strong>Nombre: </strong> {visita.visitante.nombre_conductor}</li>
+                                    <li style="margin-bottom: 10px;"><strong>DNI: </strong> {visita.visitante.dni_conductor}</li>
+                                    <li style="margin-bottom: 10px;"><strong>Teléfono: </strong> {visita.visitante.telefono}</li>
+                                    <li style="margin-bottom: 10px;"><strong>Tipo de Vehículo: </strong> {visita.visitante.tipo_vehiculo}</li>
+                                    <li style="margin-bottom: 10px;"><strong>Marca: </strong> {visita.visitante.marca_vehiculo or 'No especificado'}</li>
+                                    <li style="margin-bottom: 10px;"><strong>Color: </strong> {visita.visitante.color_vehiculo or 'No especificado'}</li>
+                                    <li style="margin-bottom: 10px;"><strong>Placa: </strong> {visita.visitante.placa_vehiculo}</li>
+                                </ul>
+                            </div>
+                            
+                            <div style="background-color: #e8f4fd; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                                <h3 style="color: #2980b9; margin-top: 0;">📅 Detalles de la Visita</h3>
+                                <ul style="list-style: none; padding: 0;">
+                                    <li style="margin-bottom: 10px;"><strong>Fecha de Entrada: </strong> {(visita.fecha_entrada.astimezone(get_honduras_time().tzinfo) if visita.fecha_entrada.tzinfo else visita.fecha_entrada).strftime('%Y-%m-%d %H:%M:%S')}</li>
+                                    <li style="margin-bottom: 10px;"><strong>Motivo: </strong> {visita.notas}</li>
+                                    <li style="margin-bottom: 10px;"><strong>Estado: </strong> <span style="color: #155724; font-weight: bold;">APROBADA</span></li>
+                                </ul>
+                            </div>
+                            
+                            <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                                <h3 style="color: #856404; margin-top: 0;">🔐 Código QR de Acceso</h3>
+                                <p style="font-size: 14px; color: #856404;">
+                                    <strong>Importante:</strong> Presenta este código QR al guardia en la entrada para que tu visitante pueda ingresar.
+                                </p>
+                                <div style="text-align: center; margin: 20px 0;">
+                                    <img src="cid:qrimage" alt="Código QR" width="200" height="200" style="border: 2px solid #ddd; border-radius: 8px;"/>
+                                </div>
+                                <p style="font-size: 12px; color: #856404; text-align: center;">
+                                    <strong>⚠️ No compartas este código QR con personas no autorizadas</strong>
+                                </p>
+                            </div>
+                            
+                            <div style="background-color: #f8d7da; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                                <h3 style="color: #721c24; margin-top: 0;">📋 Instrucciones</h3>
+                                <ol style="margin-bottom: 0;">
+                                    <li>Comparte el código QR con tu visitante</li>
+                                    <li>El visitante debe presentarlo al guardia en la entrada</li>
+                                    <li>El guardia escaneará el código para verificar la autorización</li>
+                                    <li>Una vez aprobado, el visitante podrá ingresar</li>
+                                </ol>
+                            </div>
+                            
+                            <p style="text-align: center; margin-top: 30px; font-size: 14px; color: #666;">
+                                Gracias por usar nuestro sistema de control de acceso.
+                            </p>
+                            <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                            <p style="text-align: center; font-size: 12px; color: #999;">
+                                Este es un mensaje automático del sistema Residencial Access.<br>
+                                <strong>No respondas a este correo.</strong>
+                            </p>
+                        </div>
+                    </div>
+                </body>
+            </html>
+        """
+        
+        exito = enviar_correo(residente.usuario.email, asunto, mensaje_html, qr_img_b64)
+        estado = "enviado" if exito else "fallido"
+        
+        # Crear notificación en la base de datos
+        notificacion = Notificacion(
+            visita_id=visita.id,
+            mensaje=f"Solicitud de visita aprobada por administrador - Código QR generado",
+            fecha_envio=get_honduras_time(),
+            estado=estado
+        )
+        db.add(notificacion)
+        db.commit()
+        
+        if exito:
+            print(f"Notificación de aprobación enviada exitosamente a {residente.usuario.email}")
+        else:
+            print(f"Error al enviar notificación de aprobación a {residente.usuario.email}")
+            
+    except Exception as e:
+        db.rollback()
+        print(f"Error al enviar notificación de aprobación: {str(e)}")
+        print(traceback.format_exc())
+
+def enviar_notificacion_nueva_publicacion(db: Session, titulo_publicacion: str, contenido: str, creador: str, notificar_a: str = 'todos'):
+    try:
+        asunto = "Nueva Publicación"
+        mensaje_html = f"""
+            <html>
+                <body style='font-family: Arial, sans-serif; color: #333;'>
+                    <div style='max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 24px; border-radius: 10px;'>
+                        <p>Se ha creado una nueva publicación por <b>{creador}</b>:</p>
+                        <div style='background: #e3eafc; border-radius: 8px; padding: 16px; margin: 18px 0;'>
+                            <h3 style='color: #1976d2; margin: 0 0 8px 0;'>{titulo_publicacion}</h3>
+                            <div style='color: #333;'>{contenido}</div>
+                        </div>
+                        <p>Puedes visualizar y comentar esta publicación en la sección <b>Social</b> de la plataforma.</p>
+                        <p style='margin-top: 24px; color: #888; font-size: 0.95em;'>Este es un mensaje automático del sistema Residencial Access.<br>No respondas a este correo.</p>
+                    </div>
+                </body>
+            </html>
+        """
+        usuarios_notificados = []
+        if notificar_a in ('todos', 'admin'):
+            admins = db.query(Administrador).all()
+            for admin in admins:
+                if admin.usuario and admin.usuario.email:
+                    exito = enviar_correo(admin.usuario.email, asunto, mensaje_html)
+                    if exito:
+                        usuarios_notificados.append(admin.usuario.email)
+        if notificar_a in ('todos', 'residente'):
+            residentes = db.query(Residente).all()
+            for residente in residentes:
+                if residente.usuario and residente.usuario.email:
+                    exito = enviar_correo(residente.usuario.email, asunto, mensaje_html)
+                    if exito:
+                        usuarios_notificados.append(residente.usuario.email)
+        print(f"Alertas de nueva publicación enviadas a: {usuarios_notificados}")
+    except Exception as e:
+        print(f"Error al enviar alerta de nueva publicación: {str(e)}")
+        print(traceback.format_exc())

@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
-from app.schemas.visita_schema import VisitaCreate, VisitaQRResponse, ValidarQRRequest, AccionQR, RegistrarSalidaRequest, VisitaResponse, VisitaUpdate
+from app.schemas.visita_schema import VisitaCreate, VisitaQRResponse, ValidarQRRequest, AccionQR, RegistrarSalidaRequest, VisitaResponse, VisitaUpdate, SolicitudVisitaCreate
 from app.models.guardia import Guardia
-from app.services.visita_service import crear_visita_con_qr, validar_qr_entrada, registrar_salida_visita, obtener_visitas_residente, editar_visita_residente, eliminar_visita_residente
+from app.services.visita_service import crear_visita_con_qr, validar_qr_entrada, registrar_salida_visita, obtener_visitas_residente, editar_visita_residente, eliminar_visita_residente, crear_solicitud_visita_residente, aprobar_solicitud_visita_admin, obtener_solicitudes_pendientes_admin
 from app.services.notificacion_service import enviar_notificacion_escaneo, enviar_notificacion_guardia
 from app.database import get_db
 from app.models import Usuario
@@ -178,3 +178,26 @@ def eliminar_visita(
     usuario: TokenData = Depends(get_current_user)
 ):
     return eliminar_visita_residente(db, visita_id, usuario.id, rol=usuario.rol)
+
+@router.post("/residente/solicitar_visita", dependencies=[Depends(verify_role(["residente"]))])
+def solicitar_visita(
+    solicitud: SolicitudVisitaCreate,
+    db: Session = Depends(get_db),
+    usuario: TokenData = Depends(get_current_user)
+):
+    return crear_solicitud_visita_residente(db, solicitud, usuario.id)
+
+@router.get("/admin/solicitudes_pendientes", dependencies=[Depends(verify_role(["admin"]))])
+def obtener_solicitudes_pendientes(
+    db: Session = Depends(get_db),
+    usuario: TokenData = Depends(get_current_user)
+):
+    return obtener_solicitudes_pendientes_admin(db)
+
+@router.post("/admin/aprobar_solicitud/{visita_id}", response_model=list[VisitaQRResponse], dependencies=[Depends(verify_role(["admin"]))])
+def aprobar_solicitud_visita(
+    visita_id: int,
+    db: Session = Depends(get_db),
+    usuario: TokenData = Depends(get_current_user)
+):
+    return aprobar_solicitud_visita_admin(db, visita_id, usuario.id)

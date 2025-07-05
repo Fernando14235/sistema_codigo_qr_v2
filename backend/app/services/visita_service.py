@@ -7,8 +7,8 @@ from app.models.visita import Visita
 from app.models.visitante import Visitante
 from app.models.residente import Residente
 from app.models.admin import Administrador
-from app.services.notificacion_service import enviar_notificacion_residente, enviar_notificacion_guardia, enviar_notificacion_visita_actualizada
-from app.schemas.visita_schema import VisitaCreate, VisitaQRResponse, VisitaUpdate
+from app.services.notificacion_service import enviar_notificacion_residente, enviar_notificacion_guardia, enviar_notificacion_visita_actualizada, enviar_notificacion_solicitud_visita, enviar_notificacion_solicitud_aprobada
+from app.schemas.visita_schema import VisitaCreate, VisitaQRResponse, VisitaUpdate, SolicitudVisitaCreate
 from app.schemas.visitante_schema import VisitanteCreate, VisitanteResponse
 from app.utils.qr import validar_payload_qr, generar_payload_qr, generar_qr_completo, generar_imagen_qr_personalizada
 from app.utils.validators import validar_dni_visita_unico
@@ -603,4 +603,204 @@ def eliminar_visita_residente(db: Session, visita_id: int, usuario_id: int, rol:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al eliminar la visita: {str(e)}"
+        )
+
+def crear_solicitud_visita_residente(db: Session, solicitud_data: SolicitudVisitaCreate, residente_id: int) -> dict:
+    """
+    Crea una solicitud de visita que el residente envía al administrador.
+    El administrador debe aprobar y crear la visita final.
+    """
+    try:
+        # Verificar que el residente existe
+        residente = db.query(Residente).filter(Residente.usuario_id == residente_id).first()
+        if not residente:
+            raise HTTPException(status_code=404, detail="Residente no encontrado")
+
+        # Validar fecha de entrada
+        fecha_entrada = solicitud_data.fecha_entrada
+        if fecha_entrada.tzinfo is None:
+            fecha_entrada = get_honduras_time().tzinfo.localize(fecha_entrada)
+        else:
+            fecha_entrada = fecha_entrada.astimezone(get_honduras_time().tzinfo)
+        
+        if fecha_entrada < get_honduras_time():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No se puede crear una solicitud con fecha/hora pasada"
+            )
+
+        # Crear el visitante
+        visitante = Visitante(
+            nombre_conductor=solicitud_data.nombre_visitante,
+            dni_conductor=solicitud_data.dni_visitante,
+            telefono=solicitud_data.telefono_visitante,
+            tipo_vehiculo=solicitud_data.tipo_vehiculo,
+            marca_vehiculo=solicitud_data.marca_vehiculo,
+            color_vehiculo=solicitud_data.color_vehiculo,
+            placa_vehiculo=solicitud_data.placa_vehiculo,
+            motivo_visita=solicitud_data.motivo_visita
+        )
+        db.add(visitante)
+        db.flush()
+
+        # Crear la visita con estado "solicitada"
+        expiracion = fecha_entrada + timedelta(days=1)
+        
+        visita = Visita(
+            residente_id=residente.id,
+            admin_id=None,  # Se asignará cuando el admin apruebe
+            visitante_id=visitante.id,
+            notas=solicitud_data.motivo_visita,
+            fecha_entrada=fecha_entrada,
+            qr_expiracion=expiracion,
+            qr_code="PENDIENTE_APROBACION",
+            tipo_creador="residente",
+            estado="solicitada"  # Nuevo estado para solicitudes
+        )
+        db.add(visita)
+        db.flush()
+
+        # Enviar notificación a todos los administradores
+        try:
+            enviar_notificacion_solicitud_visita(db, visita, residente)
+        except Exception as e:
+            print(f"Error al enviar notificación de solicitud: {str(e)}")
+
+        db.commit()
+        
+        return {
+            "mensaje": "Solicitud de visita enviada exitosamente al administrador",
+            "visita_id": visita.id,
+            "estado": "solicitada",
+            "fecha_solicitud": get_honduras_time()
+        }
+
+    except HTTPException as e:
+        db.rollback()
+        raise e
+    except Exception as e:
+        db.rollback()
+        print(f"Error al crear solicitud de visita: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al crear solicitud de visita: {str(e)}"
+        )
+
+def aprobar_solicitud_visita_admin(db: Session, visita_id: int, admin_id: int) -> list[VisitaQRResponse]:
+    """
+    Aprueba una solicitud de visita y la convierte en una visita activa.
+    """
+    try:
+        # Verificar que el admin existe
+        admin = db.query(Administrador).filter(Administrador.usuario_id == admin_id).first()
+        if not admin:
+            raise HTTPException(status_code=404, detail="Administrador no encontrado")
+
+        # Buscar la visita solicitada
+        visita = db.query(Visita).filter(Visita.id == visita_id, Visita.estado == "solicitada").first()
+        if not visita:
+            raise HTTPException(status_code=404, detail="Solicitud de visita no encontrada")
+
+        # Verificar que la fecha de entrada no haya pasado
+        if visita.fecha_entrada < get_honduras_time():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No se puede aprobar una solicitud con fecha/hora pasada"
+            )
+
+        # Actualizar la visita
+        visita.admin_id = admin.id
+        visita.estado = "pendiente"
+        visita.tipo_creador = "admin"  # Cambiar a admin como creador
+        
+        # Generar QR real
+        qr_code, qr_img_b64 = generar_qr_completo(visita.id, minutos_validez=1440)
+        visita.qr_code = qr_code
+        
+        # Generar QR personalizado
+        qr_img_personalizado = generar_imagen_qr_personalizada(
+            qr_data=qr_code,
+            nombre_residente=visita.residente.usuario.nombre,
+            nombre_visitante=visita.visitante.nombre_conductor,
+            nombre_residencial="Residencial Access",
+            unidad_residencial=visita.residente.unidad_residencial,
+            fecha_creacion=datetime.now(timezone.utc),
+            fecha_expiracion=visita.qr_expiracion
+        )
+
+        # Enviar notificaciones
+        try:
+            # Notificar al residente que su solicitud fue aprobada
+            enviar_notificacion_solicitud_aprobada(db, visita, qr_img_personalizado)
+            # Notificar a los guardias sobre la nueva visita
+            enviar_notificacion_guardia(db, visita)
+        except Exception as e:
+            print(f"Error al enviar notificaciones: {str(e)}")
+
+        db.commit()
+        
+        # Retornar respuesta en formato VisitaQRResponse
+        return [VisitaQRResponse(
+            id=visita.id,
+            residente_id=visita.residente_id,
+            admin_id=visita.admin_id,
+            visitante=visita.visitante,
+            estado=visita.estado,
+            qr_expiracion=visita.qr_expiracion,
+            qr_code=visita.qr_code,
+            qr_code_img_base64=qr_img_personalizado,
+            fecha_entrada=visita.fecha_entrada,
+            notas=visita.notas,
+            tipo_creador=visita.tipo_creador,
+            fecha_salida=visita.fecha_salida,
+            guardia_id=visita.guardia_id
+        )]
+
+    except HTTPException as e:
+        db.rollback()
+        raise e
+    except Exception as e:
+        db.rollback()
+        print(f"Error al aprobar solicitud de visita: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al aprobar solicitud de visita: {str(e)}"
+        )
+
+def obtener_solicitudes_pendientes_admin(db: Session) -> list:
+    """
+    Obtiene todas las solicitudes de visita pendientes para el administrador.
+    """
+    try:
+        solicitudes = db.query(Visita).filter(
+            Visita.estado == "solicitada"
+        ).order_by(Visita.fecha_entrada.asc()).all()
+
+        result = []
+        for solicitud in solicitudes:
+            result.append({
+                "id": solicitud.id,
+                "residente": {
+                    "nombre": solicitud.residente.usuario.nombre,
+                    "email": solicitud.residente.usuario.email,
+                    "unidad_residencial": solicitud.residente.unidad_residencial,
+                    "telefono": solicitud.residente.telefono
+                },
+                "visitante": solicitud.visitante,
+                "fecha_entrada": solicitud.fecha_entrada,
+                "motivo_visita": solicitud.notas,
+                "fecha_solicitud": solicitud.fecha_entrada,  # Usamos fecha_entrada como fecha de solicitud
+                "estado": solicitud.estado
+            })
+        
+        return result
+
+    except Exception as e:
+        print(f"Error al obtener solicitudes pendientes: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al obtener solicitudes pendientes: {str(e)}"
         )

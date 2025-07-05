@@ -9,6 +9,7 @@ from fastapi import UploadFile
 import os
 import shutil
 import uuid
+from app.services.notificacion_service import enviar_notificacion_nueva_publicacion
 
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), '../../uploads/social')
 UPLOAD_DIR = os.path.abspath(UPLOAD_DIR)
@@ -267,7 +268,24 @@ def get_social_residente(db: Session, residente_id: int):
 
 def crear_publicacion_service(db: Session, social_data: SocialCreate, imagenes: Optional[List[UploadFile]], current_user: Usuario):
     imagen_urls = save_uploaded_images(imagenes)
-    return create_social(db, social_data, imagenes=imagen_urls, current_user=current_user)
+    social = create_social(db, social_data, imagenes=imagen_urls, current_user=current_user)
+    # Determinar a quién notificar
+    if social_data.para_todos:
+        notificar_a = 'todos'
+    else:
+        # Si todos los destinatarios son admins o residentes, podrías ajustar aquí según la lógica de destinatarios
+        notificar_a = 'residente'  # Por defecto, notificar solo a residentes si no es para todos
+    try:
+        enviar_notificacion_nueva_publicacion(
+            db=db,
+            titulo_publicacion=social_data.titulo,
+            contenido=social_data.contenido,
+            creador=current_user.nombre,
+            notificar_a=notificar_a
+        )
+    except Exception as e:
+        print(f"Error enviando alerta de nueva publicación: {e}")
+    return social
 
 def listar_publicaciones_service(db: Session, current_user: Usuario, tipo_publicacion: Optional[str], estado: Optional[str], fecha: Optional[str]):
     return get_social_list(
