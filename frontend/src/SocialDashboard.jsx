@@ -241,10 +241,11 @@ function SocialDashboard({ token, rol }) {
   // Renderizado de publicaciones
   const renderPublicaciones = () => {
     const isMobile = window.innerWidth < 700;
-    if (isMobile) {
-      return (
-        <div>
-          {showForm ? null : renderFiltros()}
+    return (
+      <div>
+        {/* Mostrar filtros y botón de nueva publicación siempre para admin */}
+        {isAdmin && !showForm && renderFiltros()}
+        {isMobile ? (
           <div className="social-cards-mobile">
             {publicaciones.map(pub => (
               <div className="social-card-mobile" key={pub.id} style={pub.estado === "fallido" ? {backgroundColor: "#ffebee"} : {}}>
@@ -266,49 +267,47 @@ function SocialDashboard({ token, rol }) {
               </div>
             ))}
           </div>
-        </div>
-      );
-    }
-    // Tabla para escritorio
-    return (
-      <table className={styles["social-table"]}>
-        <thead>
-          <tr>
-            <th>Título</th>
-            <th>Tipo</th>
-            <th>Estado</th>
-            <th>Fecha</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {publicaciones.map(pub => (
-            <tr key={pub.id} style={pub.estado === "fallido" ? {backgroundColor: "#ffebee"} : {}}>
-              <td>{pub.titulo}</td>
-              <td>{pub.tipo_publicacion}</td>
-              <td>
-                <span style={{
-                  color: pub.estado === "fallido" ? "#d32f2f" : 
-                         pub.estado === "publicado" ? "#2e7d32" : "#f57c00",
-                  fontWeight: "bold"
-                }}>
-                  {pub.estado}
-                </span>
-              </td>
-              <td>{new Date(pub.fecha_creacion).toLocaleString()}</td>
-              <td className={styles["social-table-actions"]} style={{display:'flex',gap:4}}>
-                <span onClick={() => setDetalle(pub)}><IconVer /></span>
-                {isAdmin && (
-                  <>
-                    <span onClick={() => handleEditar(pub)}><IconEditar /></span>
-                    <span onClick={() => handleEliminar(pub.id)}><IconEliminar /></span>
-                  </>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+        ) : (
+          <table className={styles["social-table"]}>
+            <thead>
+              <tr>
+                <th>Título</th>
+                <th>Tipo</th>
+                <th>Estado</th>
+                <th>Fecha</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {publicaciones.map(pub => (
+                <tr key={pub.id} style={pub.estado === "fallido" ? {backgroundColor: "#ffebee"} : {}}>
+                  <td>{pub.titulo}</td>
+                  <td>{pub.tipo_publicacion}</td>
+                  <td>
+                    <span style={{
+                      color: pub.estado === "fallido" ? "#d32f2f" : 
+                             pub.estado === "publicado" ? "#2e7d32" : "#f57c00",
+                      fontWeight: "bold"
+                    }}>
+                      {pub.estado}
+                    </span>
+                  </td>
+                  <td>{new Date(pub.fecha_creacion).toLocaleString()}</td>
+                  <td className={styles["social-table-actions"]} style={{display:'flex',gap:4}}>
+                    <span onClick={() => setDetalle(pub)}><IconVer /></span>
+                    {isAdmin && (
+                      <>
+                        <span onClick={() => handleEditar(pub)}><IconEditar /></span>
+                        <span onClick={() => handleEliminar(pub.id)}><IconEliminar /></span>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     );
   };
 

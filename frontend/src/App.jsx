@@ -91,6 +91,21 @@ function Login({ onLogin, notification, setNotification }) {
   );
 }
 
+function usePushNotificationToasts(setNotification) {
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'PUSH_NOTIFICATION') {
+          setNotification({
+            message: event.data.data.body || 'Nueva notificación',
+            type: 'info'
+          });
+        }
+      });
+    }
+  }, [setNotification]);
+}
+
 // App principal que maneja el estado de autenticacion y renderiza los dashboards
 function App() {
   const [token, setToken] = useState(localStorage.getItem("token"));
@@ -129,6 +144,8 @@ function App() {
       localStorage.removeItem("rol");
     }
   };
+
+  usePushNotificationToasts(setNotification);
 
   return (
     <Router>

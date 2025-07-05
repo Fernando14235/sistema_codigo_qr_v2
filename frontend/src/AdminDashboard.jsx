@@ -8,6 +8,7 @@ import UserMenu from "./components/UI/UserMenu";
 import PerfilUsuario from "./PerfilUsuario";
 import ConfiguracionUsuario from "./ConfiguracionUsuario";
 import ResidenteDashboard from "./ResidenteDashboard";
+import pushNotificationService from './services/pwa/pushNotifications';
 Chart.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 // Iconos
@@ -240,7 +241,7 @@ function TablaEscaneos({ escaneos, titulo }) {
 }
 
 // Formulario para crear visita (igual que en el panel de residente, pero para admin)
-function FormCrearVisitaAdmin({ token, onSuccess, onCancel, setVista }) {
+function FormCrearVisitaAdmin({ token, onSuccess, onCancel, setVista, usuario }) {
   const [nombre_conductor, setNombreConductor] = useState("");
   const [dni_conductor, setDNIConductor] = useState("");
   const [telefono, setTelefono] = useState("");
@@ -299,8 +300,24 @@ function FormCrearVisitaAdmin({ token, onSuccess, onCancel, setVista }) {
       await axios.post(`${API_URL}/visitas/residente/crear_visita`, data, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      onSuccess && onSuccess();
-      if (typeof setVista === 'function') setVista('mis_visitas');
+      // Notificación visual y push solo para admin
+      if (usuario && usuario.rol === 'admin') {
+        if (typeof window !== 'undefined' && window.Notification && Notification.permission === 'granted') {
+          pushNotificationService.showLocalNotification(
+            '👥 Nueva visita creada',
+            {
+              body: 'Has creado una nueva visita exitosamente.',
+              icon: '/resi192.png'
+            }
+          );
+        }
+        if (typeof setVista === 'function') {
+          setVista('mis_visitas');
+        }
+        if (typeof onSuccess === 'function') {
+          onSuccess();
+        }
+      }
     } catch (err) {
       setError(
         err.response?.data?.detail ||
@@ -1219,6 +1236,7 @@ function AdminDashboard({ token, nombre, onLogout }) {
               }}
               onCancel={() => setVista('menu')}
               setVista={setVista}
+              usuario={usuario}
             />
           </section>
         )}

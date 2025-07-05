@@ -122,28 +122,36 @@ self.addEventListener('push', (event) => {
 
   // Mostrar la notificación
   event.waitUntil(
-    self.registration.showNotification(notificationData.title, {
-      body: notificationData.body,
-      icon: notificationData.icon,
-      badge: notificationData.badge,
-      vibrate: notificationData.vibrate,
-      data: notificationData.data,
-      requireInteraction: false,
-      actions: [
-        {
-          action: 'view',
-          title: 'Ver',
-          icon: '/resi32.png'
-        },
-        {
-          action: 'close',
-          title: 'Cerrar',
-          icon: '/resi32.png'
-        }
-      ],
-      tag: 'residencial-notification',
-      renotify: true
-    })
+    Promise.all([
+      self.registration.showNotification(notificationData.title, {
+        body: notificationData.body,
+        icon: notificationData.icon,
+        badge: notificationData.badge,
+        vibrate: notificationData.vibrate,
+        data: notificationData.data,
+        requireInteraction: false,
+        actions: [
+          {
+            action: 'view',
+            title: 'Ver',
+            icon: '/resi32.png'
+          },
+          {
+            action: 'close',
+            title: 'Cerrar',
+            icon: '/resi32.png'
+          }
+        ],
+        tag: 'residencial-notification',
+        renotify: true
+      }),
+      // Enviar mensaje a todas las ventanas abiertas
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clients) {
+        clients.forEach(function(client) {
+          client.postMessage({ type: 'PUSH_NOTIFICATION', data: notificationData });
+        });
+      })
+    ])
   );
 });
 
