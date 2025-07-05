@@ -24,5 +24,5 @@ class Visita(Base):
     admin = relationship("Administrador", back_populates="visitas")
     visitante = relationship("Visitante", back_populates="visitas")
     guardia = relationship("Guardia", back_populates="visitas")
-    escaneos = relationship("EscaneoQR", back_populates="visita")
-    notificaciones = relationship("Notificacion", back_populates="visita")
+    escaneos = relationship("EscaneoQR", back_populates="visita", passive_deletes=True)
+    notificaciones = relationship("Notificacion", back_populates="visita", passive_deletes=True)

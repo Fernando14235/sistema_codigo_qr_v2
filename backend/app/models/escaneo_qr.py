@@ -12,5 +12,5 @@ class EscaneoQR(Base):
     dispositivo = Column(String)
     fecha_escaneo = Column(DateTime(timezone=True), default=get_current_time)
     
-    visita  = relationship("Visita",  back_populates="escaneos")
+    visita = relationship("Visita", back_populates="escaneos", passive_deletes=True)
     guardia = relationship("Guardia", back_populates="escaneos")

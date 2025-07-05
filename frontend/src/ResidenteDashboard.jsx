@@ -64,7 +64,7 @@ function BtnRegresar({ onClick }) {
 }
 
 // Tabla de visitas (responsive)
-function TablaVisitasResidente({ visitas, onEditar }) {
+function TablaVisitasResidente({ visitas, onEditar, onEliminar }) {
   // Detectar si la pantalla es pequeña
   const isMobile = window.innerWidth < 700;
   if (isMobile) {
@@ -78,10 +78,17 @@ function TablaVisitasResidente({ visitas, onEditar }) {
               <div><b>Vehículo:</b> {v.visitante?.tipo_vehiculo || '-'}</div>
               <div><b>Motivo:</b> {v.visitante?.motivo_visita || '-'}</div>
               <div><b>Estado:</b> {v.estado}</div>
-              <div><b>Expiración:</b> {v.expiracion === 'S' ? 'Sí' : 'No'}</div>
+              <div><b>Expiración:</b> {v.expiracion == 'S' ? 'Sí' : 'No'}</div>
               <div><b>Fecha Entrada:</b> {v.fecha_entrada ? new Date(v.fecha_entrada).toLocaleString() : "-"}</div>
             </div>
             <div className="visita-card-mobile-action">
+              <span
+                onClick={() => onEliminar(v.id)}
+                style={{ color: '#e53935', cursor: 'pointer', fontSize: 28, marginRight: 8 }}
+                title="Eliminar visita"
+              >
+                🗑️
+              </span>
               <span
                 onClick={() => (v.estado === 'pendiente' && v.expiracion === 'N') ? onEditar(v) : null}
                 style={{ color: (v.estado === 'pendiente' && v.expiracion === 'N') ? '#1976d2' : '#bdbdbd', cursor: (v.estado === 'pendiente' && v.expiracion === 'N') ? 'pointer' : 'not-allowed', fontSize: 28 }}
@@ -108,7 +115,7 @@ function TablaVisitasResidente({ visitas, onEditar }) {
             <th>Estado</th>
             <th>Expiración</th>
             <th>Fecha Entrada</th>
-            <th>Acción</th>
+            <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -119,9 +126,16 @@ function TablaVisitasResidente({ visitas, onEditar }) {
               <td>{v.visitante?.tipo_vehiculo || '-'}</td>
               <td>{v.visitante?.motivo_visita || '-'}</td>
               <td>{v.estado}</td>
-              <td>{v.expiracion === 'S' ? 'Sí' : 'No'}</td>
+              <td>{v.expiracion == 'S' ? 'Sí' : 'No'}</td>
               <td>{v.fecha_entrada ? new Date(v.fecha_entrada).toLocaleString() : "-"}</td>
               <td>
+                <span
+                  onClick={() => onEliminar(v.id)}
+                  style={{ color: '#e53935', cursor: 'pointer', fontSize: 20, marginRight: 8 }}
+                  title="Eliminar visita"
+                >
+                  🗑️
+                </span>
                 <span
                   onClick={() => (v.estado === 'pendiente' && v.expiracion === 'N') ? onEditar(v) : null}
                   style={{ color: (v.estado === 'pendiente' && v.expiracion === 'N') ? '#1976d2' : '#bdbdbd', cursor: (v.estado === 'pendiente' && v.expiracion === 'N') ? 'pointer' : 'not-allowed', fontSize: 20 }}
@@ -437,6 +451,24 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
     setCargando(false);
   };
 
+  // Eliminar visita
+  const eliminarVisita = async (visitaId) => {
+    if (!window.confirm("¿Seguro que deseas eliminar esta visita?")) return;
+    
+    try {
+      await axios.delete(`${API_URL}/visitas/residente/eliminar_visita/${visitaId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotification({ message: "Visita eliminada correctamente", type: "success" });
+      cargarVisitas(); // Recargar la lista
+    } catch (err) {
+      setNotification({ 
+        message: err.response?.data?.detail || "Error al eliminar la visita", 
+        type: "error" 
+      });
+    }
+  };
+
   // Cargar notificaciones del residente
   const cargarNotificaciones = async () => {
     setCargando(true);
@@ -487,7 +519,11 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
             {error && <div className="qr-error">{error}</div>}
             {!cargando && visitas.length === 0 && <div>No tienes visitas registradas.</div>}
             {!cargando && visitas.length > 0 && (
-              <TablaVisitasResidente visitas={visitas} onEditar={setVisitaEditar} />
+              <TablaVisitasResidente 
+                visitas={visitas} 
+                onEditar={setVisitaEditar} 
+                onEliminar={eliminarVisita}
+              />
             )}
           </section>
         )}

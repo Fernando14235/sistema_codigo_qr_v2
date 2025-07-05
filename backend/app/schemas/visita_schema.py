@@ -70,6 +70,7 @@ class VisitaResponse(BaseModel):
     fecha_entrada: datetime
     fecha_salida: Optional[datetime] = None
     estado: str
+    expiracion: Optional[str] = None
     qr_code: str
     qr_expiracion: datetime
     qr_code_img_base64: Optional[str] = ""

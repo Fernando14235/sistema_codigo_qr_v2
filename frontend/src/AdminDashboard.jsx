@@ -122,8 +122,8 @@ function CrearUsuario({ token, onUsuarioCreado, usuarioEditar, setUsuarioEditar 
           headers: { Authorization: `Bearer ${token}` }
         });
         setMensaje("Usuario creado correctamente");
-        setNombre(""); setEmail(""); setRol("residente"); setPassword(""); setTelefono(""); setUnidadResidencial("");
-        if (onUsuarioCreado) onUsuarioCreado();
+      setNombre(""); setEmail(""); setRol("residente"); setPassword(""); setTelefono(""); setUnidadResidencial("");
+      if (onUsuarioCreado) onUsuarioCreado();
         if (typeof setVista === 'function') setVista('usuarios');
       }
     } catch (err) {
@@ -388,7 +388,7 @@ function FormCrearVisitaAdmin({ token, onSuccess, onCancel, setVista }) {
   );
 }
 
-function TablaVisitasAdmin({ visitas, onEditar }) {
+function TablaVisitasAdmin({ visitas, onEditar, onEliminar }) {
   const isMobile = window.innerWidth < 800;
   if (!visitas || visitas.length === 0) {
     return <p style={{ textAlign: 'center', color: '#888' }}>No hay visitas registradas.</p>;
@@ -404,10 +404,17 @@ function TablaVisitasAdmin({ visitas, onEditar }) {
               <div><b>Vehículo:</b> {v.visitante?.tipo_vehiculo || '-'}</div>
               <div><b>Motivo:</b> {v.notas || '-'}</div>
               <div><b>Estado:</b> {v.estado}</div>
-              <div><b>Expiración:</b> {v.expiracion === 'S' ? 'Sí' : 'No'}</div>
+              <div><b>Expiración:</b> {v.expiracion == 'S' ? 'Sí' : 'No'}</div>
               <div><b>Fecha Entrada:</b> {v.fecha_entrada ? new Date(v.fecha_entrada).toLocaleString() : '-'}</div>
             </div>
             <div className="visita-card-mobile-action">
+              <span
+                onClick={() => onEliminar(v.id)}
+                style={{ color: '#e53935', cursor: 'pointer', fontSize: 28, marginRight: 8 }}
+                title="Eliminar visita"
+              >
+                🗑️
+              </span>
               <span
                 onClick={() => (v.estado === 'pendiente' && v.expiracion === 'N') ? onEditar(v) : null}
                 style={{ color: (v.estado === 'pendiente' && v.expiracion === 'N') ? '#1976d2' : '#bdbdbd', cursor: (v.estado === 'pendiente' && v.expiracion === 'N') ? 'pointer' : 'not-allowed', fontSize: 28 }}
@@ -449,6 +456,13 @@ function TablaVisitasAdmin({ visitas, onEditar }) {
                 <td>{v.expiracion === 'S' ? 'Sí' : 'No'}</td>
                 <td>{v.fecha_entrada ? new Date(v.fecha_entrada).toLocaleString() : '-'}</td>
                 <td>
+                  <span
+                    onClick={() => onEliminar(v.id)}
+                    style={{ color: '#e53935', cursor: 'pointer', fontSize: 20, marginRight: 8 }}
+                    title="Eliminar visita"
+                  >
+                    🗑️
+                  </span>
                   <span
                     onClick={() => (v.estado === 'pendiente' && v.expiracion === 'N') ? onEditar(v) : null}
                     style={{ color: (v.estado === 'pendiente' && v.expiracion === 'N') ? '#1976d2' : '#bdbdbd', cursor: (v.estado === 'pendiente' && v.expiracion === 'N') ? 'pointer' : 'not-allowed', fontSize: 20 }}
@@ -800,6 +814,24 @@ function AdminDashboard({ token, nombre, onLogout }) {
     }
   };
 
+  // Eliminar visita del admin
+  const eliminarVisitaAdmin = async (visitaId) => {
+    if (!window.confirm("¿Seguro que deseas eliminar esta visita?")) return;
+    
+    try {
+      await axios.delete(`${API_URL}/visitas/residente/eliminar_visita/${visitaId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotification({ message: "Visita eliminada correctamente", type: "success" });
+      cargarVisitasAdmin(); // Recargar la lista
+    } catch (err) {
+      setNotification({ 
+        message: err.response?.data?.detail || "Error al eliminar la visita", 
+        type: "error" 
+      });
+    }
+  };
+
   const editarUsuario = async (usuario) => {
     setUsuarioEditar(usuario);
     setVista("crear");
@@ -885,49 +917,49 @@ function AdminDashboard({ token, nombre, onLogout }) {
             {window.innerWidth < 800
               ? <UsuariosCardsMobile usuarios={usuarios} onEditar={editarUsuario} onEliminar={eliminarUsuario} />
               : (
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th onClick={() => handleOrden("nombre", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
-                        Nombre {ordenUsuarios.campo === "nombre"}
-                      </th>
-                      <th onClick={() => handleOrden("email", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
-                        Email {ordenUsuarios.campo === "email"}
-                      </th>
-                      <th onClick={() => handleOrden("rol", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
-                        Rol {ordenUsuarios.campo === "rol"}
-                      </th>
-                      <th>Teléfono</th>
-                      <th onClick={() => handleOrden("unidad_residencial", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
-                        Unidad Residencial {ordenUsuarios.campo === "unidad_residencial"}
-                      </th>
-                      <th onClick={() => handleOrden("fecha_creacion", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
-                        Fecha Creación {ordenUsuarios.campo === "fecha_creacion"}
-                      </th>
-                      <th onClick={() => handleOrden("fecha_actualizacion", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
-                        Fecha Actualización {ordenUsuarios.campo === "fecha_actualizacion"}
-                      </th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {usuarios.map(u => (
-                      <tr key={u.id}>
-                        <td>{u.nombre}</td>
-                        <td>{u.email}</td>
-                        <td>{u.rol}</td>
-                        <td>{u.telefono || "N/A"}</td>
-                        <td>{u.unidad_residencial || "-"}</td>
-                        <td>{new Date(u.fecha_creacion).toLocaleDateString()}</td>
-                        <td>{u.fecha_actualizacion ? new Date(u.fecha_actualizacion).toLocaleDateString() : "-"}</td>
-                        <td>
-                          <span onClick={() => eliminarUsuario(u.id)}><DeleteIcon /></span>
-                          <span onClick={() => editarUsuario(u)}><EditIcon /></span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th onClick={() => handleOrden("nombre", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
+                    Nombre {ordenUsuarios.campo === "nombre"}
+                  </th>
+                  <th onClick={() => handleOrden("email", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
+                    Email {ordenUsuarios.campo === "email"}
+                  </th>
+                  <th onClick={() => handleOrden("rol", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
+                    Rol {ordenUsuarios.campo === "rol"}
+                  </th>
+                  <th>Teléfono</th>
+                  <th onClick={() => handleOrden("unidad_residencial", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
+                    Unidad Residencial {ordenUsuarios.campo === "unidad_residencial"}
+                  </th>
+                  <th onClick={() => handleOrden("fecha_creacion", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
+                    Fecha Creación {ordenUsuarios.campo === "fecha_creacion"}
+                  </th>
+                  <th onClick={() => handleOrden("fecha_actualizacion", ordenUsuarios, setOrdenUsuarios, cargarUsuarios)} style={{ cursor: "pointer" }}>
+                    Fecha Actualización {ordenUsuarios.campo === "fecha_actualizacion"}
+                  </th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {usuarios.map(u => (
+                  <tr key={u.id}>
+                    <td>{u.nombre}</td>
+                    <td>{u.email}</td>
+                    <td>{u.rol}</td>
+                    <td>{u.telefono || "N/A"}</td>
+                    <td>{u.unidad_residencial || "-"}</td>
+                    <td>{new Date(u.fecha_creacion).toLocaleDateString()}</td>
+                    <td>{u.fecha_actualizacion ? new Date(u.fecha_actualizacion).toLocaleDateString() : "-"}</td>
+                    <td>
+                      <span onClick={() => eliminarUsuario(u.id)}><DeleteIcon /></span>
+                      <span onClick={() => editarUsuario(u)}><EditIcon /></span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
               )}
           </section>
         )}
@@ -972,40 +1004,40 @@ function AdminDashboard({ token, nombre, onLogout }) {
             {window.innerWidth < 800
               ? <HistorialCardsMobile historial={historial} />
               : (
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th onClick={() => handleOrden("nombre_residente", ordenHistorial, setOrdenHistorial, cargarHistorial)} style={{ cursor: "pointer" }}>
-                        Residente {ordenHistorial.campo === "nombre_residente"}
-                      </th>
-                      <th onClick={() => handleOrden("unidad_residencial", ordenHistorial, setOrdenHistorial, cargarHistorial)} style={{ cursor: "pointer" }}>
-                        Unidad Residencial {ordenHistorial.campo === "unidad_residencial"}
-                      </th>
-                      <th onClick={() => handleOrden("nombre_visitante", ordenHistorial, setOrdenHistorial, cargarHistorial)} style={{ cursor: "pointer" }}>
-                        Visitante {ordenHistorial.campo === "nombre_visitante"}
-                      </th>
-                      <th>Motivo</th>
-                      <th onClick={() => handleOrden("fecha_entrada", ordenHistorial, setOrdenHistorial, cargarHistorial)} style={{ cursor: "pointer" }}>
-                        Fecha Entrada {ordenHistorial.campo === "fecha_entrada"}
-                      </th>
-                      <th>Fecha Salida</th>
-                      <th>Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {historial.map((h, i) => (
-                      <tr key={i}>
-                        <td>{h.nombre_residente}</td>
-                        <td>{h.unidad_residencial}</td>
-                        <td>{h.nombre_visitante}</td>
-                        <td>{h.motivo_visita}</td>
-                        <td>{h.fecha_entrada ? new Date(h.fecha_entrada).toLocaleString() : "Pendiente"}</td>
-                        <td>{h.fecha_salida ? new Date(h.fecha_salida).toLocaleString() : "Pendiente"}</td>
-                        <td>{h.estado}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th onClick={() => handleOrden("nombre_residente", ordenHistorial, setOrdenHistorial, cargarHistorial)} style={{ cursor: "pointer" }}>
+                    Residente {ordenHistorial.campo === "nombre_residente"}
+                  </th>
+                  <th onClick={() => handleOrden("unidad_residencial", ordenHistorial, setOrdenHistorial, cargarHistorial)} style={{ cursor: "pointer" }}>
+                    Unidad Residencial {ordenHistorial.campo === "unidad_residencial"}
+                  </th>
+                  <th onClick={() => handleOrden("nombre_visitante", ordenHistorial, setOrdenHistorial, cargarHistorial)} style={{ cursor: "pointer" }}>
+                    Visitante {ordenHistorial.campo === "nombre_visitante"}
+                  </th>
+                  <th>Motivo</th>
+                  <th onClick={() => handleOrden("fecha_entrada", ordenHistorial, setOrdenHistorial, cargarHistorial)} style={{ cursor: "pointer" }}>
+                    Fecha Entrada {ordenHistorial.campo === "fecha_entrada"}
+                  </th>
+                  <th>Fecha Salida</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historial.map((h, i) => (
+                  <tr key={i}>
+                    <td>{h.nombre_residente}</td>
+                    <td>{h.unidad_residencial}</td>
+                    <td>{h.nombre_visitante}</td>
+                    <td>{h.motivo_visita}</td>
+                    <td>{h.fecha_entrada ? new Date(h.fecha_entrada).toLocaleString() : "Pendiente"}</td>
+                    <td>{h.fecha_salida ? new Date(h.fecha_salida).toLocaleString() : "Pendiente"}</td>
+                    <td>{h.estado}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
               )}
           </section>
         )}
@@ -1166,7 +1198,7 @@ function AdminDashboard({ token, nombre, onLogout }) {
               ? <EscaneosCardsMobile escaneos={vistaEscaneos === "diario" ? (escaneosDia?.escaneos || []) : (escaneosTotales?.escaneos || [])} />
               : (
                 <TablaEscaneos escaneos={vistaEscaneos === "diario" ? (escaneosDia?.escaneos || []) : (escaneosTotales?.escaneos || [])} titulo={vistaEscaneos === "diario" ? "Escaneos Diarios" : "Escaneos Históricos"} />
-              )}
+            )}
           </section>
         )}
         {vista === 'social' && (
@@ -1193,7 +1225,11 @@ function AdminDashboard({ token, nombre, onLogout }) {
         {vista === 'mis_visitas' && !visitaEditar && (
           <section className="admin-section">
             <BtnRegresar onClick={() => setVista('menu')} />
-            <TablaVisitasAdmin visitas={visitasAdmin} onEditar={setVisitaEditar} />
+            <TablaVisitasAdmin 
+              visitas={visitasAdmin} 
+              onEditar={setVisitaEditar} 
+              onEliminar={eliminarVisitaAdmin}
+            />
           </section>
         )}
         {vista === 'mis_visitas' && visitaEditar && (

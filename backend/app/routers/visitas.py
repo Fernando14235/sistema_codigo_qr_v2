@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from app.schemas.visita_schema import VisitaCreate, VisitaQRResponse, ValidarQRRequest, AccionQR, RegistrarSalidaRequest, VisitaResponse, VisitaUpdate
 from app.models.guardia import Guardia
-from app.services.visita_service import crear_visita_con_qr, validar_qr_entrada, registrar_salida_visita, obtener_visitas_residente, editar_visita_residente
+from app.services.visita_service import crear_visita_con_qr, validar_qr_entrada, registrar_salida_visita, obtener_visitas_residente, editar_visita_residente, eliminar_visita_residente
 from app.services.notificacion_service import enviar_notificacion_escaneo, enviar_notificacion_guardia
 from app.database import get_db
 from app.models import Usuario
@@ -170,3 +170,11 @@ def editar_visita(
         qr_code_img_base64=getattr(visita, "qr_code_img_base64", ""),
         tipo_creador=visita.tipo_creador
     )
+
+@router.delete("/residente/eliminar_visita/{visita_id}", dependencies=[Depends(verify_role(["residente", "admin"]))])
+def eliminar_visita(
+    visita_id: int,
+    db: Session = Depends(get_db),
+    usuario: TokenData = Depends(get_current_user)
+):
+    return eliminar_visita_residente(db, visita_id, usuario.id, rol=usuario.rol)

@@ -440,12 +440,6 @@ def obtener_historial_escaneos_totales(
     tipo_escaneo: str = None,
     estado_visita: str = None
 ) -> dict:
-    from app.models.escaneo_qr import EscaneoQR
-    from app.models.guardia import Guardia
-    from app.models.usuario import Usuario
-    from app.models.visita import Visita
-    from app.models.visitante import Visitante
-    from app.models.residente import Residente
 
     query = db.query(
         EscaneoQR,
@@ -530,11 +524,13 @@ def obtener_visitas_residente(db: Session, usuario_id: int):
             "id": v.id,
             "residente_id": v.residente_id,
             "guardia_id": v.guardia_id,
+            "admin_id": v.admin_id,
             "visitante": visitante,
             "notas": v.notas,
             "fecha_entrada": v.fecha_entrada,
             "fecha_salida": v.fecha_salida,
             "estado": v.estado,
+            "expiracion": v.expiracion,
             "qr_code": v.qr_code,
             "qr_expiracion": v.qr_expiracion,
             "qr_code_img_base64": getattr(v, "qr_code_img_base64", ""),
@@ -592,4 +588,36 @@ def editar_visita_residente(db: Session, visita_id: int, usuario_id: int, visita
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al editar la visita: {str(e)}"
+        )
+
+def eliminar_visita_residente(db: Session, visita_id: int, usuario_id: int, rol: str = "residente"):
+    try:
+        visita = db.query(Visita).filter(Visita.id == visita_id).first()
+        if not visita:
+            raise HTTPException(status_code=404, detail="Visita no encontrada")
+        if rol == "residente":
+            from app.models.residente import Residente
+            residente = db.query(Residente).filter(Residente.usuario_id == usuario_id).first()
+            if not residente or visita.residente_id != residente.id:
+                raise HTTPException(status_code=403, detail="No tienes permiso para eliminar esta visita")
+        elif rol == "admin":
+            from app.models.admin import Administrador
+            admin = db.query(Administrador).filter(Administrador.usuario_id == usuario_id).first()
+            if not admin or visita.admin_id != admin.id:
+                raise HTTPException(status_code=403, detail="No tienes permiso para eliminar esta visita")
+        else:
+            raise HTTPException(status_code=403, detail="Rol no autorizado para eliminar visitas")
+        db.delete(visita)
+        db.commit()
+        return {"mensaje": "Visita eliminada correctamente", "visita_id": visita_id}
+    except HTTPException as e:
+        db.rollback()
+        raise e
+    except Exception as e:
+        db.rollback()
+        print(f"Error al eliminar la visita: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al eliminar la visita: {str(e)}"
         )
