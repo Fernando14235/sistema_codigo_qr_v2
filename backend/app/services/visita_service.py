@@ -6,6 +6,7 @@ from app.models.usuario import Usuario
 from app.models.visita import Visita
 from app.models.visitante import Visitante
 from app.models.residente import Residente
+from app.models.admin import Administrador
 from app.services.notificacion_service import enviar_notificacion_residente, enviar_notificacion_guardia, enviar_notificacion_visita_actualizada
 from app.schemas.visita_schema import VisitaCreate, VisitaQRResponse, VisitaUpdate
 from app.schemas.visitante_schema import VisitanteCreate, VisitanteResponse
@@ -39,12 +40,10 @@ def crear_visita_con_qr(db: Session, visita_data: VisitaCreate, admin_id: int = 
         admin = None
         residente = None
         if tipo_creador == "admin":
-            from app.models.admin import Administrador
             admin = db.query(Administrador).filter(Administrador.usuario_id == admin_id).first()
             if not admin:
                 raise HTTPException(status_code=404, detail="Administrador no encontrado")
         elif tipo_creador == "residente":
-            from app.models.residente import Residente
             residente = db.query(Residente).filter(Residente.usuario_id == residente_id).first()
             if not residente:
                 raise HTTPException(status_code=404, detail="Residente no encontrado")
@@ -358,11 +357,6 @@ def registrar_salida_visita(db: Session, qr_code: str, guardia_id: int) -> dict:
 
 def obtener_historial_escaneos_dia(db: Session, guardia_id: int = None) -> dict:
     try:
-        from app.models.escaneo_qr import EscaneoQR
-        from app.models.guardia import Guardia
-        from app.models.residente import Residente
-        from app.models.usuario import Usuario
-        
         # Obtener fecha actual en UTC
         now_utc = datetime.now(timezone.utc)
         fecha_inicio = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -434,13 +428,7 @@ def obtener_historial_escaneos_dia(db: Session, guardia_id: int = None) -> dict:
             detail=f"Error al obtener historial de escaneos: {str(e)}"
         )
         
-def obtener_historial_escaneos_totales(
-    db: Session,
-    nombre_guardia: str = None,
-    tipo_escaneo: str = None,
-    estado_visita: str = None
-) -> dict:
-
+def obtener_historial_escaneos_totales(db: Session, nombre_guardia: str = None, tipo_escaneo: str = None, estado_visita: str = None) -> dict:
     query = db.query(
         EscaneoQR,
         Visita,
@@ -497,14 +485,11 @@ def obtener_historial_escaneos_totales(
 
 def obtener_visitas_residente(db: Session, usuario_id: int):
     residente = db.query(Residente).filter(Residente.usuario_id == usuario_id).first()
-    from app.models.admin import Administrador
     admin = db.query(Administrador).filter(Administrador.usuario_id == usuario_id).first()
 
-    # Si no es residente ni admin, retorna vacío
     if not residente and not admin:
         return []
 
-    # Buscar visitas creadas por el residente o por el admin
     query = db.query(Visita)
     if residente and admin:
         visitas = query.filter(
@@ -518,7 +503,6 @@ def obtener_visitas_residente(db: Session, usuario_id: int):
     result = []
     for v in visitas:
         visitante = db.query(Visitante).filter(Visitante.id == v.visitante_id).first()
-        # Si tipo_creador es None, asigna un valor por defecto
         tipo_creador_val = v.tipo_creador if v.tipo_creador is not None else ("admin" if v.admin_id else "residente")
         result.append({
             "id": v.id,
@@ -545,14 +529,12 @@ def editar_visita_residente(db: Session, visita_id: int, usuario_id: int, visita
             raise HTTPException(status_code=404, detail="Visita no encontrada")
         # Verificar que la visita pertenezca al usuario correcto según el rol
         if rol == "residente":
-            from app.models.residente import Residente
             residente = db.query(Residente).filter(Residente.id == visita.residente_id, Residente.usuario_id == usuario_id).first()
             if not residente:
                 raise HTTPException(status_code=403, detail="No tienes permiso para editar esta visita")
             if visita.tipo_creador != "residente":
                 raise HTTPException(status_code=403, detail="Solo puedes editar visitas creadas por residentes")
         elif rol == "admin":
-            from app.models.admin import Administrador
             admin = db.query(Administrador).filter(Administrador.id == visita.admin_id, Administrador.usuario_id == usuario_id).first()
             if not admin:
                 raise HTTPException(status_code=403, detail="No tienes permiso para editar esta visita")
@@ -595,16 +577,17 @@ def eliminar_visita_residente(db: Session, visita_id: int, usuario_id: int, rol:
         visita = db.query(Visita).filter(Visita.id == visita_id).first()
         if not visita:
             raise HTTPException(status_code=404, detail="Visita no encontrada")
+        
         if rol == "residente":
-            from app.models.residente import Residente
             residente = db.query(Residente).filter(Residente.usuario_id == usuario_id).first()
             if not residente or visita.residente_id != residente.id:
                 raise HTTPException(status_code=403, detail="No tienes permiso para eliminar esta visita")
+            
         elif rol == "admin":
-            from app.models.admin import Administrador
             admin = db.query(Administrador).filter(Administrador.usuario_id == usuario_id).first()
             if not admin or visita.admin_id != admin.id:
                 raise HTTPException(status_code=403, detail="No tienes permiso para eliminar esta visita")
+            
         else:
             raise HTTPException(status_code=403, detail="Rol no autorizado para eliminar visitas")
         db.delete(visita)
