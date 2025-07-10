@@ -52,6 +52,7 @@ function MainMenu({ nombre, rol, onLogout, onSelectVista }) {
         <button className="main-menu-card" onClick={() => onSelectVista("estadisticas")}>📊<div>Estadísticas</div></button>
         <button className="main-menu-card" onClick={() => onSelectVista("escaneos")}>🕒<div>Escaneos</div></button>
         <button className="main-menu-card" onClick={() => onSelectVista("social")}>💬<div>Social</div></button>
+        <button className="main-menu-card" onClick={() => onSelectVista("tickets")}>🎫<div>Tickets</div></button>
         <button className="main-menu-card" onClick={() => onSelectVista("crear_visita")}>➕<div>Crear Visita</div></button>
         <button className="main-menu-card" onClick={() => onSelectVista("solicitudes")}>📝<div>Solicitudes Pendientes</div></button>
         <button className="main-menu-card" onClick={() => onSelectVista("mis_visitas")}>📋<div>Mis Visitas</div></button>
@@ -798,6 +799,272 @@ const SolicitudesPendientes = ({ token, onSuccess, onCancel }) => {
   );
 };
 
+// Componente para mostrar tickets en tarjetas (móvil)
+function TicketsCardsMobile({ tickets, onVerDetalle, onActualizar }) {
+  return (
+    <div className="tickets-cards-mobile">
+      {tickets.map(ticket => (
+        <div className="ticket-card-mobile" key={ticket.id}>
+          <div className="ticket-card-mobile-info">
+            <div className="ticket-header-mobile">
+              <span className="ticket-titulo-mobile">{ticket.titulo}</span>
+              <span className={`ticket-estado-mobile ${ticket.estado}`}>
+                {ticket.estado}
+              </span>
+            </div>
+            <div><b>Residente:</b> {ticket.residente?.usuario?.nombre || 'N/A'}</div>
+            <div><b>Unidad:</b> {ticket.residente?.unidad_residencial || 'N/A'}</div>
+            <div><b>Descripción:</b> {ticket.descripcion.length > 50 ? `${ticket.descripcion.substring(0, 50)}...` : ticket.descripcion}</div>
+            <div><b>Fecha:</b> {new Date(ticket.fecha_creacion).toLocaleString()}</div>
+            {ticket.imagen_url && (
+              <div><b>Imagen:</b> <span style={{color: '#1976d2'}}>📎 Adjunta</span></div>
+            )}
+            {ticket.respuesta_admin && (
+              <div><b>Respuesta:</b> {ticket.respuesta_admin.length > 30 ? `${ticket.respuesta_admin.substring(0, 30)}...` : ticket.respuesta_admin}</div>
+            )}
+          </div>
+          <div className="ticket-card-mobile-actions">
+            <span 
+              onClick={() => onVerDetalle(ticket)}
+              style={{ color: '#1976d2', cursor: 'pointer', fontSize: 24, marginRight: 8 }}
+              title="Ver detalle"
+            >
+              👁️
+            </span>
+            <span 
+              onClick={() => onActualizar(ticket)}
+              style={{ color: '#43a047', cursor: 'pointer', fontSize: 24 }}
+              title="Responder"
+            >
+              ✏️
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Tabla de tickets para escritorio
+function TablaTickets({ tickets, onVerDetalle, onActualizar }) {
+  if (!tickets || tickets.length === 0) {
+    return <p style={{ textAlign: 'center', color: '#888' }}>No hay tickets registrados.</p>;
+  }
+  return (
+    <div style={{ width: '100%', marginBottom: 20 }}>
+      <h3 style={{ marginTop: 0, color: '#1976d2' }}>Tickets de Soporte</h3>
+      <div style={{ overflowX: 'auto' }}>
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Título</th>
+              <th>Residente</th>
+              <th>Unidad</th>
+              <th>Estado</th>
+              <th>Fecha Creación</th>
+              <th>Imagenes</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tickets.map(ticket => (
+              <tr key={ticket.id}>
+                <td>#{ticket.id}</td>
+                <td>{ticket.titulo}</td>
+                <td>{ticket.residente?.usuario?.nombre || 'N/A'}</td>
+                <td>{ticket.residente?.unidad_residencial || 'N/A'}</td>
+                <td>
+                  <span className={`ticket-estado-badge ${ticket.estado}`}>
+                    {ticket.estado}
+                  </span>
+                </td>
+                <td>{new Date(ticket.fecha_creacion).toLocaleString()}</td>
+                <td>{ticket.imagen_url ? '📎' : 
+                '-'}</td>
+                <td>
+                  <span
+                    onClick={() => onVerDetalle(ticket)}
+                    style={{ color: '#1976d2', cursor: 'pointer', fontSize: 20, marginRight: 8 }}
+                    title="Ver detalle"
+                  >
+                    👁️
+                  </span>
+                  <span
+                    onClick={() => onActualizar(ticket)}
+                    style={{ color: '#43a047', cursor: 'pointer', fontSize: 20 }}
+                    title="Responder"
+                  >
+                    ✏️
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// Formulario para actualizar ticket
+function FormActualizarTicket({ ticket, onSuccess, onCancel, token }) {
+  const [estado, setEstado] = useState(ticket.estado || 'pendiente');
+  const [respuesta, setRespuesta] = useState(ticket.respuesta_admin || '');
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setCargando(true);
+    setError('');
+    try {
+      const datos = {
+        estado: estado,
+        respuesta_admin: respuesta
+      };
+      await axios.put(`${API_URL}/tickets/actualizar_ticket/admin/${ticket.id}`, datos, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      onSuccess();
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Error al actualizar el ticket');
+    }
+    setCargando(false);
+  };
+
+  return (
+    <form className="form-actualizar-ticket" onSubmit={handleSubmit} autoComplete="off" style={{background:'#fff',boxShadow:'0 8px 32px #1976d220',borderRadius:18,padding:'32px 24px',maxWidth:420,margin:'0 auto',display:'flex',flexDirection:'column',gap:18}}>
+      <h3 style={{ color: '#1976d2', fontWeight: 700, fontSize: '1.35em', textAlign: 'center', marginBottom: 18, letterSpacing: 0.5 }}>Responder Ticket #{ticket.id}</h3>
+      <div className="form-row" style={{marginBottom:14,display:'flex',flexDirection:'column',gap:6}}>
+        <label htmlFor="titulo" style={{fontWeight:600,color:'#1976d2',marginBottom:2}}>Título</label>
+        <input id="titulo" type="text" value={ticket.titulo} disabled style={{padding:'13px 14px',border:'1.8px solid #e3eafc',borderRadius:10,fontSize:'1.04em',background:'#f5f8fe',color:'#222',boxShadow:'0 1.5px 6px #1976d220',outline:'none'}} />
+      </div>
+      <div className="form-row" style={{marginBottom:14,display:'flex',flexDirection:'column',gap:6}}>
+        <label htmlFor="residente" style={{fontWeight:600,color:'#1976d2',marginBottom:2}}>Residente</label>
+        <input id="residente" type="text" value={ticket.residente?.usuario?.nombre || 'N/A'} disabled style={{padding:'13px 14px',border:'1.8px solid #e3eafc',borderRadius:10,fontSize:'1.04em',background:'#f5f8fe',color:'#222',boxShadow:'0 1.5px 6px #1976d220',outline:'none'}} />
+      </div>
+      <div className="form-row" style={{marginBottom:14,display:'flex',flexDirection:'column',gap:6}}>
+        <label htmlFor="descripcion" style={{fontWeight:600,color:'#1976d2',marginBottom:2}}>Descripción</label>
+        <div style={{padding:'13px 14px',border:'1.8px solid #e3eafc',borderRadius:10,fontSize:'1.04em',background:'#f5f8fe',color:'#222',boxShadow:'0 1.5px 6px #1976d220',minHeight:'60px',whiteSpace:'pre-line'}} className="ticket-description">
+          {ticket.descripcion}
+        </div>
+      </div>
+      <div className="form-row" style={{marginBottom:18,display:'flex',flexDirection:'column',gap:6,alignItems:'center'}}>
+        <label style={{fontWeight:600,color:'#1976d2',marginBottom:2}}>Imagen adjunta</label>
+        <div className="ticket-imagen-preview" style={{margin:'10px 0',display:'flex',alignItems:'center',justifyContent:'center',minHeight:90}}>
+          {ticket.imagen_url ? (
+            <img src={`${API_URL}${ticket.imagen_url}`} alt="Imagen del ticket" style={{width:250,height:250,borderRadius:14,border:'2.5px solid #e3eafc',boxShadow:'0 4px 16px #1976d220',background:'#fff',objectFit:'cover',display:'block'}} />
+          ) : (
+            <div className="img-placeholder" style={{width:80,height:80,borderRadius:14,background:'linear-gradient(135deg,#e3eafc 60%,#f5f8fe 100%)',display:'flex',alignItems:'center',justifyContent:'center',color:'#b0b8c9',fontSize:'2.2em',border:'2.5px dashed #e3eafc',boxShadow:'0 2px 8px #1976d220'}}>📎</div>
+          )}
+        </div>
+      </div>
+      <div className="form-row" style={{marginBottom:14,display:'flex',flexDirection:'column',gap:6}}>
+        <label htmlFor="estado" style={{fontWeight:600,color:'#1976d2',marginBottom:2}}>Estado</label>
+        <select id="estado" value={estado} onChange={e => setEstado(e.target.value)} disabled={cargando} style={{padding:'13px 14px',border:'1.8px solid #e3eafc',borderRadius:10,fontSize:'1.04em',background:'#f5f8fe',color:'#222',boxShadow:'0 1.5px 6px #1976d220',outline:'none'}}>
+          <option value="pendiente">Pendiente</option>
+          <option value="en_proceso">En Proceso</option>
+          <option value="resuelto">Resuelto</option>
+          <option value="rechazado">Rechazado</option>
+        </select>
+      </div>
+      <div className="form-row" style={{marginBottom:14,display:'flex',flexDirection:'column',gap:6}}>
+        <label htmlFor="respuesta" style={{fontWeight:600,color:'#1976d2',marginBottom:2}}>Respuesta del administrador</label>
+        <textarea
+          id="respuesta"
+          value={respuesta}
+          onChange={e => setRespuesta(e.target.value)}
+          placeholder="Escribe tu respuesta aquí..."
+          rows={4}
+          required
+          disabled={cargando}
+          style={{padding:'13px 14px',border:'1.8px solid #e3eafc',borderRadius:10,fontSize:'1.04em',background:'#f5f8fe',color:'#222',boxShadow:'0 1.5px 6px #1976d220',outline:'none',resize:'vertical'}}
+        />
+      </div>
+      {error && <div className="qr-error">{error}</div>}
+      <div className="form-actions" style={{display:'flex',gap:16,marginTop:18,justifyContent:'center'}}>
+        <button type="submit" className="btn-primary" disabled={cargando} style={{width:'60%',minWidth:140}}>
+          {cargando ? 'Guardando...' : 'Guardar Respuesta'}
+        </button>
+        <button type="button" className="btn-secondary" onClick={onCancel} disabled={cargando} style={{width:'40%',minWidth:100}}>
+          Cancelar
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// Vista detallada del ticket
+function TicketDetalle({ ticket, onRegresar, onActualizar }) {
+  return (
+    <div className="ticket-detalle">
+      <div className="ticket-detalle-header">
+        <h3 style={{ color: '#1976d2', margin: 0 }}>Ticket #{ticket.id}</h3>
+        <span className={`ticket-estado-badge ${ticket.estado}`}>
+          {ticket.estado}
+        </span>
+      </div>
+      
+      <div className="ticket-detalle-content">
+        <div className="ticket-section">
+          <h4>📋 Información del Ticket</h4>
+          <div className="ticket-info-grid">
+            <div><b>Título:</b> {ticket.titulo}</div>
+            <div><b>Fecha de creación:</b> {new Date(ticket.fecha_creacion).toLocaleString()}</div>
+            <div><b>Estado:</b> {ticket.estado}</div>
+            {ticket.fecha_respuesta && (
+              <div><b>Fecha de respuesta:</b> {new Date(ticket.fecha_respuesta).toLocaleString()}</div>
+            )}
+          </div>
+        </div>
+        
+        <div className="ticket-section">
+          <h4>👤 Información del Residente</h4>
+          <div className="ticket-info-grid">
+            <div><b>Nombre:</b> {ticket.residente?.usuario?.nombre || 'N/A'}</div>
+            <div><b>Unidad residencial:</b> {ticket.residente?.unidad_residencial || 'N/A'}</div>
+          </div>
+        </div>
+        
+        <div className="ticket-section">
+          <h4>📝 Descripción del Problema</h4>
+          <div className="ticket-description">
+            {ticket.descripcion}
+          </div>
+        </div>
+        
+        {ticket.imagen_url && (
+          <div className="ticket-section">
+            <h4>📎 Imagen Adjunta</h4>
+            <div className="ticket-imagen-container">
+              <img src={`${API_URL}${ticket.imagen_url}`} alt="Imagen del ticket" />
+            </div>
+          </div>
+        )}
+        
+        {ticket.respuesta_admin && (
+          <div className="ticket-section">
+            <h4>💬 Respuesta del Administrador</h4>
+            <div className="ticket-respuesta">
+              {ticket.respuesta_admin}
+            </div>
+          </div>
+        )}
+      </div>
+      
+      <div className="ticket-detalle-actions">
+        <button className="btn-primary" onClick={() => onActualizar(ticket)}>
+          ✏️ Responder/Actualizar
+        </button>
+        <button className="btn-secondary" onClick={onRegresar}>
+          ← Regresar
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AdminDashboard({ token, nombre, onLogout }) {
   const [usuarios, setUsuarios] = useState([]);
   const [busqueda, setBusqueda] = useState("");
@@ -823,6 +1090,14 @@ function AdminDashboard({ token, nombre, onLogout }) {
   const [filtroEscEstado, setFiltroEscEstado] = useState("");
   const [visitasAdmin, setVisitasAdmin] = useState([]);
   const [visitaEditar, setVisitaEditar] = useState(null);
+  
+  // Estados para tickets
+  const [tickets, setTickets] = useState([]);
+  const [ticketDetalle, setTicketDetalle] = useState(null);
+  const [ticketActualizar, setTicketActualizar] = useState(null);
+  const [filtroTicketEstado, setFiltroTicketEstado] = useState("");
+  const [busquedaTicket, setBusquedaTicket] = useState("");
+  const [cargandoTickets, setCargandoTickets] = useState(false);
 
   // Obtener datos completos del usuario autenticado
   useEffect(() => {
@@ -1007,6 +1282,63 @@ function AdminDashboard({ token, nombre, onLogout }) {
   useEffect(() => {
     if (vista === "mis_visitas") cargarVisitasAdmin();
   }, [vista]);
+
+  // Cargar tickets
+  const cargarTickets = async () => {
+    setCargandoTickets(true);
+    try {
+      const params = {};
+      if (filtroTicketEstado) params.estado = filtroTicketEstado;
+      if (busquedaTicket) params.titulo = busquedaTicket;
+      
+      const res = await axios.get(`${API_URL}/tickets/listar_tickets/admin`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params
+      });
+      setTickets(res.data || []);
+    } catch (err) {
+      setNotification({ message: "Error al cargar tickets", type: "error" });
+    }
+    setCargandoTickets(false);
+  };
+
+  // Ver detalle de ticket
+  const verTicketDetalle = async (ticket) => {
+    try {
+      const res = await axios.get(`${API_URL}/tickets/obtener_ticket/${ticket.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTicketDetalle(res.data);
+      setVista("ticket_detalle");
+    } catch (err) {
+      setNotification({ message: "Error al cargar el ticket", type: "error" });
+    }
+  };
+
+  // Actualizar ticket
+  const actualizarTicket = async (ticket) => {
+    try {
+      const res = await axios.get(`${API_URL}/tickets/obtener_ticket/${ticket.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTicketActualizar(res.data);
+      setVista("ticket_actualizar");
+    } catch (err) {
+      setNotification({ message: "Error al cargar el ticket", type: "error" });
+    }
+  };
+
+  // Manejar éxito en actualización
+  const handleTicketActualizado = () => {
+    setNotification({ message: "Ticket actualizado correctamente", type: "success" });
+    setTicketActualizar(null);
+    setVista("tickets");
+    cargarTickets(); // Recargar la lista
+  };
+
+  useEffect(() => {
+    if (vista === "tickets") cargarTickets();
+  }, [vista, filtroTicketEstado, busquedaTicket]);
 
   // Botón regresar al menú principal
   const handleRegresar = () => setVista("menu");
@@ -1389,6 +1721,70 @@ function AdminDashboard({ token, nombre, onLogout }) {
                 setNotification({ message: "Solicitud aprobada correctamente", type: "success" });
               }}
               onCancel={() => setVista('menu')}
+            />
+          </section>
+        )}
+        {vista === 'tickets' && (
+          <section className="admin-section">
+            <BtnRegresar onClick={() => setVista('menu')} />
+            <h3>🎫 Gestión de Tickets</h3>
+            
+            <div className="admin-search">
+              <select value={filtroTicketEstado} onChange={e => setFiltroTicketEstado(e.target.value)}>
+                <option value="">Todos los estados</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="en_proceso">En Proceso</option>
+                <option value="resuelto">Resuelto</option>
+                <option value="rechazado">Rechazado</option>
+              </select>
+              <button 
+                className="btn-refresh" 
+                onClick={cargarTickets}
+                disabled={cargandoTickets}
+              >
+                {cargandoTickets ? '🔄' : '🔄'}
+              </button>
+            </div>
+            
+            {cargandoTickets ? (
+              <div style={{ textAlign: 'center', padding: '20px' }}>Cargando tickets...</div>
+            ) : (
+              window.innerWidth < 750 ? (
+                <TicketsCardsMobile 
+                  tickets={tickets} 
+                  onVerDetalle={verTicketDetalle}
+                  onActualizar={actualizarTicket}
+                />
+              ) : (
+                <TablaTickets 
+                  tickets={tickets} 
+                  onVerDetalle={verTicketDetalle}
+                  onActualizar={actualizarTicket}
+                />
+              )
+            )}
+          </section>
+        )}
+        
+        {vista === 'ticket_detalle' && ticketDetalle && (
+          <section className="admin-section">
+            <BtnRegresar onClick={() => { setTicketDetalle(null); setVista('tickets'); }} />
+            <TicketDetalle 
+              ticket={ticketDetalle}
+              onRegresar={() => { setTicketDetalle(null); setVista('tickets'); }}
+              onActualizar={actualizarTicket}
+            />
+          </section>
+        )}
+        
+        {vista === 'ticket_actualizar' && ticketActualizar && (
+          <section className="admin-section">
+            <BtnRegresar onClick={() => { setTicketActualizar(null); setVista('tickets'); }} />
+            <FormActualizarTicket 
+              ticket={ticketActualizar}
+              onSuccess={handleTicketActualizado}
+              onCancel={() => { setTicketActualizar(null); setVista('tickets'); }}
+              token={token}
             />
           </section>
         )}

@@ -8,6 +8,7 @@ import SocialDashboard from "./SocialDashboard";
 import UserMenu from "./components/UI/UserMenu";
 import PerfilUsuario from "./PerfilUsuario";
 import ConfiguracionUsuario from "./ConfiguracionUsuario";
+import { useRef } from "react";
 
 // Tarjeta de notificación reutilizable
 function Notification({ message, type, onClose }) {
@@ -52,6 +53,10 @@ function MainMenuResidente({ nombre, rol, onLogout, onSelectVista }) {
         <button className="main-menu-card" onClick={() => onSelectVista("social")}>
           <span>💬</span>
           <div>Social</div>
+        </button>
+        <button className="main-menu-card" onClick={() => onSelectVista("tickets")}>
+          <span>🎫</span>
+          <div>Tickets</div>
         </button>
       </div>
     </div>
@@ -537,6 +542,154 @@ const FormSolicitarVisita = ({ token, onSuccess, onCancel, setVista }) => {
   );
 };
 
+// Componente para listar tickets del residente
+function TablaTicketsResidente({ tickets, onVerDetalle }) {
+  if (!tickets || tickets.length === 0) {
+    return <p style={{ textAlign: 'center', color: '#888' }}>No tienes tickets registrados.</p>;
+  }
+  return (
+    <div style={{ width: '100%', marginBottom: 20 }}>
+      <h3 style={{ marginTop: 0, color: '#1976d2' }}>Mis Tickets</h3>
+      <div style={{ overflowX: 'auto' }}>
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Título</th>
+              <th>Estado</th>
+              <th>Fecha Creación</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tickets.map(ticket => (
+              <tr key={ticket.id}>
+                <td>#{ticket.id}</td>
+                <td>{ticket.titulo}</td>
+                <td>{ticket.estado}</td>
+                <td>{new Date(ticket.fecha_creacion).toLocaleString()}</td>
+                <td>
+                  <span
+                    onClick={() => onVerDetalle(ticket)}
+                    style={{ color: '#1976d2', cursor: 'pointer', fontSize: 20 }}
+                    title="Ver detalle"
+                  >
+                    👁️
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// Vista de detalle de ticket para residente
+function TicketDetalleResidente({ ticket, onRegresar }) {
+  return (
+    <div className="ticket-detalle" style={{maxWidth:600,margin:'0 auto',background:'#fff',borderRadius:12,boxShadow:'0 4px 16px #0001',padding:24}}>
+      <div className="ticket-detalle-header" style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
+        <h3 style={{ color: '#1976d2', margin: 0 }}>Ticket #{ticket.id}</h3>
+        <span className={`ticket-estado-badge ${ticket.estado}`}>{ticket.estado}</span>
+      </div>
+      <div className="ticket-detalle-content">
+        <div className="ticket-section">
+          <h4>📋 Información del Ticket</h4>
+          <div><b>Título:</b> {ticket.titulo}</div>
+          <div><b>Fecha de creación:</b> {new Date(ticket.fecha_creacion).toLocaleString()}</div>
+          <div><b>Estado:</b> {ticket.estado}</div>
+          {ticket.fecha_respuesta && (
+            <div><b>Fecha de respuesta:</b> {new Date(ticket.fecha_respuesta).toLocaleString()}</div>
+          )}
+        </div>
+        <div className="ticket-section">
+          <h4>📝 Descripción</h4>
+          <div className="ticket-description" style={{background:'#f5f8fe',padding:12,borderRadius:8,border:'1px solid #e0e0e0',marginBottom:10}}>{ticket.descripcion}</div>
+        </div>
+        {ticket.imagen_url && (
+          <div className="ticket-section">
+            <h4>📎 Imagen Adjunta</h4>
+            <div className="ticket-imagen-container" style={{textAlign:'center'}}>
+              <img src={`${API_URL}${ticket.imagen_url}`} alt="Imagen del ticket" style={{maxWidth:'100%',maxHeight:300,borderRadius:8,border:'2px solid #e0e0e0'}} />
+            </div>
+          </div>
+        )}
+        {ticket.respuesta_admin && (
+          <div className="ticket-section">
+            <h4>💬 Respuesta del Administrador</h4>
+            <div className="ticket-respuesta" style={{background:'#e8f5e8',padding:12,borderRadius:8,borderLeft:'4px solid #388e3c'}}>{ticket.respuesta_admin}</div>
+          </div>
+        )}
+      </div>
+      <div className="ticket-detalle-actions" style={{marginTop:18}}>
+        <button className="btn-secondary" onClick={onRegresar}>← Regresar</button>
+      </div>
+    </div>
+  );
+}
+
+// Formulario para crear ticket (igual/similar a crear visita)
+function FormCrearTicketResidente({ token, onSuccess, onCancel }) {
+  const [titulo, setTitulo] = useState("");
+  const [descripcion, setDescripcion] = useState("");
+  const [imagen, setImagen] = useState(null);
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState("");
+  const fileInputRef = useRef();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setCargando(true);
+    setError("");
+    try {
+      const formData = new FormData();
+      formData.append("titulo", titulo);
+      formData.append("descripcion", descripcion);
+      if (imagen) formData.append("imagen", imagen);
+      await axios.post(`${API_URL}/tickets/crear_ticket/residente`, formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTitulo("");
+      setDescripcion("");
+      setImagen(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      onSuccess && onSuccess();
+    } catch (err) {
+      setError(err.response?.data?.detail || "Error al crear el ticket");
+    }
+    setCargando(false);
+  };
+
+  return (
+    <form className="form-visita form-visita-residente" onSubmit={handleSubmit} style={{maxWidth:480,margin:'0 auto'}}>
+      <h2 className="crear-visita-title">Crear Ticket de Soporte</h2>
+      <div className="form-row">
+        <label>Título:</label>
+        <input type="text" value={titulo} onChange={e => setTitulo(e.target.value)} required disabled={cargando} />
+      </div>
+      <div className="form-row">
+        <label>Descripción:</label>
+        <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} required rows={4} disabled={cargando} style={{resize:'vertical'}} />
+      </div>
+      <div className="form-row">
+        <label>Imagen (opcional):</label>
+        <input type="file" accept="image/*" ref={fileInputRef} onChange={e => setImagen(e.target.files[0])} disabled={cargando} />
+      </div>
+      {error && <div className="qr-error">{error}</div>}
+      <div className="form-actions">
+        <button className="btn-primary" type="submit" disabled={cargando}>
+          {cargando ? "Enviando..." : "Crear Ticket"}
+        </button>
+        <button className="btn-regresar" type="button" onClick={onCancel} style={{ marginLeft: 10 }} disabled={cargando}>
+          Cancelar
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function ResidenteDashboard({ token, nombre, onLogout }) {
   const [vista, setVista] = useState("menu");
   const [visitas, setVisitas] = useState([]);
@@ -546,6 +699,11 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
   const [notification, setNotification] = useState({ message: "", type: "" });
   const [notificaciones, setNotificaciones] = useState([]);
   const [visitaEditar, setVisitaEditar] = useState(null);
+  // Estados para tickets
+  const [tickets, setTickets] = useState([]);
+  const [cargandoTickets, setCargandoTickets] = useState(false);
+  const [vistaTicket, setVistaTicket] = useState("listado");
+  const [ticketDetalle, setTicketDetalle] = useState(null);
 
   // Obtener datos completos del usuario autenticado
   useEffect(() => {
@@ -602,9 +760,36 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
     setCargando(false);
   };
 
+  // Cargar tickets del residente
+  const cargarTickets = async () => {
+    setCargandoTickets(true);
+    try {
+      const res = await axios.get(`${API_URL}/tickets/listar_tickets/residente`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTickets(res.data || []);
+    } catch (err) {
+      setNotification({ message: "Error al cargar tickets", type: "error" });
+    }
+    setCargandoTickets(false);
+  };
+
+  const verTicketDetalle = async (ticket) => {
+    try {
+      const res = await axios.get(`${API_URL}/tickets/obtener_ticket/${ticket.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTicketDetalle(res.data);
+      setVistaTicket('detalle');
+    } catch (err) {
+      setNotification({ message: "Error al cargar el ticket", type: "error" });
+    }
+  };
+
   useEffect(() => {
     if (vista === "visitas") cargarVisitas();
     if (vista === "notificaciones") cargarNotificaciones();
+    if (vista === "tickets") cargarTickets();
   }, [vista]);
 
   // Volver al menú principal
@@ -717,6 +902,34 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
               onCancel={handleVolver}
               setVista={setVista}
             />
+          </section>
+        )}
+        {vista === 'tickets' && (
+          <section className="admin-section">
+            <BtnRegresar onClick={() => setVista('menu')} />
+            {vistaTicket === 'listado' && (
+              <>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
+                  <h3>Mis Tickets</h3>
+                  <button className="btn-primary" onClick={() => setVistaTicket('crear')}>+ Crear Ticket</button>
+                </div>
+                {cargandoTickets ? (
+                  <div style={{ textAlign: 'center', padding: '20px' }}>Cargando tickets...</div>
+                ) : (
+                  <TablaTicketsResidente tickets={tickets} onVerDetalle={verTicketDetalle} />
+                )}
+              </>
+            )}
+            {vistaTicket === 'crear' && (
+              <FormCrearTicketResidente
+                token={token}
+                onSuccess={() => { setVistaTicket('listado'); cargarTickets(); setNotification({ message: "Ticket creado correctamente", type: "success" }); }}
+                onCancel={() => setVistaTicket('listado')}
+              />
+            )}
+            {vistaTicket === 'detalle' && ticketDetalle && (
+              <TicketDetalleResidente ticket={ticketDetalle} onRegresar={() => setVistaTicket('listado')} />
+            )}
           </section>
         )}
       </div>

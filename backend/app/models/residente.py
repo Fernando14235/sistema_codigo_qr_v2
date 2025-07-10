@@ -12,3 +12,5 @@ class Residente(Base):
 
     usuario = relationship("Usuario", back_populates="residente")
     visitas = relationship("Visita", back_populates="residente")
+    tickets = relationship("Ticket", back_populates="residente", cascade="all, delete-orphan")
+    pagos = relationship("Pago", back_populates="residente", cascade="all, delete-orphan")

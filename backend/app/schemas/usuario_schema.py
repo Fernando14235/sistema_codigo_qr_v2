@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr, constr, root_validator
 from typing import Optional
+from datetime import datetime
 from enum import Enum
 
 class Rol(str, Enum):
@@ -7,10 +8,16 @@ class Rol(str, Enum):
     residente = "residente"
     guardia   = "guardia"
 
+# class EstadoUsuario(str, Enum):
+#     activo = "activo"
+#     inactivo = "inactivo"
+#     moroso = "moroso"
+
 class UsuarioBase(BaseModel):
     nombre: str
     email: EmailStr
     rol: Rol
+    # estado: EstadoUsuario = EstadoUsuario.activo  # Comentado temporalmente
     unidad_residencial: Optional[str] = None
 
 class UsuarioCreate(UsuarioBase):
@@ -29,5 +36,9 @@ class UsuarioCreate(UsuarioBase):
 class Usuario(UsuarioBase):
     id: int
     telefono: Optional[str] = None
+    fecha_creacion: Optional[datetime] = None
+    fecha_actualizacion: Optional[datetime] = None
+    ult_conexion: Optional[datetime] = None
+    
     class Config:
         orm_mode = True

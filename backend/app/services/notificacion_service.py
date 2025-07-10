@@ -10,6 +10,7 @@ from app.schemas.usuario_schema import UsuarioCreate
 from app.utils.notificaciones import enviar_correo
 from app.utils.time import get_honduras_time
 import traceback
+from app.models import Usuario, Residente, Ticket
 
 def enviar_notificacion_usuario_creado(usuario: Usuario, datos_creacion: UsuarioCreate):
     # Envia notificacion por correo cuando se crea un usuario con rol de residente
@@ -602,3 +603,34 @@ def enviar_notificacion_nueva_publicacion(db: Session, titulo_publicacion: str, 
     except Exception as e:
         print(f"Error al enviar alerta de nueva publicación: {str(e)}")
         print(traceback.format_exc())
+
+def notificar_admin_ticket_creado_email(db: Session, ticket: Ticket, residente_nombre: str):
+    admins = db.query(Usuario).filter(Usuario.rol == "admin").all()
+    asunto = "Nuevo ticket de soporte creado"
+    mensaje_html = f"""
+        <h2>Nuevo ticket creado</h2>
+        <p>El residente <b>{residente_nombre}</b> ha creado un ticket:</p>
+        <ul>
+            <li><b>Título:</b> {ticket.titulo}</li>
+            <li><b>Descripción:</b> {ticket.descripcion}</li>
+            <li><b>Fecha:</b> {ticket.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S')}</li>
+        </ul>
+    """
+    for admin in admins:
+        if admin.email:
+            enviar_correo(admin.email, asunto, mensaje_html)
+
+def notificar_residente_ticket_actualizado_email(db: Session, ticket: Ticket):
+    residente = db.query(Residente).filter(Residente.id == ticket.residente_id).first()
+    if not residente or not residente.usuario or not residente.usuario.email:
+        return
+    asunto = f"Actualización de tu ticket: {ticket.titulo}"
+    mensaje_html = f"""
+        <h2>Tu ticket ha sido actualizado</h2>
+        <ul>
+            <li><b>Estado:</b> {ticket.estado}</li>
+            <li><b>Respuesta del administrador:</b> {ticket.respuesta_admin or 'Sin respuesta'}</li>
+            <li><b>Fecha de respuesta:</b> {ticket.fecha_respuesta.strftime('%Y-%m-%d %H:%M:%S') if ticket.fecha_respuesta else 'N/A'}</li>
+        </ul>
+    """
+    enviar_correo(residente.usuario.email, asunto, mensaje_html)

@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.database import SessionLocal
 from typing import Optional, List
-from app.routers import auth, usuarios, visitas, notificaciones, historial_visitas, estadisticas, sociales
+from app.routers import auth, usuarios, visitas, notificaciones, historial_visitas, estadisticas, sociales, tickets
 from app.services import user_service
 from app.schemas.usuario_schema import Usuario, UsuarioCreate
 from app.utils.security import get_current_user, verify_role
@@ -21,12 +21,13 @@ from app.models.admin import Administrador
 app = FastAPI()
 add_cors(app)
 app.include_router(auth.router)
-app.include_router(visitas.router)
-app.include_router(notificaciones.router)
-app.include_router(historial_visitas.router)
-app.include_router(estadisticas.router)
-app.include_router(sociales.router)
 app.include_router(usuarios.router)
+app.include_router(visitas.router)
+app.include_router(historial_visitas.router)
+app.include_router(tickets.router)
+app.include_router(sociales.router)
+app.include_router(estadisticas.router)
+app.include_router(notificaciones.router)
 
 # Llamada a la función de expiración de visitas
 def actu_visita_expiracion():
