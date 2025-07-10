@@ -59,6 +59,7 @@ class TicketUpdate(BaseModel):
 class TicketResponse(TicketBase):
     id: int
     residente_id: int
+    nombre_residente: Optional[str] = None
     estado: EstadoTicket
     respuesta_admin: Optional[str] = None
     fecha_creacion: datetime
@@ -69,6 +70,7 @@ class TicketResponse(TicketBase):
 
 class TicketListResponse(BaseModel):
     id: int
+    nombre_residente: Optional[str] = None
     titulo: str
     estado: EstadoTicket
     fecha_creacion: datetime
@@ -76,4 +78,4 @@ class TicketListResponse(BaseModel):
     imagen_url: Optional[str] = None
 
     class Config:
-        orm_mode = True 
+        orm_mode = True

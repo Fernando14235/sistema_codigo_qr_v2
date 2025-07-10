@@ -807,37 +807,41 @@ function TicketsCardsMobile({ tickets, onVerDetalle, onActualizar }) {
         <div className="ticket-card-mobile" key={ticket.id}>
           <div className="ticket-card-mobile-info">
             <div className="ticket-header-mobile">
-              <span className="ticket-titulo-mobile">{ticket.titulo}</span>
-              <span className={`ticket-estado-mobile ${ticket.estado}`}>
+              <b>Titulo: </b><span className="ticket-titulo-mobile">{ticket.titulo}</span>
+              <br />
+              <b>Estado: </b><span className={`ticket-estado-mobile ${ticket.estado}`}>
                 {ticket.estado}
               </span>
             </div>
-            <div><b>Residente:</b> {ticket.residente?.usuario?.nombre || 'N/A'}</div>
-            <div><b>Unidad:</b> {ticket.residente?.unidad_residencial || 'N/A'}</div>
-            <div><b>Descripción:</b> {ticket.descripcion.length > 50 ? `${ticket.descripcion.substring(0, 50)}...` : ticket.descripcion}</div>
+            <div><b>Residente:</b> {ticket.nombre_residente || 'N/A'}</div>
+            <div><b>Descripción:</b> {ticket.descripcion}</div>
             <div><b>Fecha:</b> {new Date(ticket.fecha_creacion).toLocaleString()}</div>
             {ticket.imagen_url && (
-              <div><b>Imagen:</b> <span style={{color: '#1976d2'}}>📎 Adjunta</span></div>
+              <div><b>Imagen:</b> <span style={{color: '#1976d2'}}>📎 Imagen Adjunta</span></div>
             )}
             {ticket.respuesta_admin && (
-              <div><b>Respuesta:</b> {ticket.respuesta_admin.length > 30 ? `${ticket.respuesta_admin.substring(0, 30)}...` : ticket.respuesta_admin}</div>
+              <div><b>Respuesta:</b> {ticket.respuesta_admin}</div>
             )}
           </div>
+          <br />
           <div className="ticket-card-mobile-actions">
             <span 
               onClick={() => onVerDetalle(ticket)}
-              style={{ color: '#1976d2', cursor: 'pointer', fontSize: 24, marginRight: 8 }}
-              title="Ver detalle"
+              style={{ color: '#1976d2', cursor: 'pointer', fontSize: 30, marginRight: 30 }}
+              title="Ver ticket"
             >
               👁️
             </span>
             <span 
               onClick={() => onActualizar(ticket)}
-              style={{ color: '#43a047', cursor: 'pointer', fontSize: 24 }}
+              style={{ color: '#43a047', cursor: 'pointer', fontSize: 30 }}
               title="Responder"
             >
               ✏️
             </span>
+            <br />
+            <hr></hr>
+            <br />
           </div>
         </div>
       ))}
@@ -860,7 +864,6 @@ function TablaTickets({ tickets, onVerDetalle, onActualizar }) {
               <th>ID</th>
               <th>Título</th>
               <th>Residente</th>
-              <th>Unidad</th>
               <th>Estado</th>
               <th>Fecha Creación</th>
               <th>Imagenes</th>
@@ -872,8 +875,7 @@ function TablaTickets({ tickets, onVerDetalle, onActualizar }) {
               <tr key={ticket.id}>
                 <td>#{ticket.id}</td>
                 <td>{ticket.titulo}</td>
-                <td>{ticket.residente?.usuario?.nombre || 'N/A'}</td>
-                <td>{ticket.residente?.unidad_residencial || 'N/A'}</td>
+                <td>{ticket.nombre_residente || 'N/A'}</td>
                 <td>
                   <span className={`ticket-estado-badge ${ticket.estado}`}>
                     {ticket.estado}
@@ -886,7 +888,7 @@ function TablaTickets({ tickets, onVerDetalle, onActualizar }) {
                   <span
                     onClick={() => onVerDetalle(ticket)}
                     style={{ color: '#1976d2', cursor: 'pointer', fontSize: 20, marginRight: 8 }}
-                    title="Ver detalle"
+                    title="Ver ticket"
                   >
                     👁️
                   </span>
@@ -936,14 +938,17 @@ function FormActualizarTicket({ ticket, onSuccess, onCancel, token }) {
   return (
     <form className="form-actualizar-ticket" onSubmit={handleSubmit} autoComplete="off" style={{background:'#fff',boxShadow:'0 8px 32px #1976d220',borderRadius:18,padding:'32px 24px',maxWidth:420,margin:'0 auto',display:'flex',flexDirection:'column',gap:18}}>
       <h3 style={{ color: '#1976d2', fontWeight: 700, fontSize: '1.35em', textAlign: 'center', marginBottom: 18, letterSpacing: 0.5 }}>Responder Ticket #{ticket.id}</h3>
+
       <div className="form-row" style={{marginBottom:14,display:'flex',flexDirection:'column',gap:6}}>
         <label htmlFor="titulo" style={{fontWeight:600,color:'#1976d2',marginBottom:2}}>Título</label>
         <input id="titulo" type="text" value={ticket.titulo} disabled style={{padding:'13px 14px',border:'1.8px solid #e3eafc',borderRadius:10,fontSize:'1.04em',background:'#f5f8fe',color:'#222',boxShadow:'0 1.5px 6px #1976d220',outline:'none'}} />
       </div>
+
       <div className="form-row" style={{marginBottom:14,display:'flex',flexDirection:'column',gap:6}}>
         <label htmlFor="residente" style={{fontWeight:600,color:'#1976d2',marginBottom:2}}>Residente</label>
-        <input id="residente" type="text" value={ticket.residente?.usuario?.nombre || 'N/A'} disabled style={{padding:'13px 14px',border:'1.8px solid #e3eafc',borderRadius:10,fontSize:'1.04em',background:'#f5f8fe',color:'#222',boxShadow:'0 1.5px 6px #1976d220',outline:'none'}} />
+        <input id="residente" type="text" value={ticket.nombre_residente || 'N/A'} disabled style={{padding:'13px 14px',border:'1.8px solid #e3eafc',borderRadius:10,fontSize:'1.04em',background:'#f5f8fe',color:'#222',boxShadow:'0 1.5px 6px #1976d220',outline:'none'}} />
       </div>
+
       <div className="form-row" style={{marginBottom:14,display:'flex',flexDirection:'column',gap:6}}>
         <label htmlFor="descripcion" style={{fontWeight:600,color:'#1976d2',marginBottom:2}}>Descripción</label>
         <div style={{padding:'13px 14px',border:'1.8px solid #e3eafc',borderRadius:10,fontSize:'1.04em',background:'#f5f8fe',color:'#222',boxShadow:'0 1.5px 6px #1976d220',minHeight:'60px',whiteSpace:'pre-line'}} className="ticket-description">
@@ -1005,10 +1010,10 @@ function TicketDetalle({ ticket, onRegresar, onActualizar }) {
           {ticket.estado}
         </span>
       </div>
-      
+      <br />
       <div className="ticket-detalle-content">
         <div className="ticket-section">
-          <h4>📋 Información del Ticket</h4>
+          <h3>📋 Información del Ticket</h3>
           <div className="ticket-info-grid">
             <div><b>Título:</b> {ticket.titulo}</div>
             <div><b>Fecha de creación:</b> {new Date(ticket.fecha_creacion).toLocaleString()}</div>
@@ -1018,17 +1023,16 @@ function TicketDetalle({ ticket, onRegresar, onActualizar }) {
             )}
           </div>
         </div>
-        
+        <br />
         <div className="ticket-section">
-          <h4>👤 Información del Residente</h4>
+          <h3>👤 Información del Residente</h3>
           <div className="ticket-info-grid">
-            <div><b>Nombre:</b> {ticket.residente?.usuario?.nombre || 'N/A'}</div>
-            <div><b>Unidad residencial:</b> {ticket.residente?.unidad_residencial || 'N/A'}</div>
+            <div><b>Nombre:</b> {ticket.nombre_residente || 'N/A'}</div>
           </div>
         </div>
         
         <div className="ticket-section">
-          <h4>📝 Descripción del Problema</h4>
+          <h3>📝 Descripción del Ticket</h3>
           <div className="ticket-description">
             {ticket.descripcion}
           </div>
@@ -1036,7 +1040,7 @@ function TicketDetalle({ ticket, onRegresar, onActualizar }) {
         
         {ticket.imagen_url && (
           <div className="ticket-section">
-            <h4>📎 Imagen Adjunta</h4>
+            <h3>📎 Imagen Adjunta</h3>
             <div className="ticket-imagen-container">
               <img src={`${API_URL}${ticket.imagen_url}`} alt="Imagen del ticket" />
             </div>
@@ -1045,13 +1049,14 @@ function TicketDetalle({ ticket, onRegresar, onActualizar }) {
         
         {ticket.respuesta_admin && (
           <div className="ticket-section">
-            <h4>💬 Respuesta del Administrador</h4>
+            <h3>💬 Respuesta del Administrador</h3>
             <div className="ticket-respuesta">
               {ticket.respuesta_admin}
             </div>
           </div>
         )}
       </div>
+      <br/>
       
       <div className="ticket-detalle-actions">
         <button className="btn-primary" onClick={() => onActualizar(ticket)}>

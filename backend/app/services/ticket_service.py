@@ -44,22 +44,35 @@ def crear_ticket_service(titulo: str, descripcion: str, imagen: Optional[UploadF
     notificar_admin_ticket_creado_email(db, ticket, residente.usuario.nombre)
     return ticket
 
-def listar_tickets_service(estado: Optional[EstadoTicket], skip: int, limit: int, db: Session) -> List[Ticket]:
-    query = db.query(Ticket)
+def listar_tickets_service(estado: Optional[EstadoTicket], skip: int, limit: int, db: Session) -> List[dict]:
+    query = db.query(Ticket, Residente).join(Residente, Ticket.residente_id == Residente.id)
     if estado:
         query = query.filter(Ticket.estado == estado)
-    tickets = query.order_by(Ticket.fecha_creacion.desc()).offset(skip).limit(limit).all()
+    results = query.order_by(Ticket.fecha_creacion.desc()).offset(skip).limit(limit).all()
+    tickets = []
+    for ticket, residente in results:
+        tickets.append({
+            "id": ticket.id,
+            "titulo": ticket.titulo,
+            "descripcion": ticket.descripcion,
+            "imagen_url": ticket.imagen_url,
+            "estado": ticket.estado,
+            "fecha_creacion": ticket.fecha_creacion,
+            "fecha_respuesta": ticket.fecha_respuesta,
+            "respuesta_admin": ticket.respuesta_admin,
+            "residente_id": ticket.residente_id,
+            "nombre_residente": residente.usuario.nombre if residente.usuario else None
+        })
     return tickets
 
 def listar_tickets_residente_service(db: Session, usuario_actual: Usuario):
-    # Obtener el residente asociado al usuario autenticado
     residente = db.query(Residente).filter(Residente.usuario_id == usuario_actual.id).first()
     if not residente:
         raise HTTPException(status_code=404, detail="Residente no encontrado para este usuario")
     tickets = db.query(Ticket).filter(Ticket.residente_id == residente.id).order_by(Ticket.fecha_creacion.desc()).all()
     return tickets
 
-def obtener_ticket_service(ticket_id: int, db: Session, usuario_actual: Usuario) -> Ticket:
+def obtener_ticket_service(ticket_id: int, db: Session, usuario_actual: Usuario) -> dict:
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket no encontrado")
@@ -67,7 +80,21 @@ def obtener_ticket_service(ticket_id: int, db: Session, usuario_actual: Usuario)
         residente = db.query(Residente).filter(Residente.id == ticket.residente_id).first()
         if not residente or residente.usuario_id != usuario_actual.id:
             raise HTTPException(status_code=403, detail="No tienes permiso para ver este ticket")
-    return ticket
+    else:
+        residente = db.query(Residente).filter(Residente.id == ticket.residente_id).first()
+
+    return {
+        "id": ticket.id,
+        "titulo": ticket.titulo,
+        "descripcion": ticket.descripcion,
+        "imagen_url": ticket.imagen_url,
+        "estado": ticket.estado,
+        "fecha_creacion": ticket.fecha_creacion,
+        "fecha_respuesta": ticket.fecha_respuesta,
+        "respuesta_admin": ticket.respuesta_admin,
+        "residente_id": ticket.residente_id,
+        "nombre_residente": residente.usuario.nombre if residente and residente.usuario else None
+    }
 
 def actualizar_ticket_service(ticket_id: int, datos: TicketUpdate, db: Session) -> Ticket:
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
@@ -93,4 +120,4 @@ def actualizar_ticket_service(ticket_id: int, datos: TicketUpdate, db: Session) 
     if datos.estado is not None or datos.respuesta_admin is not None:
         notificar_residente_ticket_actualizado_email(db, ticket)
 
-    return ticket 
+    return ticket
