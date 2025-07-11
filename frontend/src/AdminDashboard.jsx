@@ -1470,7 +1470,7 @@ function AdminDashboard({ token, nombre, onLogout }) {
                 <option value="expirado">Expirado</option>
               </select>
             </div>
-            {window.innerWidth < 800
+            {window.innerWidth < 700
               ? <HistorialCardsMobile historial={historial} />
               : (
             <table className="admin-table">
@@ -1506,6 +1506,7 @@ function AdminDashboard({ token, nombre, onLogout }) {
                   </tr>
                 ))}
               </tbody>
+              <hr />
             </table>
               )}
           </section>
