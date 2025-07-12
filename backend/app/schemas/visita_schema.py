@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import datetime
 from .visitante_schema import VisitanteResponse, VisitanteCreate
@@ -10,17 +10,17 @@ class SolicitudVisitaCreate(BaseModel):
     dni_visitante: Optional[str] = Field(None, description="DNI del visitante")
     telefono_visitante: Optional[str] = Field(None, description="Teléfono del visitante")
     fecha_entrada: datetime = Field(..., description="Fecha y hora de entrada")
-    motivo_visita: str = Field(..., description="Motivo de la visita")
-    tipo_vehiculo: str = Field(..., description="Tipo de vehículo")
-    marca_vehiculo: Optional[str] = Field(None, description="Marca del vehículo")
-    color_vehiculo: Optional[str] = Field(None, description="Color del vehículo")
+    motivo_visita: Optional[str] = Field(None, description="Motivo de la visita")
+    tipo_vehiculo: Optional[str] = Field(None, description="Tipo de vehículo")
     placa_vehiculo: Optional[str] = Field("sin placa", description="Placa del vehículo")
 
-    @validator("dni_visitante", pre=True)
+    @field_validator("dni_visitante", mode='before')
+    @classmethod
     def set_dni_default(cls, v):
         return v if v and v.strip() else "No agregado"
     
-    @validator("telefono_visitante", pre=True)
+    @field_validator("telefono_visitante", mode='before')
+    @classmethod
     def set_telefono_default(cls, v):
         return v if v and v.strip() else "No agregado"
 
@@ -30,7 +30,8 @@ class VisitaCreate(BaseModel):
     fecha_entrada: Optional[datetime] = None
     acompanantes: Optional[List[str]] = None
 
-    @validator("fecha_entrada", pre=True)
+    @field_validator("fecha_entrada", mode='before')
+    @classmethod
     def parse_fecha_entrada(cls, v):
         if v == "" or v is None:
             return None
@@ -52,7 +53,7 @@ class VisitaQRResponse(BaseModel):
     tipo_creador: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class AccionQR(str, Enum):
     aceptar = "aprobar"
@@ -96,7 +97,7 @@ class VisitaResponse(BaseModel):
     tipo_creador: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class RegistrarSalidaRequest(BaseModel):
     qr_code: str
@@ -117,7 +118,7 @@ class EscaneoDiaItem(BaseModel):
     tipo_escaneo: str 
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class HistorialEscaneosDiaResponse(BaseModel):
     escaneos: List[EscaneoDiaItem]
@@ -135,7 +136,8 @@ class VisitaUpdate(BaseModel):
     acompanantes: Optional[List[str]] = None
     visitante: Optional[VisitanteCreate] = None
 
-    @validator("fecha_entrada", pre=True)
+    @field_validator("fecha_entrada", mode='before')
+    @classmethod
     def parse_fecha_entrada(cls, v):
         if v == "" or v is None:
             return None

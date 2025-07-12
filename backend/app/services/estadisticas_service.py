@@ -8,6 +8,7 @@ from app.models.visitante import Visitante
 from app.models.residente import Residente
 from app.models.guardia import Guardia
 from app.models.usuario import Usuario
+from app.models.admin import Administrador
 from app.schemas.estadisticas_schema import (
     EstadisticasGenerales, EstadisticaEstado, EstadisticaHorario,
     EstadisticaGuardia, EstadisticaVehiculo, EstadisticaResidente
@@ -21,37 +22,46 @@ def to_utc(dt: datetime) -> datetime:
         return dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc)
 
-def obtener_estadisticas_generales(db: Session) -> EstadisticasGenerales:
-    """Obtiene estadísticas generales del sistema"""
+def obtener_estadisticas_generales(db: Session, residencial_id: int) -> EstadisticasGenerales:
+    """Obtiene estadísticas generales del sistema filtradas por residencial"""
     now_utc = datetime.now(timezone.utc)
     fecha_inicio = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
     
-    # Estadísticas de visitas
-    total_visitas = db.query(Visita).count()
-    visitas_pendientes = db.query(Visita).filter(Visita.estado == "pendiente").count()
-    visitas_aprobadas = db.query(Visita).filter(Visita.estado == "aprobado").count()
-    visitas_completadas = db.query(Visita).filter(Visita.estado == "completado").count()
-    visitas_rechazadas = db.query(Visita).filter(Visita.estado == "rechazado").count()
-    visitas_expiradas = db.query(Visita).filter(Visita.estado == "expirado").count()
+    # Estadísticas de visitas filtradas por residencial
+    visitas_query = db.query(Visita).join(
+        Residente, Visita.residente_id == Residente.id
+    ).filter(Residente.residencial_id == residencial_id)
     
-    # Estadísticas de escaneos del día
-    total_escaneos_hoy = db.query(EscaneoQR).filter(
-        EscaneoQR.fecha_escaneo >= fecha_inicio
-    ).count()
+    total_visitas = visitas_query.count()
+    visitas_pendientes = visitas_query.filter(Visita.estado == "pendiente").count()
+    visitas_aprobadas = visitas_query.filter(Visita.estado == "aprobado").count()
+    visitas_completadas = visitas_query.filter(Visita.estado == "completado").count()
+    visitas_rechazadas = visitas_query.filter(Visita.estado == "rechazado").count()
+    visitas_expiradas = visitas_query.filter(Visita.estado == "expirado").count()
+    
+    # Estadísticas de escaneos del día filtradas por residencial
+    escaneos_query = db.query(EscaneoQR).join(
+        Visita, EscaneoQR.visita_id == Visita.id
+    ).join(
+        Residente, Visita.residente_id == Residente.id
+    ).filter(
+        EscaneoQR.fecha_escaneo >= fecha_inicio,
+        Residente.residencial_id == residencial_id
+    )
+    
+    total_escaneos_hoy = escaneos_query.count()
     
     # Escaneos de entrada vs salida del día
-    escaneos_hoy = db.query(EscaneoQR, Visita).join(
+    escaneos_hoy = escaneos_query.join(
         Visita, EscaneoQR.visita_id == Visita.id
-    ).filter(
-        EscaneoQR.fecha_escaneo >= fecha_inicio
     ).all()
     
     escaneos_entrada_hoy = 0
     escaneos_salida_hoy = 0
     
-    for escaneo, visita in escaneos_hoy:
+    for escaneo in escaneos_hoy:
         fecha_escaneo_utc = to_utc(escaneo.fecha_escaneo)
-        if visita.fecha_salida and fecha_escaneo_utc >= to_utc(visita.fecha_salida):
+        if escaneo.visita.fecha_salida and fecha_escaneo_utc >= to_utc(escaneo.visita.fecha_salida):
             escaneos_salida_hoy += 1
         else:
             escaneos_entrada_hoy += 1
@@ -68,11 +78,15 @@ def obtener_estadisticas_generales(db: Session) -> EstadisticasGenerales:
         escaneos_salida_hoy=escaneos_salida_hoy
     )
 
-def obtener_estadisticas_estados(db: Session) -> List[EstadisticaEstado]:
-    """Obtiene estadísticas por estado de visita"""
+def obtener_estadisticas_estados(db: Session, residencial_id: int) -> List[EstadisticaEstado]:
+    """Obtiene estadísticas por estado de visita filtradas por residencial"""
     resultados = db.query(
         Visita.estado,
         func.count(Visita.id).label('cantidad')
+    ).join(
+        Residente, Visita.residente_id == Residente.id
+    ).filter(
+        Residente.residencial_id == residencial_id
     ).group_by(Visita.estado).all()
     
     total_visitas = sum(r.cantidad for r in resultados)
@@ -88,16 +102,19 @@ def obtener_estadisticas_estados(db: Session) -> List[EstadisticaEstado]:
     
     return estadisticas
 
-def obtener_estadisticas_horarios(db: Session) -> List[EstadisticaHorario]:
-    """Obtiene estadísticas de actividad por hora"""
+def obtener_estadisticas_horarios(db: Session, residencial_id: int) -> List[EstadisticaHorario]:
+    """Obtiene estadísticas de actividad por hora filtradas por residencial"""
     now_utc = datetime.now(timezone.utc)
     fecha_inicio = now_utc.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=7)
     
-    # Obtener escaneos de la última semana
+    # Obtener escaneos de la última semana filtrados por residencial
     escaneos = db.query(EscaneoQR, Visita).join(
         Visita, EscaneoQR.visita_id == Visita.id
+    ).join(
+        Residente, Visita.residente_id == Residente.id
     ).filter(
-        EscaneoQR.fecha_escaneo >= fecha_inicio
+        EscaneoQR.fecha_escaneo >= fecha_inicio,
+        Residente.residencial_id == residencial_id
     ).all()
     
     # Agrupar por hora
@@ -123,17 +140,22 @@ def obtener_estadisticas_horarios(db: Session) -> List[EstadisticaHorario]:
         for hora, datos in horarios.items()
     ]
 
-def obtener_estadisticas_guardias(db: Session) -> List[EstadisticaGuardia]:
-    """Obtiene estadísticas de actividad por guardia"""
+def obtener_estadisticas_guardias(db: Session, residencial_id: int) -> List[EstadisticaGuardia]:
+    """Obtiene estadísticas de actividad por guardia filtradas por residencial"""
     now_utc = datetime.now(timezone.utc)
     fecha_inicio = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
     
-    # Obtener escaneos del día por guardia
+    # Obtener escaneos del día por guardia filtrados por residencial
     resultados = db.query(
         EscaneoQR.guardia_id,
         func.count(EscaneoQR.id).label('total_escaneos')
+    ).join(
+        Visita, EscaneoQR.visita_id == Visita.id
+    ).join(
+        Residente, Visita.residente_id == Residente.id
     ).filter(
-        EscaneoQR.fecha_escaneo >= fecha_inicio
+        EscaneoQR.fecha_escaneo >= fecha_inicio,
+        Residente.residencial_id == residencial_id
     ).group_by(EscaneoQR.guardia_id).all()
     
     estadisticas = []
@@ -145,9 +167,12 @@ def obtener_estadisticas_guardias(db: Session) -> List[EstadisticaGuardia]:
         # Calcular entradas vs salidas
         escaneos_guardia = db.query(EscaneoQR, Visita).join(
             Visita, EscaneoQR.visita_id == Visita.id
+        ).join(
+            Residente, Visita.residente_id == Residente.id
         ).filter(
             EscaneoQR.guardia_id == guardia_id,
-            EscaneoQR.fecha_escaneo >= fecha_inicio
+            EscaneoQR.fecha_escaneo >= fecha_inicio,
+            Residente.residencial_id == residencial_id
         ).all()
         
         escaneos_entrada = 0
@@ -170,11 +195,17 @@ def obtener_estadisticas_guardias(db: Session) -> List[EstadisticaGuardia]:
     
     return estadisticas
 
-def obtener_estadisticas_vehiculos(db: Session) -> List[EstadisticaVehiculo]:
-    """Obtiene estadísticas de tipos de vehículos"""
+def obtener_estadisticas_vehiculos(db: Session, residencial_id: int) -> List[EstadisticaVehiculo]:
+    """Obtiene estadísticas de tipos de vehículos filtradas por residencial"""
     resultados = db.query(
         Visitante.tipo_vehiculo,
         func.count(Visitante.id).label('cantidad')
+    ).join(
+        Visita, Visitante.id == Visita.visitante_id
+    ).join(
+        Residente, Visita.residente_id == Residente.id
+    ).filter(
+        Residente.residencial_id == residencial_id
     ).group_by(Visitante.tipo_vehiculo).all()
     
     total_vehiculos = sum(r.cantidad for r in resultados)
@@ -190,11 +221,13 @@ def obtener_estadisticas_vehiculos(db: Session) -> List[EstadisticaVehiculo]:
     
     return estadisticas
 
-def obtener_estadisticas_residentes(db: Session) -> List[EstadisticaResidente]:
-    """Obtiene estadísticas de residentes más activos"""
+def obtener_estadisticas_residentes(db: Session, residencial_id: int) -> List[EstadisticaResidente]:
+    """Obtiene estadísticas de residentes más activos filtradas por residencial"""
     resultados = db.query(
         Residente.id,
         func.count(Visita.id).label('total_visitas')
+    ).filter(
+        Residente.residencial_id == residencial_id
     ).join(
         Visita, Residente.id == Visita.residente_id
     ).group_by(Residente.id).order_by(
@@ -214,13 +247,13 @@ def obtener_estadisticas_residentes(db: Session) -> List[EstadisticaResidente]:
     
     return estadisticas
 
-def obtener_estadisticas_completas(db: Session) -> Dict:
-    """Obtiene todas las estadísticas del sistema"""
+def obtener_estadisticas_completas(db: Session, residencial_id: int) -> Dict:
+    """Obtiene todas las estadísticas del sistema filtradas por residencial"""
     return {
-        "estadisticas_generales": obtener_estadisticas_generales(db),
-        "estados_visitas": obtener_estadisticas_estados(db),
-        "horarios_actividad": obtener_estadisticas_horarios(db),
-        "guardias_actividad": obtener_estadisticas_guardias(db),
-        "vehiculos_frecuentes": obtener_estadisticas_vehiculos(db),
-        "residentes_activos": obtener_estadisticas_residentes(db)
+        "estadisticas_generales": obtener_estadisticas_generales(db, residencial_id),
+        "estados_visitas": obtener_estadisticas_estados(db, residencial_id),
+        "horarios_actividad": obtener_estadisticas_horarios(db, residencial_id),
+        "guardias_actividad": obtener_estadisticas_guardias(db, residencial_id),
+        "vehiculos_frecuentes": obtener_estadisticas_vehiculos(db, residencial_id),
+        "residentes_activos": obtener_estadisticas_residentes(db, residencial_id)
     } 

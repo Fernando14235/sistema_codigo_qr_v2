@@ -15,4 +15,4 @@ class NotificacionDB(NotificacionBase):
     fecha_envio: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True

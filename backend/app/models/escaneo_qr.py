@@ -9,7 +9,7 @@ class EscaneoQR(Base):
     id = Column(Integer, primary_key=True, index=True)
     visita_id = Column(Integer, ForeignKey("visitas.id", ondelete="CASCADE"), nullable=False)
     guardia_id = Column(Integer, ForeignKey("guardias.id", ondelete="CASCADE"), nullable=False)
-    dispositivo = Column(String)
+    dispositivo = Column(String(100), nullable=True)
     fecha_escaneo = Column(DateTime(timezone=True), default=get_current_time)
     
     visita = relationship("Visita", back_populates="escaneos", passive_deletes=True)

@@ -31,8 +31,13 @@ def save_uploaded_images(imagenes: Optional[List[UploadFile]]) -> List[str]:
 
 def create_social(db: Session, social_data: SocialCreate, imagenes: Optional[List[str]] = None, current_user: Optional[Usuario] = None):
     admin_id = current_user.id if current_user else None
+    residencial_id = current_user.residencial_id if current_user else None
+    
     if not admin_id:
         raise ValueError("admin_id es requerido")
+    
+    if not residencial_id:
+        raise ValueError("residencial_id es requerido")
     
     error_message = None
     
@@ -52,6 +57,7 @@ def create_social(db: Session, social_data: SocialCreate, imagenes: Optional[Lis
         
         social = Social(
             admin_id=admin_id,
+            residencial_id=residencial_id,
             titulo=social_data.titulo,
             contenido=social_data.contenido,
             tipo_publicacion=social_data.tipo_publicacion or "comunicado",
@@ -87,6 +93,7 @@ def create_social(db: Session, social_data: SocialCreate, imagenes: Optional[Lis
         # Si ocurre un error, crear el registro con estado fallido y mensaje de error
         social = Social(
             admin_id=admin_id,
+            residencial_id=residencial_id,
             titulo=social_data.titulo,
             contenido=social_data.contenido,
             tipo_publicacion=social_data.tipo_publicacion,
@@ -110,11 +117,17 @@ def get_social_list(
     db: Session,
     user_id: int,
     rol: str,
+    residencial_id: int = None,
     tipo_publicacion: Optional[str] = None,
     estado: Optional[str] = None,
     fecha: Optional[str] = None
 ):
     query = db.query(Social)
+    
+    # Filtrar por residencial_id si se proporciona
+    if residencial_id:
+        query = query.filter(Social.residencial_id == residencial_id)
+    
     if tipo_publicacion:
         query = query.filter(Social.tipo_publicacion == tipo_publicacion)
     if estado:
@@ -146,17 +159,26 @@ def can_user_access_social(db: Session, social: Social, user: Usuario) -> bool:
     """
     Verifica si un usuario tiene acceso a una publicación específica
     """
-    # Los admins pueden acceder a todas las publicaciones
-    if user.rol == "admin":
+    # Los super admins pueden acceder a todas las publicaciones
+    if user.rol == "super_admin":
         return True
     
+    # Los admins solo pueden acceder a publicaciones de su residencial
+    if user.rol == "admin":
+        return user.residencial_id == social.residencial_id
+    
     # Los residentes solo pueden acceder si:
-    # 1. La publicación es para todos, o
-    # 2. Son destinatarios específicos de la publicación
+    # 1. Pertenecen a la misma residencial, y
+    # 2. La publicación es para todos, o
+    # 3. Son destinatarios específicos de la publicación
     if user.rol == "residente":
         # Buscar si el usuario es residente
         residente = db.query(Residente).filter(Residente.usuario_id == user.id).first()
         if not residente:
+            return False
+        
+        # Verificar que pertenezca a la misma residencial
+        if residente.residencial_id != social.residencial_id:
             return False
         
         # Verificar si es para todos
@@ -281,7 +303,8 @@ def crear_publicacion_service(db: Session, social_data: SocialCreate, imagenes: 
             titulo_publicacion=social_data.titulo,
             contenido=social_data.contenido,
             creador=current_user.nombre,
-            notificar_a=notificar_a
+            notificar_a=notificar_a,
+            residencial_id=current_user.residencial_id
         )
     except Exception as e:
         print(f"Error enviando alerta de nueva publicación: {e}")
@@ -292,6 +315,7 @@ def listar_publicaciones_service(db: Session, current_user: Usuario, tipo_public
         db,
         user_id=current_user.id,
         rol=current_user.rol,
+        residencial_id=current_user.residencial_id,
         tipo_publicacion=tipo_publicacion,
         estado=estado,
         fecha=fecha

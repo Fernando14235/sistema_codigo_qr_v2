@@ -3,19 +3,25 @@ from sqlalchemy.orm import Session
 from typing import List
 from app.services.user_service import obtener_usuario
 from app.database import get_db
-from app.utils.security import verify_role
+from app.utils.security import verify_role, get_current_residencial_id
 from app.models.residente import Residente
 from app.models.usuario import Usuario
     
 router = APIRouter(prefix="/usuarios", tags=["Usuarios"])
 
 @router.get("/residentes", dependencies=[Depends(verify_role(["admin"]))])
-def listar_residentes(db: Session = Depends(get_db)):
-    return obtener_usuario(db, rol="residente")
+def listar_residentes(
+    db: Session = Depends(get_db),
+    residencial_id: int = Depends(get_current_residencial_id)
+):
+    return obtener_usuario(db, rol="residente", residencial_id=residencial_id)
 
 @router.get("/residentes_full", dependencies=[Depends(verify_role(["admin"]))])
-def listar_residentes_full(db: Session = Depends(get_db)):
-    residentes = db.query(Residente).all()
+def listar_residentes_full(
+    db: Session = Depends(get_db),
+    residencial_id: int = Depends(get_current_residencial_id)
+):
+    residentes = db.query(Residente).filter(Residente.residencial_id == residencial_id).all()
     resultado = []
     for r in residentes:
         usuario = db.query(Usuario).filter(Usuario.id == r.usuario_id).first()

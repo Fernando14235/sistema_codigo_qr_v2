@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Text, Boolean, ForeignKey, DateTime, CheckConstraint
 from sqlalchemy.orm import relationship
 from app.database import Base
 from app.utils.time import get_current_time
@@ -8,6 +8,7 @@ class Social(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     admin_id = Column(Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
+    residencial_id = Column(Integer, ForeignKey("residenciales.id"), nullable=False)
     titulo = Column(String(200), nullable=False)
     contenido = Column(Text, nullable=False)
     tipo_publicacion = Column(String(20), nullable=False)
@@ -20,6 +21,17 @@ class Social(Base):
     destinatarios = relationship("SocialDestinatario", back_populates="social", cascade="all, delete-orphan")
     opciones = relationship("SocialOpcion", back_populates="social", cascade="all, delete-orphan")
     votos = relationship("SocialVoto", back_populates="social", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        CheckConstraint(
+            tipo_publicacion.in_(['publicacion', 'comunicado', 'encuesta']),
+            name='check_tipo_publicacion'
+        ),
+        CheckConstraint(
+            estado.in_(['publicado', 'fallido']),
+            name='check_estado_social'
+        ),
+    )
 
 
 class SocialImagen(Base):

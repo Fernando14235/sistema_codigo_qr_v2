@@ -204,7 +204,22 @@ def enviar_notificacion_residente(db: Session, visita, qr_img_b64: str, acompana
 #Enviar notificación al guardia cuando se crea una visita        
 def enviar_notificacion_guardia(db: Session, visita):
     try:
-        guardias = db.query(Guardia).all()
+        # Obtener la residencial de la visita
+        if visita.residente_id:
+            residente = db.query(Residente).filter(Residente.id == visita.residente_id).first()
+            residencial_id = residente.residencial_id if residente else None
+        elif visita.admin_id:
+            admin = db.query(Administrador).filter(Administrador.id == visita.admin_id).first()
+            residencial_id = admin.residencial_id if admin else None
+        else:
+            residencial_id = None
+        
+        # Filtrar guardias por residencial_id
+        guardia_query = db.query(Guardia)
+        if residencial_id:
+            guardia_query = guardia_query.filter(Guardia.residencial_id == residencial_id)
+        guardias = guardia_query.all()
+        
         # Notificar con el nombre correcto según tipo_creador
         if visita.tipo_creador == "admin":
             from app.models.admin import Administrador
@@ -358,8 +373,8 @@ def enviar_notificacion_visita_actualizada(db: Session, visita):
 
 def enviar_notificacion_solicitud_visita(db: Session, visita, residente):
     try:
-        # Obtener todos los administradores
-        admins = db.query(Administrador).all()
+        # Obtener administradores de la misma residencial
+        admins = db.query(Administrador).filter(Administrador.residencial_id == residente.residencial_id).all()
         
         if not admins:
             print("No hay administradores registrados para enviar notificación")
@@ -566,7 +581,7 @@ def enviar_notificacion_solicitud_aprobada(db: Session, visita, qr_img_b64: str)
         print(f"Error al enviar notificación de aprobación: {str(e)}")
         print(traceback.format_exc())
 
-def enviar_notificacion_nueva_publicacion(db: Session, titulo_publicacion: str, contenido: str, creador: str, notificar_a: str = 'todos'):
+def enviar_notificacion_nueva_publicacion(db: Session, titulo_publicacion: str, contenido: str, creador: str, notificar_a: str = 'todos', residencial_id: int = None):
     try:
         asunto = "Nueva Publicación"
         mensaje_html = f"""
@@ -586,14 +601,24 @@ def enviar_notificacion_nueva_publicacion(db: Session, titulo_publicacion: str, 
         """
         usuarios_notificados = []
         if notificar_a in ('todos', 'admin'):
-            admins = db.query(Administrador).all()
+            # Filtrar admins por residencial_id si se proporciona
+            admin_query = db.query(Administrador)
+            if residencial_id:
+                admin_query = admin_query.filter(Administrador.residencial_id == residencial_id)
+            admins = admin_query.all()
+            
             for admin in admins:
                 if admin.usuario and admin.usuario.email:
                     exito = enviar_correo(admin.usuario.email, asunto, mensaje_html)
                     if exito:
                         usuarios_notificados.append(admin.usuario.email)
         if notificar_a in ('todos', 'residente'):
-            residentes = db.query(Residente).all()
+            # Filtrar residentes por residencial_id si se proporciona
+            residente_query = db.query(Residente)
+            if residencial_id:
+                residente_query = residente_query.filter(Residente.residencial_id == residencial_id)
+            residentes = residente_query.all()
+            
             for residente in residentes:
                 if residente.usuario and residente.usuario.email:
                     exito = enviar_correo(residente.usuario.email, asunto, mensaje_html)

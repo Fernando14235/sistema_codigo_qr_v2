@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 from datetime import datetime
 from app.database import get_db
-from app.utils.security import verify_role, get_current_user
+from app.utils.security import verify_role, get_current_user, get_current_residencial_id
 from app.models.residente import Residente
 from app.models.usuario import Usuario
 from app.models.visita import Visita
@@ -19,17 +19,19 @@ router = APIRouter(prefix="/visitas", tags=["Visitas"])
 def obtener_historial_visitas_admin(
     db: Session = Depends(get_db),
     admin_actual: Usuario = Depends(verify_role(["admin"])),
+    residencial_id: int = Depends(get_current_residencial_id),
     nombre_residente: Optional[str] = Query(None, description="Filtrar por nombre del residente"),
     unidad_residencial: Optional[str] = Query(None, description="Filtrar por unidad residencial"),
     nombre_visitante: Optional[str] = Query(None, description="Filtrar por nombre del visitante"),
     estado: Optional[str] = Query(None, description="Filtrar por nombre del visitante")
 ):
 
-    # Construir consulta con joins
+    # Construir consulta con joins y filtro por residencial_id
     query = db.query(Residente, Usuario, Visita, Visitante)\
               .join(Usuario, Usuario.id == Residente.usuario_id)\
               .join(Visita, Visita.residente_id == Residente.id)\
-              .join(Visitante, Visitante.id == Visita.visitante_id)
+              .join(Visitante, Visitante.id == Visita.visitante_id)\
+              .filter(Residente.residencial_id == residencial_id)
 
     # Aplicar filtros si se proporcionan
     if nombre_residente:
@@ -69,29 +71,24 @@ def obtener_historial_visitas_admin(
 def obtener_escaneos_dia_admin(
     db: Session = Depends(get_db),
     admin_actual: Usuario = Depends(verify_role(["admin"])),
+    residencial_id: int = Depends(get_current_residencial_id),
     nombre_guardia: Optional[str] = Query(None, description="Nombre del guardia para filtrar los escaneos"),
     #estado_escaneo: Optional[str] = Query(None, description="Tipo de escaneo (entrada/salida)")
 ):
-    query = db.query(Guardia, Usuario, Visita)\
-              .join(Usuario, Usuario.id == Guardia.usuario_id)\
-              .join(Visita, Visita.guardia_id == Guardia.id)
-    
-    if nombre_guardia:
-        query = query.filter(Usuario.nombre.ilike(f"%{nombre_guardia}%"))
-        
-    resultados = query.order_by(Visita.fecha_entrada.desc()).all()
-    return obtener_historial_escaneos_dia(db)
+    return obtener_historial_escaneos_dia(db, residencial_id=residencial_id, nombre_guardia=nombre_guardia)
 
 @router.get("/admin/escaneos-totales", response_model=HistorialEscaneosTotalesResponse)
 def obtener_escaneos_totales_admin(
     db: Session = Depends(get_db),
     admin_actual: Usuario = Depends(verify_role(["admin"])),
+    residencial_id: int = Depends(get_current_residencial_id),
     nombre_guardia: Optional[str] = Query(None, description="Nombre del guardia para filtrar los escaneos"),
     tipo_escaneo: Optional[str] = Query(None, description="Filtrar por tipo de escaneo (entrada/salida)"),
     estado_visita: Optional[str] = Query(None, description="Filtrar por estado de la visita")
 ):
     return obtener_historial_escaneos_totales(
         db,
+        residencial_id=residencial_id,
         nombre_guardia=nombre_guardia,
         tipo_escaneo=tipo_escaneo,
         estado_visita=estado_visita
@@ -112,4 +109,4 @@ def obtener_escaneos_dia_guardia(
     if not guardia:
         raise HTTPException(status_code=404, detail="Guardia no encontrado")
     
-    return obtener_historial_escaneos_dia(db, guardia_id=guardia.id)
+    return obtener_historial_escaneos_dia(db, guardia_id=guardia.id, residencial_id=guardia.residencial_id)

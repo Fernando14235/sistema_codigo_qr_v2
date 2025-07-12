@@ -1,12 +1,13 @@
-from pydantic import BaseModel, EmailStr, constr, root_validator
+from pydantic import BaseModel, EmailStr, constr, model_validator
 from typing import Optional
 from datetime import datetime
 from enum import Enum
 
 class Rol(str, Enum):
-    admin     = "admin"
-    residente = "residente"
-    guardia   = "guardia"
+    super_admin = "super_admin"
+    admin       = "admin"
+    residente   = "residente"
+    guardia     = "guardia"
 
 # class EstadoUsuario(str, Enum):
 #     activo = "activo"
@@ -17,6 +18,7 @@ class UsuarioBase(BaseModel):
     nombre: str
     email: EmailStr
     rol: Rol
+    residencial_id: Optional[int] = None
     # estado: EstadoUsuario = EstadoUsuario.activo  # Comentado temporalmente
     unidad_residencial: Optional[str] = None
 
@@ -24,14 +26,12 @@ class UsuarioCreate(UsuarioBase):
     password: constr(min_length=6)
     telefono: str 
     
-    @root_validator
-    def validar_unidad_residencial(cls, values):
-        rol = values.get('rol')
-        unidad = values.get('unidad_residencial')
-        if rol == 'residente':
-            if not unidad or not isinstance(unidad, str) or unidad.strip() == "":
+    @model_validator(mode='after')
+    def validar_unidad_residencial(self):
+        if self.rol == 'residente':
+            if not self.unidad_residencial or not isinstance(self.unidad_residencial, str) or self.unidad_residencial.strip() == "":
                 raise ValueError('unidad_residencial es obligatoria y debe ser un texto no vacío si el rol es residente')
-        return values
+        return self
 
 class Usuario(UsuarioBase):
     id: int
@@ -41,4 +41,4 @@ class Usuario(UsuarioBase):
     ult_conexion: Optional[datetime] = None
     
     class Config:
-        orm_mode = True
+        from_attributes = True

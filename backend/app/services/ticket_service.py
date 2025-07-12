@@ -44,8 +44,13 @@ def crear_ticket_service(titulo: str, descripcion: str, imagen: Optional[UploadF
     notificar_admin_ticket_creado_email(db, ticket, residente.usuario.nombre)
     return ticket
 
-def listar_tickets_service(estado: Optional[EstadoTicket], skip: int, limit: int, db: Session) -> List[dict]:
+def listar_tickets_service(estado: Optional[EstadoTicket], skip: int, limit: int, db: Session, residencial_id: int = None) -> List[dict]:
     query = db.query(Ticket, Residente).join(Residente, Ticket.residente_id == Residente.id)
+    
+    # Filtrar por residencial_id si se proporciona
+    if residencial_id:
+        query = query.filter(Residente.residencial_id == residencial_id)
+    
     if estado:
         query = query.filter(Ticket.estado == estado)
     results = query.order_by(Ticket.fecha_creacion.desc()).offset(skip).limit(limit).all()

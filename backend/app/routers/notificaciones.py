@@ -4,7 +4,7 @@ from app.database import get_db
 from app.models.residente import Residente
 from app.models.notificacion import Notificacion
 from app.schemas.notificacion_schema import NotificacionDB
-from app.utils.auth import obtener_usuario_actual
+from app.utils.security import get_current_user
 from app.models.usuario import Usuario
 
 router = APIRouter(prefix="/notificaciones", tags=["Notificaciones"])
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/notificaciones", tags=["Notificaciones"])
 @router.get("/residente/ver_notificaciones", response_model=list[NotificacionDB])
 def listar_notificaciones_residente(
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(obtener_usuario_actual)
+    usuario: Usuario = Depends(get_current_user)
 ):
     # Solo residentes pueden consultar sus notificaciones
     if usuario.rol != "residente":

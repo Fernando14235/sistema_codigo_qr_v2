@@ -33,7 +33,8 @@ def crear_usuario(db: Session, usuario: UsuarioCreate) -> Usuario:
             nombre=usuario.nombre,
             email=email_normalizado,
             password_hash=get_password_hash(usuario.password),
-            rol=usuario.rol
+            rol=usuario.rol,
+            residencial_id=usuario.residencial_id
         )
         
         db.add(db_usuario)
@@ -43,6 +44,7 @@ def crear_usuario(db: Session, usuario: UsuarioCreate) -> Usuario:
         if usuario.rol == "residente":
             db_residente = Residente(
                 usuario_id=db_usuario.id,
+                residencial_id=usuario.residencial_id,
                 telefono=telefono_normalizado,
                 unidad_residencial=usuario.unidad_residencial
             )
@@ -50,15 +52,24 @@ def crear_usuario(db: Session, usuario: UsuarioCreate) -> Usuario:
         elif usuario.rol == "guardia":
             db_guardia = Guardia(
                 usuario_id=db_usuario.id,
+                residencial_id=usuario.residencial_id,
                 telefono=telefono_normalizado
             )
             db.add(db_guardia)
         elif usuario.rol == "admin":
             db_admin = Administrador(
                 usuario_id=db_usuario.id,
+                residencial_id=usuario.residencial_id,
                 telefono=telefono_normalizado
             )
             db.add(db_admin)
+        elif usuario.rol == "super_admin":
+            from app.models.super_admin import SuperAdmin
+            db_super_admin = SuperAdmin(
+                usuario_id=db_usuario.id,
+                telefono=telefono_normalizado
+            )
+            db.add(db_super_admin)
         
         db.commit()
         db.refresh(db_usuario)
@@ -84,7 +95,7 @@ def crear_usuario(db: Session, usuario: UsuarioCreate) -> Usuario:
             detail=f"Error al crear usuario: {str(e)}"
         )
 
-def obtener_usuario(db: Session, id: int = None, nombre: str = None, rol: str = None):
+def obtener_usuario(db: Session, id: int = None, nombre: str = None, rol: str = None, residencial_id: int = None):
     try:
         query = db.query(Usuario)
         
@@ -97,6 +108,9 @@ def obtener_usuario(db: Session, id: int = None, nombre: str = None, rol: str = 
         
         if rol is not None:
             query = query.filter(Usuario.rol == rol)
+        
+        if residencial_id is not None:
+            query = query.filter(Usuario.residencial_id == residencial_id)
         
         usuarios = query.all()
         

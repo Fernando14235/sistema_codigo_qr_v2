@@ -15,7 +15,7 @@ class Ticket(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     residente_id = Column(Integer, ForeignKey("residentes.id", ondelete="CASCADE"), nullable=False)
-    titulo = Column(String(150), nullable=False)
+    titulo = Column(String(200), nullable=False)
     descripcion = Column(Text, nullable=False)
     imagen_url = Column(Text, nullable=True)
     estado = Column(String(20), nullable=False, default=EstadoTicket.pendiente)

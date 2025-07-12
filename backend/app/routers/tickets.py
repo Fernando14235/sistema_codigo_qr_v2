@@ -5,7 +5,7 @@ from app.database import get_db
 from app.models import Usuario, EstadoTicket
 from app.schemas import TicketUpdate, TicketResponse, TicketListResponse
 from app.services.ticket_service import crear_ticket_service, listar_tickets_service, obtener_ticket_service, actualizar_ticket_service, listar_tickets_residente_service
-from app.utils.security import verify_role
+from app.utils.security import verify_role, get_current_residencial_id
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
 
@@ -27,9 +27,10 @@ def listar_tickets(
     skip: int = 0,
     limit: int = 50,
     db: Session = Depends(get_db),
-    usuario_actual: Usuario = Depends(verify_role(["admin"]))
+    usuario_actual: Usuario = Depends(verify_role(["admin"])),
+    residencial_id: int = Depends(get_current_residencial_id)
 ):
-    return listar_tickets_service(estado, skip, limit, db)
+    return listar_tickets_service(estado, skip, limit, db, residencial_id)
 
 # 2b. Listar tickets del residente autenticado
 @router.get("/listar_tickets/residente", response_model=List[TicketListResponse], name="Listar tickets del residente autenticado")

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 from typing import Optional
 from datetime import datetime
 from enum import Enum
@@ -14,7 +14,8 @@ class PagoBase(BaseModel):
     monto: Decimal
     comprobante_url: Optional[str] = None
 
-    @validator('mes_pago')
+    @field_validator('mes_pago')
+    @classmethod
     def validar_mes_pago(cls, v):
         if not v or len(v.strip()) == 0:
             raise ValueError('El mes de pago no puede estar vacío')
@@ -22,7 +23,8 @@ class PagoBase(BaseModel):
             raise ValueError('El mes de pago no puede tener más de 15 caracteres')
         return v.strip()
 
-    @validator('monto')
+    @field_validator('monto')
+    @classmethod
     def validar_monto(cls, v):
         if v <= 0:
             raise ValueError('El monto debe ser mayor a 0')
@@ -38,7 +40,8 @@ class PagoUpdate(BaseModel):
     estado: Optional[EstadoPago] = None
     observacion: Optional[str] = None
 
-    @validator('mes_pago')
+    @field_validator('mes_pago')
+    @classmethod
     def validar_mes_pago(cls, v):
         if v is not None:
             if len(v.strip()) == 0:
@@ -48,7 +51,8 @@ class PagoUpdate(BaseModel):
             return v.strip()
         return v
 
-    @validator('monto')
+    @field_validator('monto')
+    @classmethod
     def validar_monto(cls, v):
         if v is not None and v <= 0:
             raise ValueError('El monto debe ser mayor a 0')
@@ -63,7 +67,7 @@ class PagoResponse(PagoBase):
     fecha_validacion: Optional[datetime] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class PagoListResponse(BaseModel):
     id: int
@@ -74,4 +78,4 @@ class PagoListResponse(BaseModel):
     fecha_validacion: Optional[datetime] = None
 
     class Config:
-        orm_mode = True 
+        from_attributes = True 

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 from typing import Optional
 from datetime import datetime
 from enum import Enum
@@ -14,7 +14,8 @@ class TicketBase(BaseModel):
     descripcion: str
     imagen_url: Optional[str] = None
 
-    @validator('titulo')
+    @field_validator('titulo')
+    @classmethod
     def validar_titulo(cls, v):
         if not v or len(v.strip()) == 0:
             raise ValueError('El título no puede estar vacío')
@@ -22,7 +23,8 @@ class TicketBase(BaseModel):
             raise ValueError('El título no puede tener más de 150 caracteres')
         return v.strip()
 
-    @validator('descripcion')
+    @field_validator('descripcion')
+    @classmethod
     def validar_descripcion(cls, v):
         if not v or len(v.strip()) == 0:
             raise ValueError('La descripción no puede estar vacía')
@@ -38,7 +40,8 @@ class TicketUpdate(BaseModel):
     respuesta_admin: Optional[str] = None
     imagen_url: Optional[str] = None
 
-    @validator('titulo')
+    @field_validator('titulo')
+    @classmethod
     def validar_titulo(cls, v):
         if v is not None:
             if len(v.strip()) == 0:
@@ -48,7 +51,8 @@ class TicketUpdate(BaseModel):
             return v.strip()
         return v
 
-    @validator('descripcion')
+    @field_validator('descripcion')
+    @classmethod
     def validar_descripcion(cls, v):
         if v is not None:
             if len(v.strip()) == 0:
@@ -66,7 +70,7 @@ class TicketResponse(TicketBase):
     fecha_respuesta: Optional[datetime] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class TicketListResponse(BaseModel):
     id: int
@@ -78,4 +82,4 @@ class TicketListResponse(BaseModel):
     imagen_url: Optional[str] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True

@@ -11,7 +11,7 @@ class SocialImagenCreate(SocialImagenBase):
 class SocialImagenResponse(SocialImagenBase):
     id: int
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class SocialDestinatarioBase(BaseModel):
     residente_id: int = Field(..., example=1)
@@ -22,12 +22,12 @@ class SocialDestinatarioCreate(SocialDestinatarioBase):
 class SocialDestinatarioResponse(SocialDestinatarioBase):
     id: int
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class SocialBase(BaseModel):
     titulo: str = Field(..., min_length=1, max_length=200)
     contenido: str = Field(..., min_length=1)
-    tipo_publicacion: str = Field(..., regex="^(publicacion|comunicado|encuesta)$")
+    tipo_publicacion: str = Field(..., pattern="^(publicacion|comunicado|encuesta)$")
     requiere_respuesta: Optional[bool] = False
     para_todos: Optional[bool] = False
 
@@ -48,7 +48,7 @@ class SocialOpcionResponse(SocialOpcionBase):
     id: int
     social_id: int
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # Votos de encuesta
 class SocialVotoBase(BaseModel):
@@ -62,12 +62,13 @@ class SocialVotoResponse(SocialVotoBase):
     residente_id: int
     fecha_voto: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class SocialResponse(SocialBase):
     id: int
     admin_id: int
-    estado: str = Field(..., regex="^(publicado|fallido|archivado)$")
+    residencial_id: int
+    estado: str = Field(..., pattern="^(publicado|fallido|archivado)$")
     fecha_creacion: datetime
     imagenes: List[SocialImagenResponse] = []
     destinatarios: List[SocialDestinatarioResponse] = []
@@ -75,4 +76,4 @@ class SocialResponse(SocialBase):
     votos: Optional[List[SocialVotoResponse]] = []  # Solo para encuestas, opcional
 
     class Config:
-        orm_mode = True
+        from_attributes = True

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey, DateTime, Boolean, String, Text
+from sqlalchemy import Column, Integer, ForeignKey, DateTime, Boolean, String, Text, CheckConstraint
 from sqlalchemy.orm import relationship
 from app.database import Base
 from app.utils.time import get_current_time
@@ -12,13 +12,13 @@ class Visita(Base):
     residente_id = Column(Integer, ForeignKey("residentes.id", ondelete="CASCADE"), nullable=True)
     guardia_id = Column(Integer, ForeignKey("guardias.id", ondelete="SET NULL"), nullable=True)
     tipo_creador = Column(String(10), nullable=False)
-    qr_code = Column(String, nullable=True)
+    qr_code = Column(String(255), nullable=True)
     qr_expiracion = Column(DateTime(timezone=True))
-    fecha_entrada = Column(DateTime(timezone=True), default=get_current_time)
+    fecha_entrada = Column(DateTime(timezone=True), nullable=True)
     fecha_salida = Column(DateTime(timezone=True), nullable=True)
-    estado = Column(String, nullable=False, default="pendiente")
-    notas = Column(Text)
-    expiracion = Column(String(1), default="N")  # 'S' para expirada, 'N' para no expirada
+    estado = Column(String(30), nullable=False, default="pendiente")
+    notas = Column(Text, nullable=True)
+    expiracion = Column(String(1), nullable=False, default="N")
 
     residente = relationship("Residente", back_populates="visitas")
     admin = relationship("Administrador", back_populates="visitas")
@@ -26,3 +26,18 @@ class Visita(Base):
     guardia = relationship("Guardia", back_populates="visitas")
     escaneos = relationship("EscaneoQR", back_populates="visita", passive_deletes=True)
     notificaciones = relationship("Notificacion", back_populates="visita", passive_deletes=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            tipo_creador.in_(['admin', 'residente']),
+            name='check_tipo_creador'
+        ),
+        CheckConstraint(
+            estado.in_(['aprobado', 'rechazado', 'pendiente', 'completado', 'expirado', 'solicitada']),
+            name='check_estado_visita'
+        ),
+        CheckConstraint(
+            expiracion.in_(['N', 'S']),
+            name='check_expiracion'
+        ),
+    )

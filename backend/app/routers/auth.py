@@ -34,7 +34,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
     token_data = {"sub": user.email, 
                   "rol": user.rol,
-                  "usuario_id": user.id}
+                  "usuario_id": user.id,
+                  "residencial_id": user.residencial_id}
     access_token = create_access_token(token_data)
     refresh_token = create_refresh_token(token_data)
 
@@ -43,6 +44,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         "token_type": "bearer",
         "usuario": user.email,
         "rol": user.rol,
+        "residencial_id": user.residencial_id,
         "refresh_token": refresh_token,
         "ult_conexion": ult_conexion_anterior
     }
@@ -75,7 +77,12 @@ def refresh_token(refresh_token: str):
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido o expirado")
 
-    new_token = create_access_token({"sub": payload.get("sub"), "rol": payload.get("rol")})
+    new_token = create_access_token({
+        "sub": payload.get("sub"), 
+        "rol": payload.get("rol"),
+        "usuario_id": payload.get("usuario_id"),
+        "residencial_id": payload.get("residencial_id")
+    })
     return {"access_token": new_token, "token_type": "bearer"}
 
 @router.get("/secure", response_model=dict)

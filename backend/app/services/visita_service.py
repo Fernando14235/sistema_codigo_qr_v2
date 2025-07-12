@@ -48,6 +48,19 @@ def crear_visita_con_qr(db: Session, visita_data: VisitaCreate, admin_id: int = 
             if not residente:
                 raise HTTPException(status_code=404, detail="Residente no encontrado")
 
+        # Validar que el creador tenga residencial_id asignado
+        creador_residencial_id = None
+        if admin:
+            creador_residencial_id = admin.residencial_id
+        elif residente:
+            creador_residencial_id = residente.residencial_id
+            
+        if not creador_residencial_id:
+            raise HTTPException(
+                status_code=400, 
+                detail="El creador de la visita debe tener una residencial asignada."
+            )
+
         acompanantes = getattr(visita_data, "acompanantes", None)
         if acompanantes is not None:
             if not isinstance(acompanantes, list):
@@ -245,6 +258,29 @@ def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str =
         if not visita:
             return {"valido": False, "error": "No hay visitantes pendientes para este QR."}
 
+        # Validar que el guardia y la visita pertenezcan a la misma residencial
+        guardia = db.query(Guardia).filter(Guardia.id == guardia_id).first()
+        if not guardia:
+            return {"valido": False, "error": "Guardia no encontrado."}
+
+        # Obtener la residencial de la visita
+        if visita.residente_id:
+            residente = db.query(Residente).filter(Residente.id == visita.residente_id).first()
+            if not residente:
+                return {"valido": False, "error": "Residente de la visita no encontrado."}
+            visita_residencial_id = residente.residencial_id
+        elif visita.admin_id:
+            admin = db.query(Administrador).filter(Administrador.id == visita.admin_id).first()
+            if not admin:
+                return {"valido": False, "error": "Administrador de la visita no encontrado."}
+            visita_residencial_id = admin.residencial_id
+        else:
+            return {"valido": False, "error": "Visita sin creador válido."}
+
+        # Verificar que ambos pertenezcan a la misma residencial
+        if guardia.residencial_id != visita_residencial_id:
+            return {"valido": False, "error": "No tienes autorización para validar visitas de otra residencial."}
+
         now_hn = get_honduras_time()
 
         # Validar expiración en zona Honduras
@@ -318,6 +354,32 @@ def registrar_salida_visita(db: Session, qr_code: str, guardia_id: int) -> dict:
                 detail=f"No se puede registrar la salida. La visita está en estado '{visita.estado}'. Solo se permite registrar salida para visitas aprobadas."
             )
         
+        # Validar que el guardia y la visita pertenezcan a la misma residencial
+        guardia = db.query(Guardia).filter(Guardia.id == guardia_id).first()
+        if not guardia:
+            raise HTTPException(status_code=404, detail="Guardia no encontrado.")
+
+        # Obtener la residencial de la visita
+        if visita.residente_id:
+            residente = db.query(Residente).filter(Residente.id == visita.residente_id).first()
+            if not residente:
+                raise HTTPException(status_code=404, detail="Residente de la visita no encontrado.")
+            visita_residencial_id = residente.residencial_id
+        elif visita.admin_id:
+            admin = db.query(Administrador).filter(Administrador.id == visita.admin_id).first()
+            if not admin:
+                raise HTTPException(status_code=404, detail="Administrador de la visita no encontrado.")
+            visita_residencial_id = admin.residencial_id
+        else:
+            raise HTTPException(status_code=400, detail="Visita sin creador válido.")
+
+        # Verificar que ambos pertenezcan a la misma residencial
+        if guardia.residencial_id != visita_residencial_id:
+            raise HTTPException(
+                status_code=403, 
+                detail="No tienes autorización para registrar salidas de visitas de otra residencial."
+            )
+        
         # Registrar la fecha de salida en UTC
         now_utc = datetime.now(timezone.utc)
         visita.fecha_salida = now_utc
@@ -355,14 +417,14 @@ def registrar_salida_visita(db: Session, qr_code: str, guardia_id: int) -> dict:
             detail=f"Error interno del servidor al registrar la salida: {str(e)}"
         )
 
-def obtener_historial_escaneos_dia(db: Session, guardia_id: int = None) -> dict:
+def obtener_historial_escaneos_dia(db: Session, guardia_id: int = None, residencial_id: int = None, nombre_guardia: str = None) -> dict:
     try:
         # Obtener fecha actual en UTC
         now_utc = datetime.now(timezone.utc)
         fecha_inicio = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
         fecha_fin = now_utc.replace(hour=23, minute=59, second=59, microsecond=999999)
         
-        # Construir consulta base
+        # Construir consulta base con filtro por residencial_id
         query = db.query(
             EscaneoQR,
             Visita,
@@ -385,9 +447,17 @@ def obtener_historial_escaneos_dia(db: Session, guardia_id: int = None) -> dict:
             EscaneoQR.fecha_escaneo <= fecha_fin
         )
         
+        # Filtrar por residencial_id si se proporciona
+        if residencial_id:
+            query = query.filter(Residente.residencial_id == residencial_id)
+        
         # Filtrar por guardia específico si se proporciona
         if guardia_id:
             query = query.filter(EscaneoQR.guardia_id == guardia_id)
+        
+        # Filtrar por nombre de guardia si se proporciona
+        if nombre_guardia:
+            query = query.filter(Usuario.nombre.ilike(f"%{nombre_guardia}%"))
         
         # Ejecutar consulta ordenada por fecha de escaneo descendente
         resultados = query.order_by(EscaneoQR.fecha_escaneo.desc()).all()
@@ -428,7 +498,7 @@ def obtener_historial_escaneos_dia(db: Session, guardia_id: int = None) -> dict:
             detail=f"Error al obtener historial de escaneos: {str(e)}"
         )
         
-def obtener_historial_escaneos_totales(db: Session, nombre_guardia: str = None, tipo_escaneo: str = None, estado_visita: str = None) -> dict:
+def obtener_historial_escaneos_totales(db: Session, residencial_id: int = None, nombre_guardia: str = None, tipo_escaneo: str = None, estado_visita: str = None) -> dict:
     query = db.query(
         EscaneoQR,
         Visita,
@@ -447,6 +517,10 @@ def obtener_historial_escaneos_totales(db: Session, nombre_guardia: str = None, 
     ).join(
         Usuario, Guardia.usuario_id == Usuario.id
     )
+
+    # Filtrar por residencial_id si se proporciona
+    if residencial_id:
+        query = query.filter(Residente.residencial_id == residencial_id)
 
     if nombre_guardia:
         query = query.filter(Usuario.nombre.ilike(f"%{nombre_guardia}%"))

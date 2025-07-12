@@ -8,6 +8,7 @@ class TokenData(BaseModel):
     usuario_id: int | None = None
     username: EmailStr | None = None
     rol: str | None = None
+    residencial_id: int | None = None
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -18,4 +19,5 @@ class LoginResponse(BaseModel):
     token_type:     str
     usuario:        EmailStr
     rol:            str
+    residencial_id: int | None = None
     refresh_token:  str
