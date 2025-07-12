@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🏠 Residencial Access - Sistema de Control de Acceso
 
 Sistema completo de control de acceso residencial mediante códigos QR, desarrollado con FastAPI (backend) y React (frontend).
@@ -167,3 +168,7 @@ Para soporte técnico o preguntas, contactar al administrador del sistema.
 ---
 
 **Desarrollado para Residencial**
+=======
+# sistema_codigo_qr_v2
+Version 2 del sistema de control de acceso a las residenciales por codigo QR
+>>>>>>> be04137bdbcb2eaa3743cb2cf8cc3055bdc3fc90
