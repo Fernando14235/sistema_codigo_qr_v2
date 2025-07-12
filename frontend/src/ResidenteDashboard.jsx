@@ -46,17 +46,17 @@ function MainMenuResidente({ nombre, rol, onLogout, onSelectVista }) {
           <span>📝</span>
           <div>Solicitar Visita</div>
         </button>
-        <button className="main-menu-card" onClick={() => onSelectVista("notificaciones")}>
-          <span>🔔</span>
-          <div>Notificaciones</div>
+        <button className="main-menu-card" onClick={() => onSelectVista("tickets")}>
+          <span>🎫</span>
+          <div>Tickets</div>
         </button>
         <button className="main-menu-card" onClick={() => onSelectVista("social")}>
           <span>💬</span>
           <div>Social</div>
         </button>
-        <button className="main-menu-card" onClick={() => onSelectVista("tickets")}>
-          <span>🎫</span>
-          <div>Tickets</div>
+        <button className="main-menu-card" onClick={() => onSelectVista("notificaciones")}>
+          <span>🔔</span>
+          <div>Notificaciones</div>
         </button>
       </div>
     </div>
@@ -176,7 +176,15 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
   const [bloqueado, setBloqueado] = useState(false);
-  const tiposVehiculo = ["Moto", "Bicicleta", "Camioneta", "Turismo", "Otro"];
+  const tiposVehiculo = ["Moto", "Camioneta", "Turismo", "Bus", "Otro"];
+  const motivosVisita = ["Visita Familiar", "Visita de Amistad", "Delivery", "Reunión de Trabajo", "Mantenimiento", "Otros"];
+  const marcasPorTipo = {
+    Moto: ["Honda", "Yamaha", "Suzuki", "Kawasaki", "Otra"],
+    Camioneta: ["Toyota", "Ford", "Chevrolet", "Nissan", "Hyundai", "Otra"],
+    Turismo: ["Toyota", "Honda", "Ford", "Chevrolet", "Nissan", "Kia", "Hyundai", "Volkswagen", "Otra"],
+    Bus: ["No aplica"],
+    Otro: ["Otra"]
+  };
   const coloresVehiculo = ["Blanco", "Negro", "Rojo", "Azul", "Gris", "Verde", "Amarillo", "Plateado"];
 
   useEffect(() => {
@@ -187,6 +195,15 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
       return [...prev, ...Array(nuevaCantidad - prev.length).fill("")];
     });
   }, [cantidadAcompanantes]);
+
+  // Actualizar marca si cambia tipo de vehículo
+  useEffect(() => {
+    if (tipo_vehiculo === "Bus")  {
+      setMarcaVehiculo("No aplica");
+    } else if (marcasPorTipo[tipo_vehiculo] && !marcasPorTipo[tipo_vehiculo].includes(marca_vehiculo)) {
+      setMarcaVehiculo("");
+    }
+  }, [tipo_vehiculo]);
 
   const handleAcompananteChange = (idx, value) => {
     setAcompanantes((prev) => {
@@ -208,13 +225,13 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
           dni_conductor,
           telefono: "+504" + telefono,
           tipo_vehiculo,
-          marca_vehiculo,
+          marca_vehiculo: tipo_vehiculo === "Bus" ? "No aplica" : marca_vehiculo,
           color_vehiculo,
           placa_vehiculo,
           motivo_visita: motivo,
         }],
         motivo,
-        fecha_entrada: fecha_entrada ? new Date(fecha_entrada).toISOString() : null,
+        fecha_entrada: fecha_entrada || null,
         acompanantes: acompanantes.filter(a => a && a.trim().length > 0)
       };
       await axios.post(`${API_URL}/visitas/residente/crear_visita`, data, {
@@ -262,6 +279,15 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
         </select>
       </div>
       <div className="form-row">
+        <label>Marca del vehículo:</label>
+        <select value={marca_vehiculo} onChange={e => setMarcaVehiculo(e.target.value)} required disabled={bloqueado}>
+          <option value="">Selecciona una marca</option>
+          {(marcasPorTipo[tipo_vehiculo] || []).map(marca => (
+            <option key={marca} value={marca}>{marca}</option>
+          ))}
+        </select>
+      </div>
+      <div className="form-row">
         <label>Color del vehículo:</label>
         <select value={color_vehiculo} onChange={e => setColorVehiculo(e.target.value)} required disabled={bloqueado}>
           <option value="">Selecciona un color</option>
@@ -271,16 +297,17 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
         </select>
       </div>
       <div className="form-row">
-        <label>Marca del vehículo:</label>
-        <input type="text" value={marca_vehiculo} onChange={e => setMarcaVehiculo(e.target.value)} disabled={bloqueado} />
-      </div>
-      <div className="form-row">
         <label>Placa del vehículo:</label>
         <input type="text" value={placa_vehiculo} onChange={e => setPlacaVehiculo(e.target.value)} disabled={bloqueado} />
       </div>
       <div className="form-row">
         <label>Motivo de la visita:</label>
-        <input type="text" value={motivo} onChange={e => setMotivo(e.target.value)} required disabled={bloqueado} />
+        <select value={motivo} onChange={e => setMotivo(e.target.value)} required disabled={bloqueado}>
+          <option value="">Selecciona un motivo</option>
+          {motivosVisita.map(m => (
+            <option key={m} value={m}>{m}</option>
+          ))}
+        </select>
       </div>
       <div className="form-row">
         <label>Fecha y hora de entrada:</label>
@@ -322,8 +349,25 @@ function FormEditarVisitaResidente({ token, visita, onSuccess, onCancel, setVist
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
   const [bloqueadoEditar, setBloqueadoEditar] = useState(false);
-  const tiposVehiculo = ["Moto", "Bicicleta", "Camioneta", "Turismo", "Otro"];
+  const tiposVehiculo = ["Moto", "Camioneta", "Turismo", "Bus", "Otro"];
+  const motivosVisita = ["Visita Familiar", "Visita de Amistad", "Delivery", "Reunión de Trabajo", "Mantenimiento", "Otros"];
+  const marcasPorTipo = {
+    Moto: ["Honda", "Yamaha", "Suzuki", "Kawasaki", "Otra"],
+    Camioneta: ["Toyota", "Ford", "Chevrolet", "Nissan", "Hyundai", "Otra"],
+    Turismo: ["Toyota", "Honda", "Ford", "Chevrolet", "Nissan", "Kia", "Hyundai", "Volkswagen", "Otra"],
+    Bus: ["No aplica"],
+    Otro: ["Otra"]
+  };
   const coloresVehiculo = ["Blanco", "Negro", "Rojo", "Azul", "Gris", "Verde", "Amarillo", "Plateado"];
+
+  // Actualizar marca si cambia tipo de vehículo
+  useEffect(() => {
+    if (tipo_vehiculo === "Bus") {
+      setMarcaVehiculo("No aplica");
+    } else if (marcasPorTipo[tipo_vehiculo] && !marcasPorTipo[tipo_vehiculo].includes(marca_vehiculo)) {
+      setMarcaVehiculo("");
+    }
+  }, [tipo_vehiculo]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -332,14 +376,14 @@ function FormEditarVisitaResidente({ token, visita, onSuccess, onCancel, setVist
     setError("");
     try {
       const data = {
-        fecha_entrada: fecha_entrada ? new Date(fecha_entrada).toISOString() : null,
+        fecha_entrada: fecha_entrada || null,
         notas: motivo,
         visitante: {
           nombre_conductor,
           dni_conductor,
           telefono: "+504" + telefono,
           tipo_vehiculo,
-          marca_vehiculo,
+          marca_vehiculo: tipo_vehiculo === "Bus" ? "No aplica" : marca_vehiculo,
           color_vehiculo,
           placa_vehiculo,
           motivo_visita: motivo,
@@ -391,6 +435,15 @@ function FormEditarVisitaResidente({ token, visita, onSuccess, onCancel, setVist
         </select>
       </div>
       <div className="form-row">
+        <label>Marca del vehículo:</label>
+        <select value={marca_vehiculo} onChange={e => setMarcaVehiculo(e.target.value)} required disabled={bloqueadoEditar}>
+          <option value="">Selecciona una marca</option>
+          {(marcasPorTipo[tipo_vehiculo] || []).map(marca => (
+            <option key={marca} value={marca}>{marca}</option>
+          ))}
+        </select>
+      </div>
+      <div className="form-row">
         <label>Color del vehículo:</label>
         <select value={color_vehiculo} onChange={e => setColorVehiculo(e.target.value)} required disabled={bloqueadoEditar}>
           <option value="">Selecciona un color</option>
@@ -400,16 +453,17 @@ function FormEditarVisitaResidente({ token, visita, onSuccess, onCancel, setVist
         </select>
       </div>
       <div className="form-row">
-        <label>Marca del vehículo:</label>
-        <input type="text" value={marca_vehiculo} onChange={e => setMarcaVehiculo(e.target.value)} disabled={bloqueadoEditar} />
-      </div>
-      <div className="form-row">
         <label>Placa del vehículo:</label>
         <input type="text" value={placa_vehiculo} onChange={e => setPlacaVehiculo(e.target.value)} disabled={bloqueadoEditar} />
       </div>
       <div className="form-row">
         <label>Motivo de la visita:</label>
-        <input type="text" value={motivo} onChange={e => setMotivo(e.target.value)} required disabled={bloqueadoEditar} />
+        <select value={motivo} onChange={e => setMotivo(e.target.value)} required disabled={bloqueadoEditar}>
+          <option value="">Selecciona un motivo</option>
+          {motivosVisita.map(m => (
+            <option key={m} value={m}>{m}</option>
+          ))}
+        </select>
       </div>
       <div className="form-row">
         <label>Fecha y hora de entrada:</label>
@@ -435,12 +489,31 @@ const FormSolicitarVisita = ({ token, onSuccess, onCancel, setVista }) => {
   const [telefonoVisitante, setTelefonoVisitante] = useState("");
   const [fechaEntrada, setFechaEntrada] = useState("");
   const [motivo, setMotivo] = useState("");
-  const [tipoVehiculo, setTipoVehiculo] = useState("carro");
+  const [tipoVehiculo, setTipoVehiculo] = useState("");
   const [marcaVehiculo, setMarcaVehiculo] = useState("");
   const [colorVehiculo, setColorVehiculo] = useState("");
   const [placaVehiculo, setPlacaVehiculo] = useState("");
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
+  const tiposVehiculo = ["Moto", "Camioneta", "Turismo", "Bus", "Otro"];
+  const motivosVisita = ["Visita Familiar", "Visita de Amistad", "Delivery", "Reunión de Trabajo", "Mantenimiento", "Otros"];
+  const marcasPorTipo = {
+    Moto: ["Honda", "Yamaha", "Suzuki", "Kawasaki", "Otra"],
+    Camioneta: ["Toyota", "Ford", "Chevrolet", "Nissan", "Hyundai", "Otra"],
+    Turismo: ["Toyota", "Honda", "Ford", "Chevrolet", "Nissan", "Kia", "Hyundai", "Volkswagen", "Otra"],
+    Bus: ["No aplica"],
+    Otro: ["Otra"]
+  };
+  const coloresVehiculo = ["Blanco", "Negro", "Rojo", "Azul", "Gris", "Verde", "Amarillo", "Plateado"];
+
+  // Actualizar marca si cambia tipo de vehículo
+  useEffect(() => {
+    if (tipoVehiculo === "Bus") {
+      setMarcaVehiculo("No aplica");
+    } else if (marcasPorTipo[tipoVehiculo] && !marcasPorTipo[tipoVehiculo].includes(marcaVehiculo)) {
+      setMarcaVehiculo("");
+    }
+  }, [tipoVehiculo]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -451,10 +524,10 @@ const FormSolicitarVisita = ({ token, onSuccess, onCancel, setVista }) => {
         nombre_visitante: nombreVisitante,
         dni_visitante: dniVisitante || undefined,
         telefono_visitante: telefonoVisitante || undefined,
-        fecha_entrada: fechaEntrada ? new Date(fechaEntrada).toISOString() : null,
+        fecha_entrada: fechaEntrada || null,
         motivo_visita: motivo,
         tipo_vehiculo: tipoVehiculo,
-        marca_vehiculo: marcaVehiculo || undefined,
+        marca_vehiculo: tipoVehiculo === "Bus" ? "No aplica" : marcaVehiculo,
         color_vehiculo: colorVehiculo || undefined,
         placa_vehiculo: placaVehiculo || "sin placa"
       };
@@ -497,33 +570,41 @@ const FormSolicitarVisita = ({ token, onSuccess, onCancel, setVista }) => {
         <label>Tipo de vehículo:</label>
         <select value={tipoVehiculo} onChange={e => setTipoVehiculo(e.target.value)} required disabled={cargando}>
           <option value="">Selecciona un tipo</option>
-          <option value="carro">Carro</option>
-          <option value="moto">Moto</option>
-          <option value="camioneta">Camioneta</option>
-          <option value="camion">Camión</option>
-          <option value="bus">Bus</option>
-          <option value="sin_vehiculo">Sin Vehículo</option>
+          {tiposVehiculo.map(tipo => (
+            <option key={tipo} value={tipo}>{tipo}</option>
+          ))}
         </select>
       </div>
-      {tipoVehiculo !== "sin_vehiculo" && (
-        <>
-          <div className="form-row">
-            <label>Color del vehículo:</label>
-            <input type="text" value={colorVehiculo} onChange={e => setColorVehiculo(e.target.value)} disabled={cargando} />
-          </div>
-          <div className="form-row">
-            <label>Marca del vehículo:</label>
-            <input type="text" value={marcaVehiculo} onChange={e => setMarcaVehiculo(e.target.value)} disabled={cargando} />
-          </div>
-          <div className="form-row">
-            <label>Placa del vehículo:</label>
-            <input type="text" value={placaVehiculo} onChange={e => setPlacaVehiculo(e.target.value)} disabled={cargando} />
-          </div>
-        </>
-      )}
+      <div className="form-row">
+        <label>Marca del vehículo:</label>
+        <select value={marcaVehiculo} onChange={e => setMarcaVehiculo(e.target.value)} required disabled={cargando}>
+          <option value="">Selecciona una marca</option>
+          {(marcasPorTipo[tipoVehiculo] || []).map(marca => (
+            <option key={marca} value={marca}>{marca}</option>
+          ))}
+        </select>
+      </div>
+      <div className="form-row">
+        <label>Color del vehículo:</label>
+        <select value={colorVehiculo} onChange={e => setColorVehiculo(e.target.value)} required disabled={cargando}>
+          <option value="">Selecciona un color</option>
+          {coloresVehiculo.map(color => (
+            <option key={color} value={color}>{color}</option>
+          ))}
+        </select>
+      </div>
+      <div className="form-row">
+        <label>Placa del vehículo:</label>
+        <input type="text" value={placaVehiculo} onChange={e => setPlacaVehiculo(e.target.value)} disabled={cargando} />
+      </div>
       <div className="form-row">
         <label>Motivo de la visita:</label>
-        <input type="text" value={motivo} onChange={e => setMotivo(e.target.value)} required disabled={cargando} />
+        <select value={motivo} onChange={e => setMotivo(e.target.value)} required disabled={cargando}>
+          <option value="">Selecciona un motivo</option>
+          {motivosVisita.map(m => (
+            <option key={m} value={m}>{m}</option>
+          ))}
+        </select>
       </div>
       <div className="form-row">
         <label>Fecha y hora de entrada:</label>
@@ -797,6 +878,16 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
     setVista("menu");
     setError("");
   };
+
+  // Mostrar notificación temporal (3 segundos)
+  useEffect(() => {
+    if (notification.message) {
+      const timer = setTimeout(() => {
+        setNotification({ message: "", type: "" });
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification.message]);
 
   return (
     <div className="admin-dashboard">

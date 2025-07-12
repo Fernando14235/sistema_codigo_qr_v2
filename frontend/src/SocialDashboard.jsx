@@ -80,13 +80,12 @@ function SocialDashboard({ token, rol }) {
   // Manejo de formulario de creación/edición
   const handleInputChange = e => {
     const { name, value, type, checked } = e.target;
-    if (name === "tipo_publicacion" && value === "encuesta") {
-      setFormData(prev => ({ ...prev, [name]: value, requiere_respuesta: true }));
-    } else if (name === "tipo_publicacion") {
-      setFormData(prev => ({ ...prev, [name]: value, requiere_respuesta: false }));
-    } else if (name === "requiere_respuesta" && formData.tipo_publicacion === "encuesta") {
-      // No permitir desmarcar si es encuesta
-      return;
+    if (name === "tipo_publicacion") {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        requiere_respuesta: value === "encuesta"
+      }));
     } else {
       setFormData(prev => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
     }
@@ -129,8 +128,11 @@ function SocialDashboard({ token, rol }) {
     try {
       // Forzar el formato correcto de destinatarios
       const destinatariosFormateados = formData.para_todos ? [] : formData.destinatarios.map(d => ({ residente_id: d.residente_id }));
+      // Manejar internamente requiere_respuesta
+      const requiere_respuesta = formData.tipo_publicacion === "encuesta";
       const socialData = {
         ...formData,
+        requiere_respuesta,
         imagenes: [],
         destinatarios: destinatariosFormateados
       };
@@ -528,12 +530,11 @@ function SocialDashboard({ token, rol }) {
       <h3>{editId ? "Editar Publicación" : "Nueva Publicación"}</h3>
       <label>Título</label>
       <input name="titulo" placeholder="Título" value={formData.titulo} onChange={handleInputChange} required disabled={bloqueado} />
-      {/* Si es encuesta, mostrar campo de pregunta y opciones */}
       {formData.tipo_publicacion === "encuesta" ? (
         <>
           <label>Pregunta de la encuesta</label>
           <input name="contenido" placeholder="Pregunta de la encuesta" value={formData.contenido} onChange={handleInputChange} required disabled={bloqueado} />
-          <label>Opciones de respuesta (solo para mostrar, no se guardan en BD)</label>
+          <label>Opciones de respuesta</label>
           {opcionesEncuesta.map((op, idx) => (
             <div key={idx} style={{display:'flex',gap:8,marginBottom:4}}>
               <input type="text" value={op} onChange={e => handleOpcionesEncuestaChange(idx, e.target.value)} placeholder={`Opción ${idx+1}`} style={{flex:1}} disabled={bloqueado} />
@@ -556,20 +557,23 @@ function SocialDashboard({ token, rol }) {
         <option value="publicacion">Publicación</option>
         <option value="encuesta">Encuesta</option>
       </select>
-      {/* Solo mostrar el checkbox si es encuesta, y siempre marcado y deshabilitado */}
-      {formData.tipo_publicacion === "encuesta" && (
-        <label>
-          <input type="checkbox" name="requiere_respuesta" checked readOnly disabled /> Requiere respuesta (solo para encuesta)
+      {/* Switch moderno para 'Para todos los residentes' */}
+      <div style={{display:'flex',alignItems:'center',gap:10,margin:'8px 0'}}>
+        <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',margin:0}}>
+          <span style={{fontWeight:500,color:'#1976d2'}}>Para todos los residentes</span>
+          <span style={{position:'relative',display:'inline-block',width:40,height:22}}>
+            <input type="checkbox" name="para_todos" checked={formData.para_todos} onChange={handleInputChange} style={{opacity:0,width:0,height:0}} />
+            <span style={{
+              position:'absolute',cursor:'pointer',top:0,left:0,right:0,bottom:0,
+              background:formData.para_todos?'#1976d2':'#b0bec5',
+              borderRadius:22,transition:'background 0.2s'}}></span>
+            <span style={{
+              position:'absolute',left:formData.para_todos?20:2,top:2,
+              width:18,height:18,background:'#fff',borderRadius:'50%',
+              boxShadow:'0 1px 4px #0002',transition:'left 0.2s'}}></span>
+          </span>
         </label>
-      )}
-      {formData.tipo_publicacion !== "encuesta" && (
-        <label>
-          <input type="checkbox" name="requiere_respuesta" checked={formData.requiere_respuesta} onChange={handleInputChange} /> Requiere respuesta (solo para encuesta)
-        </label>
-      )}
-      <label>
-        <input type="checkbox" name="para_todos" checked={formData.para_todos} onChange={handleInputChange} /> Para todos los residentes
-      </label>
+      </div>
       {/* Select múltiple de destinatarios si no es para todos */}
       {isAdmin && !formData.para_todos && (
         <div style={{marginBottom:8}}>

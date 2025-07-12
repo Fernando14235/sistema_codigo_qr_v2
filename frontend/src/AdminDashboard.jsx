@@ -47,15 +47,15 @@ function MainMenu({ nombre, rol, onLogout, onSelectVista }) {
       <h1 className="main-menu-title">Panel Principal</h1>
       <div className="main-menu-cards">
         <button className="main-menu-card" onClick={() => onSelectVista("usuarios")}>👥<div>Gestión de Usuarios</div></button>
-        <button className="main-menu-card" onClick={() => onSelectVista("historial")}>📋<div>Historial de Visitas</div></button>
         <button className="main-menu-card" onClick={() => onSelectVista("crear")}>➕<div>Crear Usuario</div></button>
-        <button className="main-menu-card" onClick={() => onSelectVista("estadisticas")}>📊<div>Estadísticas</div></button>
+        <button className="main-menu-card" onClick={() => onSelectVista("historial")}>📋<div>Historial de Visitas</div></button>
+        <button className="main-menu-card" onClick={() => onSelectVista("crear_visita")}>➕<div>Crear Visita</div></button>
+        <button className="main-menu-card" onClick={() => onSelectVista("mis_visitas")}>📋<div>Mis Visitas</div></button>
         <button className="main-menu-card" onClick={() => onSelectVista("escaneos")}>🕒<div>Escaneos</div></button>
         <button className="main-menu-card" onClick={() => onSelectVista("social")}>💬<div>Social</div></button>
         <button className="main-menu-card" onClick={() => onSelectVista("tickets")}>🎫<div>Tickets</div></button>
-        <button className="main-menu-card" onClick={() => onSelectVista("crear_visita")}>➕<div>Crear Visita</div></button>
         <button className="main-menu-card" onClick={() => onSelectVista("solicitudes")}>📝<div>Solicitudes Pendientes</div></button>
-        <button className="main-menu-card" onClick={() => onSelectVista("mis_visitas")}>📋<div>Mis Visitas</div></button>
+        <button className="main-menu-card" onClick={() => onSelectVista("estadisticas")}>📊<div>Estadísticas</div></button>
       </div>
     </div>
   );
@@ -296,7 +296,7 @@ function FormCrearVisitaAdmin({ token, onSuccess, onCancel, setVista, usuario })
           motivo_visita: motivo,
         }],
         motivo,
-        fecha_entrada: fecha_entrada ? new Date(fecha_entrada).toISOString() : null,
+        fecha_entrada: fecha_entrada || null,
         acompanantes: acompanantes.filter(a => a && a.trim().length > 0)
       };
       await axios.post(`${API_URL}/visitas/residente/crear_visita`, data, {
@@ -522,7 +522,7 @@ function FormEditarVisitaAdmin({ token, visita, onSuccess, onCancel }) {
     setError("");
     try {
       const data = {
-        fecha_entrada: fecha_entrada ? new Date(fecha_entrada).toISOString() : null,
+        fecha_entrada: fecha_entrada || null,
         notas: motivo,
         visitante: {
           nombre_conductor,
@@ -1347,6 +1347,16 @@ function AdminDashboard({ token, nombre, onLogout }) {
 
   // Botón regresar al menú principal
   const handleRegresar = () => setVista("menu");
+
+  // Notificación temporal de 3 segundos
+  useEffect(() => {
+    if (notification.message) {
+      const timer = setTimeout(() => {
+        setNotification({ message: "", type: "" });
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification.message]);
 
   // Renderizado de vistas
   return (
