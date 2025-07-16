@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     EMAIL_SMTP_SERVER: str
     EMAIL_SMTP_PORT: int
     EMAIL_USE_TLS: bool
+    EMAIL_USE_SSL: bool
     
     # WhatsApp
     #WHATSAPP_FROM: str
