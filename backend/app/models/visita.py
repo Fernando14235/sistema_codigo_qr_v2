@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey, DateTime, Boolean, String, Text, CheckConstraint
+from sqlalchemy import Column, Integer, ForeignKey, DateTime, String, Text, CheckConstraint
 from sqlalchemy.orm import relationship
 from app.database import Base
 from app.utils.time import get_current_time

@@ -23,7 +23,7 @@
     "webrtc-adapter": "^9.0.3"
   },
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview",
     "test": "echo \"No test runner configured\""

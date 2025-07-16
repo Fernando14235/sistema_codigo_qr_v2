@@ -277,9 +277,21 @@ def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str =
         else:
             return {"valido": False, "error": "Visita sin creador válido."}
 
+        # DEBUG: Imprimir valores y tipos
+        print(f"DEBUG: guardia.residencial_id={guardia.residencial_id} ({type(guardia.residencial_id)}) | visita_residencial_id={visita_residencial_id} ({type(visita_residencial_id)})")
+
+        # Validar que ambos sean int y no None
+        if guardia.residencial_id is None or visita_residencial_id is None:
+            return {"valido": False, "error": f"Error interno: residencial_id no asignado (guardia: {guardia.residencial_id}, visita: {visita_residencial_id})"}
+        try:
+            guardia_residencial_id_int = int(guardia.residencial_id)
+            visita_residencial_id_int = int(visita_residencial_id)
+        except Exception as e:
+            return {"valido": False, "error": f"Error de tipo en residencial_id: {str(e)} (guardia: {guardia.residencial_id}, visita: {visita_residencial_id})"}
+
         # Verificar que ambos pertenezcan a la misma residencial
-        if guardia.residencial_id != visita_residencial_id:
-            return {"valido": False, "error": "No tienes autorización para validar visitas de otra residencial."}
+        if guardia_residencial_id_int != visita_residencial_id_int:
+            return {"valido": False, "error": f"No tienes autorización para validar visitas de otra residencial. (guardia: {guardia_residencial_id_int}, visita: {visita_residencial_id_int})"}
 
         now_hn = get_honduras_time()
 

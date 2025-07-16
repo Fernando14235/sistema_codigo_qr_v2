@@ -222,11 +222,9 @@ def enviar_notificacion_guardia(db: Session, visita):
         
         # Notificar con el nombre correcto según tipo_creador
         if visita.tipo_creador == "admin":
-            from app.models.admin import Administrador
             admin = db.query(Administrador).filter(Administrador.id == visita.admin_id).first()
             nombre_creador = admin.usuario.nombre if admin else "Administrador"
         else:
-            from app.models.residente import Residente
             residente = db.query(Residente).filter(Residente.id == visita.residente_id).first()
             nombre_creador = residente.usuario.nombre if residente else "Residente"
         asunto = "Nueva visita programada"

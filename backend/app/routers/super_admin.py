@@ -7,20 +7,16 @@ from app.services.user_service import crear_usuario
 from app.schemas.usuario_schema import UsuarioCreate, Usuario
 from app.models.usuario import Usuario as UsuarioModel
 from app.models.residencial import Residencial
+from app.utils.security import verify_role
 
 router = APIRouter(prefix="/super-admin", tags=["Super Administrador"])
 
-@router.post("/crear-admin-residencial", dependencies=[Depends(is_super_admin)])
+@router.post("/crear-admin-residencial", dependencies=[Depends(verify_role(["super_admin"]))])
 def crear_admin_para_residencial(
     admin_data: UsuarioCreate,
     residencial_id: int,
     db: Session = Depends(get_db)
 ):
-    """
-    Crear un administrador para una residencial específica.
-    Solo puede ser usado por el super administrador.
-    """
-    
     # Verificar que la residencial existe
     residencial = db.query(Residencial).filter(Residencial.id == residencial_id).first()
     if not residencial:
@@ -58,13 +54,10 @@ def crear_admin_para_residencial(
             detail=f"Error al crear administrador: {str(e)}"
         )
 
-@router.get("/listar-admins", dependencies=[Depends(is_super_admin)])
+@router.get("/listar-admins", dependencies=[Depends(verify_role(["super_admin"]))])
+
 def listar_administradores(db: Session = Depends(get_db)):
-    """
-    Listar todos los administradores del sistema.
-    Solo puede ser usado por el super administrador.
-    """
-    
+
     admins = db.query(UsuarioModel).filter(
         UsuarioModel.rol == "admin"
     ).all()
@@ -88,13 +81,8 @@ def listar_administradores(db: Session = Depends(get_db)):
     
     return resultado
 
-@router.get("/listar-residenciales", dependencies=[Depends(is_super_admin)])
+@router.get("/listar-residenciales", dependencies=[Depends(verify_role(["super_admin"]))])
 def listar_residenciales_super_admin(db: Session = Depends(get_db)):
-    """
-    Listar todas las residenciales con información de administradores.
-    Solo puede ser usado por el super administrador.
-    """
-    
     residenciales = db.query(Residencial).all()
     
     resultado = []

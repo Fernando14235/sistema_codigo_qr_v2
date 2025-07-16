@@ -52,9 +52,7 @@ def obtener_estadisticas_generales(db: Session, residencial_id: int) -> Estadist
     total_escaneos_hoy = escaneos_query.count()
     
     # Escaneos de entrada vs salida del día
-    escaneos_hoy = escaneos_query.join(
-        Visita, EscaneoQR.visita_id == Visita.id
-    ).all()
+    escaneos_hoy = escaneos_query.all()
     
     escaneos_entrada_hoy = 0
     escaneos_salida_hoy = 0
@@ -79,7 +77,6 @@ def obtener_estadisticas_generales(db: Session, residencial_id: int) -> Estadist
     )
 
 def obtener_estadisticas_estados(db: Session, residencial_id: int) -> List[EstadisticaEstado]:
-    """Obtiene estadísticas por estado de visita filtradas por residencial"""
     resultados = db.query(
         Visita.estado,
         func.count(Visita.id).label('cantidad')

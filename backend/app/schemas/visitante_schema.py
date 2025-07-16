@@ -5,9 +5,11 @@ class VisitanteCreate(BaseModel):
     nombre_conductor: str
     dni_conductor: str
     telefono: Optional[str] = None
-    tipo_vehiculo: Optional[str] = None
-    placa_vehiculo: Optional[str] = None
-    motivo_visita: Optional[str] = None
+    tipo_vehiculo: str
+    placa_vehiculo: Optional[str] = None  # Cambiado a Optional
+    marca_vehiculo: Optional[str] = None   # Nuevo campo
+    color_vehiculo: Optional[str] = None   # Nuevo campo
+    motivo_visita: str
 
     @field_validator("placa_vehiculo", mode='before')
     @classmethod

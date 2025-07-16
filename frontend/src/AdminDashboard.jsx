@@ -121,7 +121,7 @@ function CrearUsuario({ token, onUsuarioCreado, usuarioEditar, setUsuarioEditar 
         setUsuarioEditar(null);
         if (typeof setVista === 'function') setVista('usuarios');
       } else {
-        await axios.post(`${API_URL}/create_usuarios/admin/`, payload, {
+        await axios.post(`${API_URL}/create_usuarios/admin`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setMensaje("Usuario creado correctamente");
@@ -982,7 +982,6 @@ function FormActualizarTicket({ ticket, onSuccess, onCancel, token }) {
           onChange={e => setRespuesta(e.target.value)}
           placeholder="Escribe tu respuesta aquí..."
           rows={4}
-          required
           disabled={cargando}
           style={{padding:'13px 14px',border:'1.8px solid #e3eafc',borderRadius:10,fontSize:'1.04em',background:'#f5f8fe',color:'#222',boxShadow:'0 1.5px 6px #1976d220',outline:'none',resize:'vertical'}}
         />
@@ -1002,6 +1001,7 @@ function FormActualizarTicket({ ticket, onSuccess, onCancel, token }) {
 
 // Vista detallada del ticket
 function TicketDetalle({ ticket, onRegresar, onActualizar }) {
+  const [modalImagen, setModalImagen] = useState(false);
   return (
     <div className="ticket-detalle">
       <div className="ticket-detalle-header">
@@ -1042,7 +1042,69 @@ function TicketDetalle({ ticket, onRegresar, onActualizar }) {
           <div className="ticket-section">
             <h3>📎 Imagen Adjunta</h3>
             <div className="ticket-imagen-container">
-              <img src={`${API_URL}${ticket.imagen_url}`} alt="Imagen del ticket" />
+              <img 
+                src={`${API_URL}${ticket.imagen_url}`} 
+                alt="Imagen del ticket" 
+                style={{
+                  width: 200,
+                  height: 200,
+                  objectFit: 'cover',
+                  borderRadius: 10,
+                  border: '2px solid #e3eafc',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px #1976d220',
+                  display: 'block',
+                }}
+                onClick={() => setModalImagen(true)}
+                title="Haz clic para ver en grande"
+              />
+              {modalImagen && (
+                <div 
+                  className="modal-imagen-ticket" 
+                  style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    width: '100vw',
+                    height: '100vh',
+                    background: 'rgba(0,0,0,0.8)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 9999
+                  }}
+                  onClick={() => setModalImagen(false)}
+                >
+                  <img 
+                    src={`${API_URL}${ticket.imagen_url}`} 
+                    alt="Imagen del ticket" 
+                    style={{
+                      maxWidth: '90vw',
+                      maxHeight: '90vh',
+                      borderRadius: 16,
+                      boxShadow: '0 4px 32px #0008',
+                      background: '#fff',
+                      display: 'block',
+                    }}
+                    onClick={e => e.stopPropagation()}
+                  />
+                  <button 
+                    onClick={() => setModalImagen(false)}
+                    style={{
+                      position: 'fixed',
+                      top: 30,
+                      right: 40,
+                      fontSize: 32,
+                      color: '#fff',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      zIndex: 10000
+                    }}
+                    title="Cerrar"
+                  >×</button>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1429,6 +1491,7 @@ function AdminDashboard({ token, nombre, onLogout }) {
                     <td>{u.rol}</td>
                     <td>{u.telefono || "N/A"}</td>
                     <td>{u.unidad_residencial || "-"}</td>
+                    <td>{u.residencial_nombre || "-"}</td>
                     <td>{new Date(u.fecha_creacion).toLocaleDateString()}</td>
                     <td>{u.fecha_actualizacion ? new Date(u.fecha_actualizacion).toLocaleDateString() : "-"}</td>
                     <td>

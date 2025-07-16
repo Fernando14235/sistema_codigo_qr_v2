@@ -10,8 +10,10 @@ class SolicitudVisitaCreate(BaseModel):
     dni_visitante: Optional[str] = Field(None, description="DNI del visitante")
     telefono_visitante: Optional[str] = Field(None, description="Teléfono del visitante")
     fecha_entrada: datetime = Field(..., description="Fecha y hora de entrada")
-    motivo_visita: Optional[str] = Field(None, description="Motivo de la visita")
-    tipo_vehiculo: Optional[str] = Field(None, description="Tipo de vehículo")
+    motivo_visita: str = Field(..., description="Motivo de la visita")
+    tipo_vehiculo: str = Field(..., description="Tipo de vehículo")
+    marca_vehiculo: Optional[str] = Field(None, description="Marca del vehículo")
+    color_vehiculo: Optional[str] = Field(None, description="Color del vehículo")
     placa_vehiculo: Optional[str] = Field("sin placa", description="Placa del vehículo")
 
     @field_validator("dni_visitante", mode='before')

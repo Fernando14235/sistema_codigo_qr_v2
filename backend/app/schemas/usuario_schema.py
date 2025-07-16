@@ -18,8 +18,6 @@ class UsuarioBase(BaseModel):
     nombre: str
     email: EmailStr
     rol: Rol
-    residencial_id: Optional[int] = None
-    # estado: EstadoUsuario = EstadoUsuario.activo  # Comentado temporalmente
     unidad_residencial: Optional[str] = None
 
 class UsuarioCreate(UsuarioBase):
@@ -39,6 +37,15 @@ class Usuario(UsuarioBase):
     fecha_creacion: Optional[datetime] = None
     fecha_actualizacion: Optional[datetime] = None
     ult_conexion: Optional[datetime] = None
+    residencial_id: Optional[int] = None  # Solo para la respuesta
     
     class Config:
         from_attributes = True
+
+class UsuarioUpdate(BaseModel):
+    nombre: Optional[str] = None
+    email: Optional[EmailStr] = None
+    rol: Optional[Rol] = None
+    unidad_residencial: Optional[str] = None
+    password: Optional[constr(min_length=6)] = None
+    telefono: Optional[str] = None

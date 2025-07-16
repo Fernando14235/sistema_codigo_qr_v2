@@ -4,8 +4,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from app.database import SessionLocal
 from typing import Optional, List
 from app.routers import auth, usuarios, visitas, notificaciones, historial_visitas, estadisticas, sociales, tickets, residenciales, super_admin
-from app.services import user_service
-from app.schemas.usuario_schema import Usuario, UsuarioCreate
+from app.services.user_service import crear_usuario, eliminar_usuario, obtener_usuario, obtener_usuario_por_id, actualizar_usuario
+from app.schemas.usuario_schema import Usuario, UsuarioCreate, UsuarioUpdate
 from app.utils.security import get_current_user, verify_role
 from app.core.cors import add_cors
 from app.database import get_db
@@ -53,14 +53,14 @@ def home():
 # obtener todos los usuarios
 @app.get('/usuarios/admin', tags=["Usuarios"])
 def obtener_todos_usuarios(
-    usuario_actual=Depends(verify_role(["admin"])), 
+    usuario_actual=Depends(verify_role(["admin", "super_admin"])), 
     id: Optional[int] = Query(None, description="Filtro por ID"),
     nombre: Optional[str] = Query(None, description="Filtro por nombre"),
     rol: Optional[str] = Query(None, description="Filtro por rol"), 
     db: Session = Depends(get_db)
 ):
     try:
-        usuarios = user_service.obtener_usuario(db, id=id, nombre=nombre, rol=rol)
+        usuarios = obtener_usuario(db, id=id, nombre=nombre, rol=rol, usuario_actual=usuario_actual)
         return usuarios
     except HTTPException as e:
         raise e
@@ -82,30 +82,38 @@ def obtener_usuario_actual(usuario_actual: UsuarioModel = Depends(get_current_us
             "fecha_actualizacion": usuario_actual.fecha_actualizacion,
             "ult_conexion": usuario_actual.ult_conexion,
             "telefono": None,
-            "unidad_residencial": None
+            "unidad_residencial": None,
+            "residencial_nombre": None
         }
         if usuario_actual.rol == "residente":
             residente = db.query(Residente).filter(Residente.usuario_id == usuario_actual.id).first()
             if residente:
                 data["telefono"] = residente.telefono
                 data["unidad_residencial"] = residente.unidad_residencial
+                if residente.residencial:
+                    data["residencial_nombre"] = residente.residencial.nombre
         elif usuario_actual.rol == "guardia":
             guardia = db.query(Guardia).filter(Guardia.usuario_id == usuario_actual.id).first()
             if guardia:
                 data["telefono"] = guardia.telefono
+                if guardia.residencial:
+                    data["residencial_nombre"] = guardia.residencial.nombre
         elif usuario_actual.rol == "admin":
             admin = db.query(Administrador).filter(Administrador.usuario_id == usuario_actual.id).first()
             if admin:
                 data["telefono"] = admin.telefono
+                if admin.residencial:
+                    data["residencial_nombre"] = admin.residencial.nombre
+        # Para super_admin, residencial_nombre queda como None
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener usuario actual: {str(e)}")
 
 # Obtener usuario por ID
 @app.get('/usuarios/admin/{id}', response_model=Usuario, tags=["Usuarios"])
-def obtener_usuario_por_id(id: int, usuario_actual=Depends(verify_role(["admin"])), db: Session = Depends(get_db)):
+def obtener_usuario_por_id(id: int, usuario_actual=Depends(verify_role(["admin", "super_admin"])), db: Session = Depends(get_db)):
     try:
-        usuario = user_service.obtener_usuario_por_id(db, id)
+        usuario = obtener_usuario_por_id(db, id, usuario_actual=usuario_actual)
         data = usuario.__dict__.copy()
         
         if usuario.rol == "residente":
@@ -118,54 +126,22 @@ def obtener_usuario_por_id(id: int, usuario_actual=Depends(verify_role(["admin"]
         return data
     except HTTPException as e:
         raise e
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error al obtener usuario"
-        )
 
 # Crear un nuevo usuario
 @app.post('/create_usuarios/admin', response_model=Usuario, tags=["Usuarios"])
 def crear_nuevo_usuario(usuario: UsuarioCreate, usuario_actual=Depends(verify_role(["admin"])), db: Session = Depends(get_db)):
-    try:
-        db_usuario = user_service.crear_usuario(db, usuario)
-        return db_usuario
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail="Error al crear usuario"
-        )
+    return crear_usuario(db, usuario, usuario_actual)
 
 # Actualizar usuario
 @app.put('/update_usuarios/admin/{user_id}', response_model=Usuario, tags=["Usuarios"])
-def actualizar_usuario(user_id: int, usuario_data: UsuarioCreate, db: Session = Depends(get_db)):
-    try:
-        usuario_actualizado = user_service.actualizar_usuario(db, user_id, usuario_data)
-        return usuario_actualizado
-    except HTTPException as e:
-        raise f"Error al actualizar usuario: {e}"
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error al actualizar usuario"
-        )
+def actualizar_usuario_endpoint(user_id: int, usuario_data: UsuarioUpdate, usuario_actual=Depends(verify_role(["admin", "super_admin"])), db: Session = Depends(get_db)):
+    return actualizar_usuario(db, user_id, usuario_data, usuario_actual=usuario_actual)
 
 # Eliminar usuario
 @app.delete('/delete_usuarios/admin/{id}', tags=["Usuarios"])
-def eliminar_usuario(id: int, usuario_actual=Depends(verify_role(["admin"])), db: Session = Depends(get_db)):
-    try:
-        eliminado_exitosamente = user_service.eliminar_usuario(db, id)
-        if eliminado_exitosamente:
-            return {"mensaje": f"Usuario con ID {id} eliminado correctamente"}
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail="Error al eliminar usuario"
-        )
+def eliminar_usuario(id: int, usuario_actual=Depends(verify_role(["admin", "super_admin"])), db: Session = Depends(get_db)):
+    return eliminar_usuario(db, id, usuario_actual=usuario_actual)
+
 
 # Ruta absoluta a la carpeta de uploads
 UPLOADS_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../uploads'))
