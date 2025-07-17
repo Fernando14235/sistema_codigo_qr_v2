@@ -243,6 +243,19 @@ function SocialDashboard({ token, rol }) {
   // Renderizado de publicaciones
   const renderPublicaciones = () => {
     const isMobile = window.innerWidth < 700;
+    if (!publicaciones || publicaciones.length === 0) {
+      // Si es admin, solo mostrar el botón de nueva publicación
+      if (isAdmin && !showForm) {
+        return (
+          <div style={{ textAlign: 'left', marginTop: 24 }}>
+            <button style={{marginLeft:0}} onClick={e=>{e.preventDefault(); setShowForm(true); setEditId(null);}} className="btn-primary">+ Nueva Publicación</button>
+            <p style={{ textAlign: 'center', color: '#888', fontWeight: 'bold', fontSize: '1.1em', marginTop: 32 }}>No hay publicaciones</p>
+          </div>
+        );
+      }
+      // Si no es admin, solo mostrar el mensaje
+      return <p style={{ textAlign: 'center', color: '#888', fontWeight: 'bold', fontSize: '1.1em' }}>No hay publicaciones</p>;
+    }
     return (
       <div>
         {/* Mostrar filtros y botón de nueva publicación siempre para admin */}

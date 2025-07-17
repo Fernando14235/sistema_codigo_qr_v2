@@ -716,3 +716,62 @@
     flex-direction: column;
   }
 } 
+
+/* --- INICIO: Mejoras de visualización para tablas admin --- */
+.admin-table {
+  width: 100%;
+  min-width: 900px; /* O el ancho mínimo que consideres */
+  border-collapse: collapse;
+  background: #fff;
+  font-size: 1em;
+}
+
+.admin-table th, .admin-table td {
+  padding: 10px 8px;
+  text-align: left;
+  border-bottom: 1px solid #e3eafc;
+  white-space: nowrap; /* Evita que el texto se parta en varias líneas */
+}
+
+.admin-table th {
+  background: #1976d2;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.admin-table tr:hover {
+  background: #f5f8fe;
+}
+
+/* Contenedor para scroll horizontal si es necesario */
+.admin-section > div[style*="overflow-x: auto"] {
+  width: 100%;
+  overflow-x: auto;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 1200px) {
+  .admin-table {
+    font-size: 0.95em;
+    min-width: 700px;
+  }
+}
+
+@media (max-width: 900px) {
+  .admin-table {
+    font-size: 0.9em;
+    min-width: 600px;
+  }
+}
+
+@media (max-width: 700px) {
+  .admin-table {
+    font-size: 0.85em;
+    min-width: 500px;
+  }
+}
+/* --- FIN: Mejoras de visualización para tablas admin --- */ 

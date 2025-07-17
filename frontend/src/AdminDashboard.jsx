@@ -75,6 +75,7 @@ function CrearUsuario({ token, onUsuarioCreado, usuarioEditar, setUsuarioEditar 
   const [email, setEmail] = useState("");
   const [rol, setRol] = useState("residente");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [telefono, setTelefono] = useState("");
   const [unidadResidencial, setUnidadResidencial] = useState("");
   const [mensaje, setMensaje] = useState("");
@@ -174,14 +175,47 @@ function CrearUsuario({ token, onUsuarioCreado, usuarioEditar, setUsuarioEditar 
         )}
       </div>
       <div className="form-row">
-        <input
-          placeholder={usuarioEditar ? "Nueva Contraseña" : "Contraseña"}
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          required
-          type="password"
-          disabled={bloqueado}
-        />
+        <div style={{ position: 'relative', width: '100%' }}>
+          <input
+            placeholder={usuarioEditar ? "Nueva Contraseña" : "Contraseña"}
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            required
+            type={showPassword ? "text" : "password"}
+            disabled={bloqueado}
+            style={{ width: '100%', paddingRight: 40 }}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(v => !v)}
+            style={{
+              position: 'absolute',
+              right: 8,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: 20,
+              color: '#1976d2',
+              padding: 0
+            }}
+            tabIndex={-1}
+            aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+          >
+            {showPassword ? (
+              <svg width="25" height="25" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 1L23 23" stroke="#1976d2" strokeWidth="2"/>
+                <path d="M12 5C7 5 2.73 8.11 1 12C1.73 13.66 2.91 15.09 4.41 16.17M9.9 9.9C10.27 9.63 10.73 9.5 11.2 9.5C12.49 9.5 13.5 10.51 13.5 11.8C13.5 12.27 13.37 12.73 13.1 13.1M7.11 7.11C8.39 6.4 10.13 6 12 6C17 6 21.27 9.11 23 13C22.27 14.66 21.09 16.09 19.59 17.17" stroke="#1976d2" strokeWidth="2"/>
+              </svg>
+            ) : (
+              <svg width="25" height="25" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <ellipse cx="12" cy="12" rx="10" ry="6" stroke="#1976d2" strokeWidth="2"/>
+                <circle cx="12" cy="12" r="2.5" fill="#1976d2"/>
+              </svg>
+            )}
+          </button>
+        </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", marginTop: 10 }}>
         <button type="submit" className="btn-primary" disabled={bloqueado}>
@@ -801,6 +835,9 @@ const SolicitudesPendientes = ({ token, onSuccess, onCancel }) => {
 
 // Componente para mostrar tickets en tarjetas (móvil)
 function TicketsCardsMobile({ tickets, onVerDetalle, onActualizar }) {
+  if (!tickets || tickets.length === 0) {
+    return <p style={{ textAlign: 'center', color: '#888', fontWeight: 'bold', fontSize: '1.1em' }}>No hay tickets</p>;
+  }
   return (
     <div className="tickets-cards-mobile">
       {tickets.map(ticket => (
@@ -852,7 +889,7 @@ function TicketsCardsMobile({ tickets, onVerDetalle, onActualizar }) {
 // Tabla de tickets para escritorio
 function TablaTickets({ tickets, onVerDetalle, onActualizar }) {
   if (!tickets || tickets.length === 0) {
-    return <p style={{ textAlign: 'center', color: '#888' }}>No hay tickets registrados.</p>;
+    return <p style={{ textAlign: 'center', color: '#888', fontWeight: 'bold', fontSize: '1.1em' }}>No hay tickets</p>;
   }
   return (
     <div style={{ width: '100%', marginBottom: 20 }}>
