@@ -7,6 +7,7 @@ from app.models.visita import Visita
 from app.models.visitante import Visitante
 from app.models.residente import Residente
 from app.models.admin import Administrador
+from app.models.residencial import Residencial
 from app.services.notificacion_service import enviar_notificacion_residente, enviar_notificacion_guardia, enviar_notificacion_visita_actualizada, enviar_notificacion_solicitud_visita, enviar_notificacion_solicitud_aprobada
 from app.schemas.visita_schema import VisitaCreate, VisitaQRResponse, VisitaUpdate, SolicitudVisitaCreate
 from app.schemas.visitante_schema import VisitanteCreate, VisitanteResponse
@@ -15,6 +16,12 @@ from app.utils.validators import validar_dni_visita_unico
 from datetime import datetime, timedelta, timezone
 import traceback
 from app.utils.time import get_honduras_time
+import base64
+import os
+import io
+
+UPLOAD_QR_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../uploads/qr'))
+os.makedirs(UPLOAD_QR_DIR, exist_ok=True)
 
 def to_utc(dt: datetime) -> datetime:
     if dt is None:
@@ -117,16 +124,35 @@ def crear_visita_con_qr(db: Session, visita_data: VisitaCreate, admin_id: int = 
             visita.qr_code = qr_code
             
             # Generar QR personalizado con información del residente y visitante
+            # Obtener nombre de la residencial
+            residencial_nombre = None
+            if admin:
+                residencial = db.query(Residencial).filter(Residencial.id == admin.residencial_id).first()
+                residencial_nombre = residencial.nombre if residencial else "Residencial"
+            elif residente:
+                residencial = db.query(Residencial).filter(Residencial.id == residente.residencial_id).first()
+                residencial_nombre = residencial.nombre if residencial else "Residencial"
+            else:
+                residencial_nombre = "Residencial"
+
             qr_img_personalizado = generar_imagen_qr_personalizada(
                 qr_data=qr_code,
                 nombre_residente=residente.usuario.nombre if residente else admin.usuario.nombre,
                 nombre_visitante=visitante.nombre_conductor,
-                nombre_residencial="Residencial Access",  # Puedes hacer esto configurable
+                nombre_residencial=residencial_nombre,
                 unidad_residencial=residente.unidad_residencial if residente else "-",
                 fecha_creacion=datetime.now(timezone.utc),
                 fecha_expiracion=expiracion
             )
-                        
+
+            # Guardar QR como archivo PNG y obtener la URL
+            qr_bytes = base64.b64decode(qr_img_personalizado)
+            qr_filename = f"qr_{visita.id}_{visitante.id}.png"
+            qr_path = os.path.join(UPLOAD_QR_DIR, qr_filename)
+            with open(qr_path, "wb") as f:
+                f.write(qr_bytes)
+            qr_url = f"/uploads/qr/{qr_filename}"
+
             visitas_respuestas.append(
                 VisitaQRResponse(
                     id=visita.id,
@@ -141,7 +167,8 @@ def crear_visita_con_qr(db: Session, visita_data: VisitaCreate, admin_id: int = 
                     notas=visita.notas,
                     tipo_creador=tipo_creador,
                     fecha_salida=visita.fecha_salida,
-                    guardia_id=visita.guardia_id
+                    guardia_id=visita.guardia_id,
+                    qr_url=qr_url
                 )
             )
             visitas.append(visita)

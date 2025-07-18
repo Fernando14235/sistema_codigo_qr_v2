@@ -291,9 +291,47 @@ function FormCrearVisitaAdmin({ token, onSuccess, onCancel, setVista, usuario })
   const [acompanantes, setAcompanantes] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
-  const tiposVehiculo = ["Moto", "Bicicleta", "Camioneta", "Turismo", "Otro"];
+  const tiposVehiculo = ["Moto", "Camioneta", "Turismo", "Bus", "Otro"];
+  const motivosVisita = ["Visita Familiar", "Visita de Amistad", "Delivery", "Reunión de Trabajo", "Mantenimiento", "Otros"];
+  const marcasPorTipo = {
+    Moto: ["Honda", "Yamaha", "Suzuki", "Kawasaki", "Otra"],
+    Camioneta: ["Toyota", "Ford", "Chevrolet", "Nissan", "Hyundai", "Otra"],
+    Turismo: ["Toyota", "Honda", "Ford", "Chevrolet", "Nissan", "Kia", "Hyundai", "Volkswagen", "Otra"],
+    Bus: ["No aplica"],
+    Otro: ["Otra"]
+  };
   const coloresVehiculo = ["Blanco", "Negro", "Rojo", "Azul", "Gris", "Verde", "Amarillo", "Plateado"];
   const [bloqueado, setBloqueado] = useState(false);
+  const [qrUrl, setQrUrl] = useState(null);
+  const [bloquearSalir, setBloquearSalir] = useState(false);
+
+  useEffect(() => {
+    if (qrUrl) {
+      setBloquearSalir(true);
+      const handleBeforeUnload = (e) => {
+        e.preventDefault();
+        e.returnValue = '¿Estás seguro de salir? Si no descargas el código QR, podrías perder el acceso para tu visita.';
+      };
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
+    } else {
+      setBloquearSalir(false);
+    }
+  }, [qrUrl]);
+
+  // Handler para navegación interna
+  useEffect(() => {
+    if (!bloquearSalir) return;
+    const handleNav = (e) => {
+      if (!window.confirm('¿Estás seguro de salir? Si no descargas el código QR, podrías perder el acceso para tu visita.')) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('popstate', handleNav);
+    return () => window.removeEventListener('popstate', handleNav);
+  }, [bloquearSalir]);
 
   useEffect(() => {
     setAcompanantes((prev) => {
@@ -304,6 +342,15 @@ function FormCrearVisitaAdmin({ token, onSuccess, onCancel, setVista, usuario })
     });
   }, [cantidadAcompanantes]);
 
+  // Actualizar marca si cambia tipo de vehículo
+  useEffect(() => {
+    if (tipo_vehiculo === "Bus")  {
+      setMarcaVehiculo("No aplica");
+    } else if (marcasPorTipo[tipo_vehiculo] && !marcasPorTipo[tipo_vehiculo].includes(marca_vehiculo)) {
+      setMarcaVehiculo("");
+    }
+  }, [tipo_vehiculo]);
+
   const handleAcompananteChange = (idx, value) => {
     setAcompanantes((prev) => {
       const arr = [...prev];
@@ -312,11 +359,17 @@ function FormCrearVisitaAdmin({ token, onSuccess, onCancel, setVista, usuario })
     });
   };
 
+  const handleTelefonoChange = (e) => {
+    const value = e.target.value.replace(/\D/g, "").slice(0, 8);
+    setTelefono(value);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setCargando(true);
     setBloqueado(true);
     setError("");
+    setQrUrl(null);
     try {
       const data = {
         visitantes: [{
@@ -324,7 +377,7 @@ function FormCrearVisitaAdmin({ token, onSuccess, onCancel, setVista, usuario })
           dni_conductor,
           telefono: "+504" + telefono,
           tipo_vehiculo,
-          marca_vehiculo,
+          marca_vehiculo: tipo_vehiculo === "Bus" ? "No aplica" : marca_vehiculo,
           color_vehiculo,
           placa_vehiculo,
           motivo_visita: motivo,
@@ -333,27 +386,15 @@ function FormCrearVisitaAdmin({ token, onSuccess, onCancel, setVista, usuario })
         fecha_entrada: fecha_entrada || null,
         acompanantes: acompanantes.filter(a => a && a.trim().length > 0)
       };
-      await axios.post(`${API_URL}/visitas/residente/crear_visita`, data, {
+      const res = await axios.post(`${API_URL}/visitas/residente/crear_visita`, data, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      // Notificación visual y push solo para admin
-      if (usuario && usuario.rol === 'admin') {
-        if (typeof window !== 'undefined' && window.Notification && Notification.permission === 'granted') {
-          pushNotificationService.showLocalNotification(
-            '👥 Nueva visita creada',
-            {
-              body: 'Has creado una nueva visita exitosamente.',
-              icon: '/resi192.png'
-            }
-          );
-        }
-        if (typeof setVista === 'function') {
-          setVista('mis_visitas');
-        }
-        if (typeof onSuccess === 'function') {
-          onSuccess();
-        }
+      if (res.data && res.data.length > 0 && res.data[0].qr_url) {
+        setQrUrl(`${API_URL}${res.data[0].qr_url}`);
       }
+      //onSuccess && onSuccess();
+      // Quitar redirección automática
+      // if (typeof setVista === 'function') setVista('mis_visitas');
     } catch (err) {
       setError(
         err.response?.data?.detail ||
@@ -364,29 +405,49 @@ function FormCrearVisitaAdmin({ token, onSuccess, onCancel, setVista, usuario })
     setBloqueado(false);
   };
 
-  const handleTelefonoChange = (e) => {
-    const value = e.target.value.replace(/\D/g, "").slice(0, 8);
-    setTelefono(value);
+  const handleDownloadQR = async () => {
+    try {
+      const response = await fetch(qrUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+  
+      // Generar nombre único basado en fecha y hora
+      const now = new Date();
+      const timestamp = now.toISOString().replace(/[:.]/g, '-'); // evita caracteres inválidos
+      const fileName = `qr_visita_${timestamp}.png`;
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', fileName); // nombre con el que se descargará
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+  
+      // Liberar memoria
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error al descargar el QR:', error);
+    }
   };
 
   return (
     <form className="form-visita form-visita-admin" onSubmit={handleSubmit}>
       <div className="form-row">
         <label>Nombre del visitante:</label>
-        <input type="text" value={nombre_conductor} onChange={e => setNombreConductor(e.target.value)} required disabled={bloqueado} />
+        <input type="text" value={nombre_conductor} onChange={e => setNombreConductor(e.target.value)} required disabled={bloqueado || !!qrUrl} />
       </div>
       <div className="form-row">
         <label>DNI del visitante:</label>
-        <input type="text" value={dni_conductor} onChange={e => setDNIConductor(e.target.value)} required disabled={bloqueado} />
+        <input type="text" value={dni_conductor} onChange={e => setDNIConductor(e.target.value)} required disabled={bloqueado || !!qrUrl} />
       </div>
       <div className="form-row">
         <label>Teléfono:</label>
         <span className="input-prefix">+504</span>
-        <input placeholder="XXXXXXXX" value={telefono} onChange={handleTelefonoChange} required maxLength={8} disabled={bloqueado} />
+        <input placeholder="XXXXXXXX" value={telefono} onChange={handleTelefonoChange} required maxLength={8} disabled={bloqueado || !!qrUrl} />
       </div>
       <div className="form-row">
         <label>Tipo de vehículo:</label>
-        <select value={tipo_vehiculo} onChange={e => setTipoVehiculo(e.target.value)} required disabled={bloqueado}>
+        <select value={tipo_vehiculo} onChange={e => setTipoVehiculo(e.target.value)} required disabled={bloqueado || !!qrUrl}>
           <option value="">Selecciona un tipo</option>
           {tiposVehiculo.map(tipo => (
             <option key={tipo} value={tipo}>{tipo}</option>
@@ -394,8 +455,17 @@ function FormCrearVisitaAdmin({ token, onSuccess, onCancel, setVista, usuario })
         </select>
       </div>
       <div className="form-row">
+        <label>Marca del vehículo:</label>
+        <select value={marca_vehiculo} onChange={e => setMarcaVehiculo(e.target.value)} required disabled={bloqueado || !!qrUrl}>
+          <option value="">Selecciona una marca</option>
+          {(marcasPorTipo[tipo_vehiculo] || []).map(marca => (
+            <option key={marca} value={marca}>{marca}</option>
+          ))}
+        </select>
+      </div>
+      <div className="form-row">
         <label>Color del vehículo:</label>
-        <select value={color_vehiculo} onChange={e => setColorVehiculo(e.target.value)} required disabled={bloqueado}>
+        <select value={color_vehiculo} onChange={e => setColorVehiculo(e.target.value)} required disabled={bloqueado || !!qrUrl}>
           <option value="">Selecciona un color</option>
           {coloresVehiculo.map(color => (
             <option key={color} value={color}>{color}</option>
@@ -403,40 +473,57 @@ function FormCrearVisitaAdmin({ token, onSuccess, onCancel, setVista, usuario })
         </select>
       </div>
       <div className="form-row">
-        <label>Marca del vehículo:</label>
-        <input type="text" value={marca_vehiculo} onChange={e => setMarcaVehiculo(e.target.value)} disabled={bloqueado} />
-      </div>
-      <div className="form-row">
         <label>Placa del vehículo:</label>
-        <input type="text" value={placa_vehiculo} onChange={e => setPlacaVehiculo(e.target.value)} disabled={bloqueado} />
+        <input type="text" value={placa_vehiculo} onChange={e => setPlacaVehiculo(e.target.value)} disabled={bloqueado || !!qrUrl} />
       </div>
       <div className="form-row">
         <label>Motivo de la visita:</label>
-        <input type="text" value={motivo} onChange={e => setMotivo(e.target.value)} required disabled={bloqueado} />
+        <select value={motivo} onChange={e => setMotivo(e.target.value)} required disabled={bloqueado || !!qrUrl}>
+          <option value="">Selecciona un motivo</option>
+          {motivosVisita.map(m => (
+            <option key={m} value={m}>{m}</option>
+          ))}
+        </select>
       </div>
       <div className="form-row">
         <label>Fecha y hora de entrada:</label>
-        <input type="datetime-local" value={fecha_entrada} onChange={e => setFechaEntrada(e.target.value)} required disabled={bloqueado} />
+        <input type="datetime-local" value={fecha_entrada} onChange={e => setFechaEntrada(e.target.value)} required disabled={bloqueado || !!qrUrl} />
       </div>
       <div className="form-row">
         <label>Cantidad de acompañantes:</label>
-        <input type="number" min="0" max="10" value={cantidadAcompanantes} onChange={e => setCantidadAcompanantes(e.target.value)} disabled={bloqueado} />
+        <input type="number" min="0" max="10" value={cantidadAcompanantes} onChange={e => setCantidadAcompanantes(e.target.value)} disabled={bloqueado || !!qrUrl} />
       </div>
       {acompanantes.map((a, idx) => (
         <div className="form-row" key={idx}>
           <label>Nombre del acompañante #{idx + 1}:</label>
-          <input type="text" value={a} onChange={e => handleAcompananteChange(idx, e.target.value)} required disabled={bloqueado} />
+          <input type="text" value={a} onChange={e => handleAcompananteChange(idx, e.target.value)} required disabled={bloqueado || !!qrUrl} />
         </div>
       ))}
       {error && <div className="qr-error">{error}</div>}
       <div className="form-actions">
-        <button className="btn-primary" type="submit" disabled={cargando || bloqueado}>
+        <button className="btn-primary" type="submit" disabled={cargando || bloqueado || !!qrUrl}>
           {cargando ? "Creando..." : "Crear Visita"}
         </button>
-        <button className="btn-regresar" type="button" onClick={onCancel} style={{ marginLeft: 10 }} disabled={bloqueado}>
+        <button className="btn-regresar" type="button" onClick={onCancel} style={{ marginLeft: 10 }} disabled={bloqueado || !!qrUrl}>
           Cancelar
         </button>
       </div>
+      {qrUrl && (
+        <div style={{ textAlign: 'center', marginTop: 18 }}>
+          <h4>QR de tu visita</h4>
+          <img
+            src={qrUrl}
+            alt="QR de la visita"
+            style={{width: 220, height: 220, objectFit: 'contain', border: '2px solid #1976d2', borderRadius: 12, background: '#fff', marginBottom: 10
+            }}
+          />
+          <br/>
+          <button type ="button" onClick={handleDownloadQR} className="btn-primary" style={{ marginTop: 8 }}>Descargar QR  </button>
+          <div style={{ color: '#1976d2', marginTop: 6, fontSize: '0.98em' }}>
+            Guarda este QR en tu galería para mostrarlo en la entrada
+          </div>
+        </div>
+      )}
     </form>
   );
 }
@@ -1528,7 +1615,6 @@ function AdminDashboard({ token, nombre, onLogout }) {
                     <td>{u.rol}</td>
                     <td>{u.telefono || "N/A"}</td>
                     <td>{u.unidad_residencial || "-"}</td>
-                    <td>{u.residencial_nombre || "-"}</td>
                     <td>{new Date(u.fecha_creacion).toLocaleDateString()}</td>
                     <td>{u.fecha_actualizacion ? new Date(u.fecha_actualizacion).toLocaleDateString() : "-"}</td>
                     <td>

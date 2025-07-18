@@ -32,29 +32,21 @@ def save_uploaded_images(imagenes: Optional[List[UploadFile]]) -> List[str]:
 def create_social(db: Session, social_data: SocialCreate, imagenes: Optional[List[str]] = None, current_user: Optional[Usuario] = None):
     admin_id = current_user.id if current_user else None
     residencial_id = current_user.residencial_id if current_user else None
-    
     if not admin_id:
         raise ValueError("admin_id es requerido")
-    
     if not residencial_id:
         raise ValueError("residencial_id es requerido")
-    
     error_message = None
-    
     try:
-        # Validar que si no es para todos, debe tener destinatarios
         if not social_data.para_todos and (not social_data.destinatarios or len(social_data.destinatarios) == 0):
             error_message = "Si la publicación no es para todos, debe especificar al menos un destinatario"
             raise ValueError(error_message)
-        
-        # Validar que los destinatarios existan si se especifican
         if social_data.destinatarios:
             for dest in social_data.destinatarios:
                 residente = db.query(Residente).filter(Residente.id == dest.residente_id).first()
                 if not residente:
                     error_message = f"El residente con ID {dest.residente_id} no existe"
                     raise ValueError(error_message)
-        
         social = Social(
             admin_id=admin_id,
             residencial_id=residencial_id,
@@ -67,30 +59,23 @@ def create_social(db: Session, social_data: SocialCreate, imagenes: Optional[Lis
         )
         db.add(social)
         db.flush()
-
-        # Imágenes
+        # Guardar imagen en la base de datos
         if imagenes:
             for url in imagenes:
                 img = SocialImagen(social_id=social.id, imagen_url=url)
                 db.add(img)
-
-        # Destinatarios - solo si no es para todos
         if not social_data.para_todos and social_data.destinatarios:
             for dest in social_data.destinatarios:
                 destinatario = SocialDestinatario(social_id=social.id, residente_id=dest.residente_id)
                 db.add(destinatario)
-
-        # Opciones de encuesta
-        if social_data.tipo_publicacion == "encuesta" and hasattr(social_data, "opciones") and social_data.opciones:
+        if social_data.tipo_publicacion == "encuesta" and social_data.opciones:
             for opcion in social_data.opciones:
                 db.add(SocialOpcion(social_id=social.id, texto=opcion.texto))
-
         db.commit()
         db.refresh(social)
         return social
     except Exception as e:
         db.rollback()
-        # Si ocurre un error, crear el registro con estado fallido y mensaje de error
         social = Social(
             admin_id=admin_id,
             residencial_id=residencial_id,
@@ -104,13 +89,10 @@ def create_social(db: Session, social_data: SocialCreate, imagenes: Optional[Lis
         db.add(social)
         db.commit()
         db.refresh(social)
-        
-        # Guardar el mensaje de error en el contenido si es fallido
         if error_message:
             social.contenido = f"{social.contenido}\n\n[ERROR: {error_message}]"
             db.commit()
             db.refresh(social)
-        
         return social
 
 def get_social_list(
@@ -156,10 +138,6 @@ def get_social_by_id(db: Session, social_id: int):
     return db.query(Social).filter(Social.id == social_id).first()
 
 def can_user_access_social(db: Session, social: Social, user: Usuario) -> bool:
-    """
-    Verifica si un usuario tiene acceso a una publicación específica
-    """
-    # Los super admins pueden acceder a todas las publicaciones
     if user.rol == "super_admin":
         return True
     
@@ -167,10 +145,6 @@ def can_user_access_social(db: Session, social: Social, user: Usuario) -> bool:
     if user.rol == "admin":
         return user.residencial_id == social.residencial_id
     
-    # Los residentes solo pueden acceder si:
-    # 1. Pertenecen a la misma residencial, y
-    # 2. La publicación es para todos, o
-    # 3. Son destinatarios específicos de la publicación
     if user.rol == "residente":
         # Buscar si el usuario es residente
         residente = db.query(Residente).filter(Residente.usuario_id == user.id).first()
@@ -240,7 +214,7 @@ def update_social(db: Session, social_id: int, data: SocialCreate, imagenes: Opt
         # Actualizar opciones de encuesta
         if data.tipo_publicacion == "encuesta":
             db.query(SocialOpcion).filter(SocialOpcion.social_id == social_id).delete()
-            if hasattr(data, "opciones") and data.opciones:
+            if data.opciones:
                 for opcion in data.opciones:
                     db.add(SocialOpcion(social_id=social_id, texto=opcion.texto))
         else:
@@ -289,26 +263,27 @@ def get_social_residente(db: Session, residente_id: int):
     )
 
 def crear_publicacion_service(db: Session, social_data: SocialCreate, imagenes: Optional[List[UploadFile]], current_user: Usuario):
-    imagen_urls = save_uploaded_images(imagenes)
-    social = create_social(db, social_data, imagenes=imagen_urls, current_user=current_user)
-    # Determinar a quién notificar
-    if social_data.para_todos:
-        notificar_a = 'todos'
-    else:
-        # Si todos los destinatarios son admins o residentes, podrías ajustar aquí según la lógica de destinatarios
-        notificar_a = 'residente'  # Por defecto, notificar solo a residentes si no es para todos
     try:
-        enviar_notificacion_nueva_publicacion(
-            db=db,
-            titulo_publicacion=social_data.titulo,
-            contenido=social_data.contenido,
-            creador=current_user.nombre,
-            notificar_a=notificar_a,
-            residencial_id=current_user.residencial_id
-        )
+        imagen_urls = save_uploaded_images(imagenes)
+        social = create_social(db, social_data, imagenes=imagen_urls, current_user=current_user)
+        if social_data.para_todos:
+            notificar_a = 'todos'
+        else:
+            notificar_a = 'residente'
+        try:
+            enviar_notificacion_nueva_publicacion(
+                db=db,
+                titulo_publicacion=social_data.titulo,
+                contenido=social_data.contenido,
+                creador=current_user.nombre,
+                notificar_a=notificar_a,
+                residencial_id=current_user.residencial_id
+            )
+        except Exception as e:
+            pass
+        return social
     except Exception as e:
-        print(f"Error enviando alerta de nueva publicación: {e}")
-    return social
+        raise e
 
 def listar_publicaciones_service(db: Session, current_user: Usuario, tipo_publicacion: Optional[str], estado: Optional[str], fecha: Optional[str]):
     return get_social_list(

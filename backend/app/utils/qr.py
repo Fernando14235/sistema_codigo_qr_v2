@@ -110,10 +110,12 @@ def generar_imagen_qr_personalizada(
         font_titulo = ImageFont.truetype("arialbd.ttf", 28)
         font_normal = ImageFont.truetype("arial.ttf", 22)
         font_small = ImageFont.truetype("arial.ttf", 18)
+        font_fecha = ImageFont.truetype("arial.ttf", 26)  # Aumentar tamaño para fechas
     except:
         font_titulo = ImageFont.load_default()
         font_normal = ImageFont.load_default()
         font_small = ImageFont.load_default()
+        font_fecha = ImageFont.load_default()
 
     # 5. Escribir textos
     # Título superior
@@ -127,8 +129,8 @@ def generar_imagen_qr_personalizada(
     # Fechas
     fecha_creacion_str = fecha_creacion.strftime("%d-%b-%Y - %I:%M %p")
     fecha_expiracion_str = fecha_expiracion.strftime("%d-%b-%Y - %I:%M %p")
-    draw.text((60, alto + margen_superior + 10), f"Se creó:\n{fecha_creacion_str}", font=font_small, fill="black")
-    draw.text((ancho_total - 60, alto + margen_superior + 10), f"El Código Expira:\n{fecha_expiracion_str}", font=font_small, fill="black", anchor="rm")
+    draw.text((60, alto + margen_superior + 8), f"Se creó:\n{fecha_creacion_str}", font=font_fecha, fill="black")
+    draw.text((ancho_total - 60, alto + margen_superior + 10), f"El Código Expira:\n{fecha_expiracion_str}", font=font_fecha, fill="black", anchor="rm")
 
     # 6. Convertir a base64
     buffered = io.BytesIO()

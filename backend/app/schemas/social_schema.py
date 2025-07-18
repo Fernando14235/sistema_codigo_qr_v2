@@ -40,8 +40,8 @@ class SocialOpcionCreate(SocialOpcionBase):
 
 class SocialCreate(SocialBase):
     imagenes: Optional[List[SocialImagenCreate]] = []
-    destinatarios: Optional[List[SocialDestinatarioCreate]] = []
-    opciones: Optional[List[SocialOpcionCreate]] = []
+    destinatarios: Optional[List[SocialDestinatarioCreate]] = None
+    opciones: Optional[List[SocialOpcionCreate]] = None
 
 
 class SocialOpcionResponse(SocialOpcionBase):

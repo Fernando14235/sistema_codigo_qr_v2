@@ -39,6 +39,8 @@ function SocialDashboard({ token, rol }) {
   const [detalleMensaje, setDetalleMensaje] = useState("");
   const [adminNombre, setAdminNombre] = useState("");
   const [bloqueado, setBloqueado] = useState(false);
+  // Estado para controlar si se elimina la imagen existente
+  const [eliminarImagen, setEliminarImagen] = useState(false);
 
   const isAdmin = rol === "admin";
 
@@ -130,11 +132,19 @@ function SocialDashboard({ token, rol }) {
       const destinatariosFormateados = formData.para_todos ? [] : formData.destinatarios.map(d => ({ residente_id: d.residente_id }));
       // Manejar internamente requiere_respuesta
       const requiere_respuesta = formData.tipo_publicacion === "encuesta";
+      
+      // Preparar opciones de encuesta si es una encuesta
+      const opciones = formData.tipo_publicacion === "encuesta" ? 
+        opcionesEncuesta.filter(op => op.trim() !== "").map(op => ({ texto: op.trim() })) : [];
+      
       const socialData = {
-        ...formData,
+        titulo: formData.titulo,
+        contenido: formData.contenido,
+        tipo_publicacion: formData.tipo_publicacion,
         requiere_respuesta,
-        imagenes: [],
-        destinatarios: destinatariosFormateados
+        para_todos: formData.para_todos,
+        destinatarios: destinatariosFormateados.length > 0 ? destinatariosFormateados : undefined,
+        opciones: opciones.length > 0 ? opciones : undefined
       };
       const data = new FormData();
       data.append("social_data", JSON.stringify(socialData));
@@ -161,10 +171,11 @@ function SocialDashboard({ token, rol }) {
           destinatarios: []
         });
         setFileList([]);
-        cargarPublicaciones();
-        // Redirigir a la sección principal de Social
-        window.scrollTo(0, 0);
+        setOpcionesEncuesta([""]);
       }
+      cargarPublicaciones();
+      // Redirigir a la sección principal de Social
+      window.scrollTo(0, 0);
     } catch (err) {
       if (err.response && err.response.data && err.response.data.detail) {
         setMensaje("Error: " + err.response.data.detail);
@@ -188,6 +199,7 @@ function SocialDashboard({ token, rol }) {
       destinatarios: pub.destinatarios || []
     });
     setFileList([]);
+    setEliminarImagen(false);
     setShowForm(true);
   };
 
@@ -222,7 +234,6 @@ function SocialDashboard({ token, rol }) {
         <option value="">Estado</option>
         <option value="publicado">Publicado</option>
         <option value="fallido">Fallido</option>
-        <option value="archivado">Archivado</option>
       </select>
       <input type="date" value={filtros.fecha} onChange={e => setFiltros(f => ({ ...f, fecha: e.target.value }))} placeholder="Fecha de publicación" style={{minWidth:120}} />
       {isAdmin && (
@@ -464,9 +475,9 @@ function SocialDashboard({ token, rol }) {
       <div className={styles["social-detail-row"]}>
         <b>Imágenes:</b>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {detalle.imagenes?.length > 0 ? detalle.imagenes.map(img => (
-            <img key={img.id} src={API_URL + img.imagen_url} alt="img" className={styles["social-detail-img"]} />
-          )) : <span style={{color:'#888',marginLeft:8}}>Sin imágenes</span>}
+          {detalle.imagenes && detalle.imagenes.length > 0 && detalle.imagenes[0].imagen_url ? (
+            <img src={API_URL + detalle.imagenes[0].imagen_url} alt="img" style={{width:180,height:180,objectFit:'cover',borderRadius:10,border:'1.5px solid #ccc'}} />
+          ) : <span style={{color:'#888',marginLeft:8}}>Sin imágenes</span>}
         </div>
       </div>
       {/* Opciones de encuesta y votación */}
@@ -617,8 +628,17 @@ function SocialDashboard({ token, rol }) {
           )}
         </div>
       )}
-      <label>Imágenes</label>
-      <input type="file" multiple onChange={handleFileChange} disabled={bloqueado} />
+      {editId && detalle && detalle.imagenes && detalle.imagenes.length > 0 && !eliminarImagen && (
+        <div style={{marginBottom:8}}>
+          <label>Imagen actual:</label>
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
+            <img src={API_URL + detalle.imagenes[0].imagen_url} alt="img" style={{width:80,height:80,objectFit:'cover',borderRadius:8,border:'1px solid #ccc'}} />
+            <button type="button" style={{background:'#e53935',color:'#fff',border:'none',borderRadius:4,padding:'4px 12px',cursor:'pointer'}} onClick={()=>setEliminarImagen(true)}>Eliminar imagen</button>
+          </div>
+        </div>
+      )}
+      <label>Nueva imagen (opcional):</label>
+      <input type="file" accept="image/*" onChange={e => setFileList(e.target.files.length > 0 ? [e.target.files[0]] : [])} disabled={bloqueado} />
       {renderPreviewImgs()}
       <div className={styles["social-form-btns"]}>
         <button type="submit" disabled={bloqueado}>{editId ? "Actualizar" : "Crear"}</button>

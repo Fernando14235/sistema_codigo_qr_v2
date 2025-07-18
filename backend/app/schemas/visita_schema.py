@@ -7,13 +7,13 @@ from typing import List
 
 class SolicitudVisitaCreate(BaseModel):
     nombre_visitante: str = Field(..., description="Nombre del visitante")
-    dni_visitante: Optional[str] = Field(None, description="DNI del visitante")
-    telefono_visitante: Optional[str] = Field(None, description="Teléfono del visitante")
+    dni_visitante: Optional[str] = Field("no agregado", description="DNI del visitante")
+    telefono_visitante: Optional[str] = Field("no agregado", description="Teléfono del visitante")
     fecha_entrada: datetime = Field(..., description="Fecha y hora de entrada")
     motivo_visita: str = Field(..., description="Motivo de la visita")
     tipo_vehiculo: str = Field(..., description="Tipo de vehículo")
-    marca_vehiculo: Optional[str] = Field(None, description="Marca del vehículo")
-    color_vehiculo: Optional[str] = Field(None, description="Color del vehículo")
+    marca_vehiculo: Optional[str] = Field("no agregado", description="Marca del vehículo")
+    color_vehiculo: Optional[str] = Field("no agregado", description="Color del vehículo")
     placa_vehiculo: Optional[str] = Field("sin placa", description="Placa del vehículo")
 
     @field_validator("dni_visitante", mode='before')
@@ -53,6 +53,7 @@ class VisitaQRResponse(BaseModel):
     qr_expiracion: datetime
     qr_code_img_base64: str
     tipo_creador: str
+    qr_url: Optional[str] = None
 
     class Config:
         from_attributes = True

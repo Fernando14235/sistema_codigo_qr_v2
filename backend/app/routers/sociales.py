@@ -14,17 +14,14 @@ router = APIRouter(prefix="/social", tags=["Social"])
 @router.post("/create_social/admin", response_model=SocialResponse, dependencies=[Depends(verify_role(["admin"]))])
 async def crear_publicacion(
     social_data: str = Form(...),
-    imagenes: Optional[List[UploadFile]] = File(None),
+    imagenes: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user)
 ):
-    try:
-        social_data_dict = json.loads(social_data)
-        print('SOCIAL_DATA_DICT:', social_data_dict)  # DEPURACIÓN
-        social_data_obj = SocialCreate(**social_data_dict)
-    except Exception as e:
-        raise HTTPException(status_code=422, detail=f"Error en el formato de social_data: {e}")
-    return crear_publicacion_service(db, social_data_obj, imagenes, current_user)
+    social_data_dict = json.loads(social_data)
+    social_data_obj = SocialCreate(**social_data_dict)
+    imagenes_list = [imagenes] if imagenes else []
+    return crear_publicacion_service(db, social_data_obj, imagenes_list, current_user)
 
 @router.get("/obtener_social/admin", response_model=List[SocialResponse], dependencies=[Depends(verify_role(["admin"]))])
 def listar_publicaciones_admin(

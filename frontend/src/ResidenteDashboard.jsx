@@ -187,6 +187,38 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
   };
   const coloresVehiculo = ["Blanco", "Negro", "Rojo", "Azul", "Gris", "Verde", "Amarillo", "Plateado"];
 
+  // Estado para mostrar el QR generado
+  const [qrUrl, setQrUrl] = useState(null);
+  const [bloquearSalir, setBloquearSalir] = useState(false);
+
+  useEffect(() => {
+    if (qrUrl) {
+      setBloquearSalir(true);
+      const handleBeforeUnload = (e) => {
+        e.preventDefault();
+        e.returnValue = '¿Estás seguro de salir? Si no descargas el código QR, podrías perder el acceso para tu visita.';
+      };
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
+    } else {
+      setBloquearSalir(false);
+    }
+  }, [qrUrl]);
+
+  // Handler para navegación interna
+  useEffect(() => {
+    if (!bloquearSalir) return;
+    const handleNav = (e) => {
+      if (!window.confirm('¿Estás seguro de salir? Si no descargas el código QR, podrías perder el acceso para tu visita.')) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('popstate', handleNav);
+    return () => window.removeEventListener('popstate', handleNav);
+  }, [bloquearSalir]);
+
   useEffect(() => {
     setAcompanantes((prev) => {
       const nuevaCantidad = parseInt(cantidadAcompanantes) || 0;
@@ -218,6 +250,7 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
     setCargando(true);
     setBloqueado(true);
     setError("");
+    setQrUrl(null);
     try {
       const data = {
         visitantes: [{
@@ -234,11 +267,15 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
         fecha_entrada: fecha_entrada || null,
         acompanantes: acompanantes.filter(a => a && a.trim().length > 0)
       };
-      await axios.post(`${API_URL}/visitas/residente/crear_visita`, data, {
+      const res = await axios.post(`${API_URL}/visitas/residente/crear_visita`, data, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      onSuccess && onSuccess();
-      if (typeof setVista === 'function') setVista('visitas');
+      // Si la respuesta contiene el QR, mostrarlo
+      if (res.data && res.data.length > 0 && res.data[0].qr_url) {
+        setQrUrl(`${API_URL}${res.data[0].qr_url}`);
+      }
+      //onSuccess && onSuccess();
+      // if (typeof setVista === 'function') setVista('visitas');
     } catch (err) {
       setError(
         err.response?.data?.detail ||
@@ -254,20 +291,45 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
     setTelefono(value);
   };
 
+  const handleDownloadQR = async () => {
+    try {
+      const response = await fetch(qrUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+  
+      // Generar nombre único basado en fecha y hora
+      const now = new Date();
+      const timestamp = now.toISOString().replace(/[:.]/g, '-'); // evita caracteres inválidos
+      const fileName = `qr_visita_${timestamp}.png`;
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', fileName); // nombre con el que se descargará
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+  
+      // Liberar memoria
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error al descargar el QR:', error);
+    }
+  };
+
   return (
     <form className="form-visita form-visita-residente" onSubmit={handleSubmit}>
       <div className="form-row">
         <label>Nombre del visitante:</label>
-        <input type="text" value={nombre_conductor} onChange={e => setNombreConductor(e.target.value)} required disabled={bloqueado} />
+        <input type="text" value={nombre_conductor} onChange={e => setNombreConductor(e.target.value)} required disabled={bloqueado || !!qrUrl} />
       </div>
       <div className="form-row">
         <label>DNI del visitante:</label>
-        <input type="text" value={dni_conductor} onChange={e => setDNIConductor(e.target.value)} required disabled={bloqueado} />
+        <input type="text" value={dni_conductor} onChange={e => setDNIConductor(e.target.value)} disabled={bloqueado} />
       </div>
       <div className="form-row">
         <label>Teléfono:</label>
         <span className="input-prefix">+504</span>
-        <input placeholder="XXXXXXXX" value={telefono} onChange={handleTelefonoChange} required maxLength={8} disabled={bloqueado} />
+        <input placeholder="XXXXXXXX" value={telefono} onChange={handleTelefonoChange} maxLength={8} disabled={bloqueado} />
       </div>
       <div className="form-row">
         <label>Tipo de vehículo:</label>
@@ -325,13 +387,29 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
       ))}
       {error && <div className="qr-error">{error}</div>}
       <div className="form-actions">
-        <button className="btn-primary" type="submit" disabled={cargando || bloqueado}>
+        <button className="btn-primary" type="submit" disabled={cargando || bloqueado || !!qrUrl}>
           {cargando ? "Creando..." : "Crear Visita"}
         </button>
-        <button className="btn-regresar" type="button" onClick={onCancel} style={{ marginLeft: 10 }} disabled={bloqueado} >
+        <button className="btn-regresar" type="button" onClick={onCancel} style={{ marginLeft: 10 }} disabled={bloqueado || !!qrUrl} >
           Cancelar
         </button>
       </div>
+      {qrUrl && (
+        <div style={{ textAlign: 'center', marginTop: 18 }}>
+          <h4>QR de tu visita</h4>
+          <img
+            src={qrUrl}
+            alt="QR de la visita"
+            style={{width: 220, height: 220, objectFit: 'contain', border: '2px solid #1976d2', borderRadius: 12, background: '#fff', marginBottom: 10
+            }}
+          />
+          <br/>
+          <button type ="button" onClick={handleDownloadQR} className="btn-primary" style={{ marginTop: 8 }}>Descargar QR  </button>
+          <div style={{ color: '#1976d2', marginTop: 6, fontSize: '0.98em' }}>
+            Guarda este QR en tu galería para mostrarlo en la entrada
+          </div>
+        </div>
+      )}
     </form>
   );
 }
@@ -1047,7 +1125,7 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
               token={token}
               onSuccess={() => {
                 setNotification({ message: "Visita creada correctamente", type: "success" });
-                setVista("visitas");
+                // Eliminada la redirección automática a 'visitas' para que no cambie la vista
               }}
               onCancel={handleVolver}
               setVista={setVista}
