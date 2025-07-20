@@ -92,7 +92,7 @@ def generar_imagen_qr_personalizada(
     qr.make(fit=True)
     qr_img = qr.make_image(fill_color='black', back_color='white').convert("RGB")
 
-    # 2. Crear imagen base (más grande para poner textos)
+    # 2. Crear imagen base
     ancho, alto = qr_img.size
     margen_superior = 120
     margen_inferior = 200  # Aumenta para dirección

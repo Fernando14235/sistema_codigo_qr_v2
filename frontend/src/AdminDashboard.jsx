@@ -151,8 +151,8 @@ function CrearUsuario({ token, onUsuarioCreado, usuarioEditar, setUsuarioEditar 
         {usuarioEditar ? "Editar Usuario" : "Crear Usuario"}
       </h3>
       <div className="form-row">
-        <input placeholder="Nombre" value={nombre} onChange={e => setNombre(e.target.value)} required disabled={bloqueado} />
-        <input placeholder="Correo" value={email} onChange={e => setEmail(e.target.value)} required type="email" disabled={bloqueado} />
+        <input placeholder="Nombre" value={nombre} onChange={e => setNombre(e.target.value)} required disabled={bloqueado}/>
+        <input placeholder="Correo" value={email} onChange={e => setEmail(e.target.value)} required type="email" disabled={bloqueado}/>
       </div>
       <div className="form-row">
         <select value={rol} onChange={e => setRol(e.target.value)} disabled={bloqueado}>
@@ -162,7 +162,7 @@ function CrearUsuario({ token, onUsuarioCreado, usuarioEditar, setUsuarioEditar 
         </select>
         <div style={{ display: "flex", alignItems: "center" }}>
           <span style={{ marginRight: 4, fontWeight: "bold" }}>+504</span>
-          <input placeholder="XXXXXXXX" value={telefono} onChange={handleTelefonoChange} required maxLength={8} style={{ width: "120px" }} disabled={bloqueado} />
+          <input placeholder="XXXXXXXX" value={telefono} onChange={handleTelefonoChange} required maxLength={8} style={{ width: "120px" }} disabled={bloqueado}/>
         </div>
         {rol === "residente" && (
           <input
@@ -392,9 +392,6 @@ function FormCrearVisitaAdmin({ token, onSuccess, onCancel, setVista, usuario })
       if (res.data && res.data.length > 0 && res.data[0].qr_url) {
         setQrUrl(`${API_URL}${res.data[0].qr_url}`);
       }
-      //onSuccess && onSuccess();
-      // Quitar redirección automática
-      // if (typeof setVista === 'function') setVista('mis_visitas');
     } catch (err) {
       setError(
         err.response?.data?.detail ||
@@ -520,7 +517,7 @@ function FormCrearVisitaAdmin({ token, onSuccess, onCancel, setVista, usuario })
           <br/>
           <button type ="button" onClick={handleDownloadQR} className="btn-primary" style={{ marginTop: 8 }}>Descargar QR  </button>
           <div style={{ color: '#1976d2', marginTop: 6, fontSize: '0.98em' }}>
-            Guarda este QR en tu galería para mostrarlo en la entrada
+            Guarda este QR en su galería para mostrarlo en la entrada
           </div>
         </div>
       )}
@@ -632,7 +629,15 @@ function FormEditarVisitaAdmin({ token, visita, onSuccess, onCancel }) {
   const [fecha_entrada, setFechaEntrada] = useState(visita.fecha_entrada ? new Date(visita.fecha_entrada).toISOString().slice(0,16) : "");
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
-  const tiposVehiculo = ["Moto", "Bicicleta", "Camioneta", "Turismo", "Otro"];
+  const tiposVehiculo = ["Moto", "Camioneta", "Turismo", "Bus", "Otro"];
+  const motivosVisita = ["Visita Familiar", "Visita de Amistad", "Delivery", "Reunión de Trabajo", "Mantenimiento", "Otros"];
+  const marcasPorTipo = {
+    Moto: ["Honda", "Yamaha", "Suzuki", "Kawasaki", "Otra"],
+    Camioneta: ["Toyota", "Ford", "Chevrolet", "Nissan", "Hyundai", "Otra"],
+    Turismo: ["Toyota", "Honda", "Ford", "Chevrolet", "Nissan", "Kia", "Hyundai", "Volkswagen", "Otra"],
+    Bus: ["No aplica"],
+    Otro: ["Otra"]
+  };
   const coloresVehiculo = ["Blanco", "Negro", "Rojo", "Azul", "Gris", "Verde", "Amarillo", "Plateado"];
   const [bloqueadoEditar, setBloqueadoEditar] = useState(false);
 
@@ -650,7 +655,7 @@ function FormEditarVisitaAdmin({ token, visita, onSuccess, onCancel }) {
           dni_conductor,
           telefono: "+504" + telefono,
           tipo_vehiculo,
-          marca_vehiculo,
+          marca_vehiculo: tipo_vehiculo === "Bus" ? "No aplica" : marca_vehiculo,
           color_vehiculo,
           placa_vehiculo,
           motivo_visita: motivo,
@@ -702,6 +707,15 @@ function FormEditarVisitaAdmin({ token, visita, onSuccess, onCancel }) {
         </select>
       </div>
       <div className="form-row">
+        <label>Marca del vehículo:</label>
+        <select value={marca_vehiculo} onChange={e => setMarcaVehiculo(e.target.value)} required disabled={cargando || bloqueadoEditar}>
+          <option value="">Selecciona una marca</option>
+          {(marcasPorTipo[tipo_vehiculo] || []).map(marca => (
+            <option key={marca} value={marca}>{marca}</option>
+          ))}
+        </select>
+      </div>
+      <div className="form-row">
         <label>Color del vehículo:</label>
         <select value={color_vehiculo} onChange={e => setColorVehiculo(e.target.value)} required disabled={cargando || bloqueadoEditar}>
           <option value="">Selecciona un color</option>
@@ -711,16 +725,17 @@ function FormEditarVisitaAdmin({ token, visita, onSuccess, onCancel }) {
         </select>
       </div>
       <div className="form-row">
-        <label>Marca del vehículo:</label>
-        <input type="text" value={marca_vehiculo} onChange={e => setMarcaVehiculo(e.target.value)} disabled={cargando || bloqueadoEditar} />
-      </div>
-      <div className="form-row">
         <label>Placa del vehículo:</label>
         <input type="text" value={placa_vehiculo} onChange={e => setPlacaVehiculo(e.target.value)} disabled={cargando || bloqueadoEditar} />
       </div>
       <div className="form-row">
         <label>Motivo de la visita:</label>
-        <input type="text" value={motivo} onChange={e => setMotivo(e.target.value)} required disabled={cargando || bloqueadoEditar} />
+        <select value={motivo} onChange={e => setMotivo(e.target.value)} required disabled={cargando || bloqueadoEditar}>
+          <option value="">Selecciona un motivo</option>
+          {motivosVisita.map(m => (
+            <option key={m} value={m}>{m}</option>
+          ))}
+        </select>
       </div>
       <div className="form-row">
         <label>Fecha y hora de entrada:</label>
@@ -734,6 +749,12 @@ function FormEditarVisitaAdmin({ token, visita, onSuccess, onCancel }) {
         <button className="btn-regresar" type="button" onClick={onCancel} style={{ marginLeft: 10 }} disabled={cargando || bloqueadoEditar}>
           Cancelar
         </button>
+      </div>
+      <br/>
+      <div style={{ color: '#1976d2', marginTop: 6, fontSize: '0.98em' }}>
+          <b>Se usa el mismo QR generado originalmente para la visita.</b>
+          <br/>
+          <b>Si no lo pudo descargar, el codigo QR se encuentra en su correo de Gmail.</b>
       </div>
     </form>
   );

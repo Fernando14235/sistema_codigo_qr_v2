@@ -556,6 +556,12 @@ function FormEditarVisitaResidente({ token, visita, onSuccess, onCancel, setVist
           Cancelar
         </button>
       </div>
+      <br/>
+      <div style={{ color: '#1976d2', marginTop: 6, fontSize: '0.98em' }}>
+          <b>Se usa el mismo QR generado originalmente para la visita.</b>
+          <br/>
+          <b>Si no lo pudo descargar, el codigo QR se encuentra en su correo de Gmail.</b>
+      </div>
     </form>
   );
 }

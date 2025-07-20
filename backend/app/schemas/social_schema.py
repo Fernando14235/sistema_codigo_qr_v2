@@ -36,13 +36,12 @@ class SocialOpcionBase(BaseModel):
     texto: str = Field(..., min_length=1, max_length=200)
 
 class SocialOpcionCreate(SocialOpcionBase):
-    social_id: Optional[int] = None  # Solo necesario si se usa para crear directamente, no desde SocialCreate
+    social_id: Optional[int] = None  
 
 class SocialCreate(SocialBase):
     imagenes: Optional[List[SocialImagenCreate]] = []
     destinatarios: Optional[List[SocialDestinatarioCreate]] = None
     opciones: Optional[List[SocialOpcionCreate]] = None
-
 
 class SocialOpcionResponse(SocialOpcionBase):
     id: int
