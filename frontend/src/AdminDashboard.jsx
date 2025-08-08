@@ -198,7 +198,7 @@ function CrearUsuario({ token, onUsuarioCreado, usuarioEditar, setUsuarioEditar 
         password,
         telefono: "+504" + telefono,
       };
-      if (rol === "residente") {
+      if (rol === "residente" || rol === "admin") {
         payload.unidad_residencial = unidadResidencial;
       }
       if (usuarioEditar) {
@@ -251,15 +251,15 @@ function CrearUsuario({ token, onUsuarioCreado, usuarioEditar, setUsuarioEditar 
           <span style={{ marginRight: 4, fontWeight: "bold" }}>+504</span>
           <input placeholder="XXXXXXXX" value={telefono} onChange={handleTelefonoChange} required maxLength={8} style={{ width: "120px" }} disabled={bloqueado}/>
         </div>
-        {rol === "residente" && (
+        {rol === "residente" || rol === "admin" ? (
           <input
             placeholder="Unidad Residencial"
             value={unidadResidencial}
             onChange={e => setUnidadResidencial(e.target.value)}
-            required
+            required={rol === "residente"}
             disabled={bloqueado}
           />
-        )}
+        ) : null}
       </div>
       <div className="form-row">
         <div style={{ position: 'relative', width: '100%' }}>

@@ -227,7 +227,6 @@ function ListarAdmins({ token, onCancel, onLogout }) {
               <p><strong>Residencial:</strong> {admin.residencial_nombre}</p>
               <p><strong>Telefono:</strong> {admin.telefono}</p>
               <p><strong>Fecha de creación:</strong> {new Date(admin.fecha_creacion).toLocaleDateString()}</p>
-              <p><strong>Unidad residencial:</strong> {admin.unidad_residencial || "-"}</p>
             </div>
           </div>
         ))}
@@ -324,10 +323,27 @@ function ListarResidenciales({ token, onCancel, onLogout, onSelectVista }) {
   const [residenciales, setResidenciales] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [notification, setNotification] = useState({ message: "", type: "" });
+  const [filtros, setFiltros] = useState({
+    nombre: "",
+    direccion: ""
+  });
+  const [residencialesFiltrados, setResidencialesFiltrados] = useState([]);
 
   useEffect(() => {
     cargarResidenciales();
   }, []);
+
+  useEffect(() => {
+    // Aplicar filtros en tiempo real
+    if (residenciales.length > 0) {
+      const filtrados = residenciales.filter(residencial => {
+        const nombreMatch = residencial.nombre.toLowerCase().includes(filtros.nombre.toLowerCase());
+        const direccionMatch = residencial.direccion.toLowerCase().includes(filtros.direccion.toLowerCase());
+        return nombreMatch && direccionMatch;
+      });
+      setResidencialesFiltrados(filtrados);
+    }
+  }, [filtros, residenciales]);
 
   const cargarResidenciales = async () => {
     try {
@@ -335,11 +351,16 @@ function ListarResidenciales({ token, onCancel, onLogout, onSelectVista }) {
         headers: { Authorization: `Bearer ${token}` }
       });
       setResidenciales(response.data);
+      setResidencialesFiltrados(response.data);
     } catch (error) {
       setNotification({ message: "Error al cargar residenciales", type: "error" });
     } finally {
       setCargando(false);
     }
+  };
+
+  const handleFiltroChange = (campo, valor) => {
+    setFiltros(prev => ({ ...prev, [campo]: valor }));
   };
 
   const handleVerUsuarios = (residencialId, residencialNombre) => {
@@ -361,8 +382,37 @@ function ListarResidenciales({ token, onCancel, onLogout, onSelectVista }) {
         </div>
       </div>
 
+      {/* Filtros en tiempo real */}
+      <div className="filtros-container">
+        <div className="filtros-row">
+          <div className="filtro-group">
+            <label>Buscar por nombre:</label>
+            <input
+              type="text"
+              value={filtros.nombre}
+              onChange={(e) => handleFiltroChange('nombre', e.target.value)}
+              placeholder="Nombre de la residencial..."
+            />
+          </div>
+          <div className="filtro-group">
+            <label>Buscar por dirección:</label>
+            <input
+              type="text"
+              value={filtros.direccion}
+              onChange={(e) => handleFiltroChange('direccion', e.target.value)}
+              placeholder="Dirección de la residencial..."
+            />
+          </div>
+          <div className="filtro-actions">
+            <button className="btn-limpiar-filtros" onClick={() => setFiltros({ nombre: "", direccion: "" })}>
+              🗑️ Limpiar
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div className="residenciales-grid">
-        {residenciales.map(residencial => (
+        {residencialesFiltrados.map(residencial => (
           <div key={residencial.id} className="residencial-card">
             <div className="residencial-header">
               <h3>{residencial.nombre}</h3>
@@ -398,9 +448,9 @@ function ListarResidenciales({ token, onCancel, onLogout, onSelectVista }) {
         ))}
       </div>
 
-      {residenciales.length === 0 && (
+      {residencialesFiltrados.length === 0 && (
         <div className="empty-state">
-          <p>No hay residenciales registradas</p>
+          <p>No hay residenciales que coincidan con los filtros</p>
         </div>
       )}
 
@@ -419,28 +469,33 @@ function UsuariosResidencial({ token, residencialData, onCancel, onLogout }) {
     nombre: "",
     rol: ""
   });
+  const [usuariosSinFiltrar, setUsuariosSinFiltrar] = useState([]);
 
   useEffect(() => {
     cargarUsuarios();
   }, [residencialData.residencialId]);
 
+  // Efecto para aplicar filtros en tiempo real
+  useEffect(() => {
+    if (usuariosSinFiltrar.length > 0) {
+      const filtrados = usuariosSinFiltrar.filter(usuario => {
+        const nombreMatch = usuario.nombre.toLowerCase().includes(filtros.nombre.toLowerCase());
+        const rolMatch = filtros.rol === "" || usuario.rol === filtros.rol;
+        return nombreMatch && rolMatch;
+      });
+      setUsuarios(filtrados);
+    }
+  }, [filtros, usuariosSinFiltrar]);
+
   const cargarUsuarios = async () => {
     try {
       setCargando(true);
-      let url = `${API_URL}/super-admin/usuarios-residencial/${residencialData.residencialId}`;
-      const params = new URLSearchParams();
+      const response = await axios.get(
+        `${API_URL}/super-admin/usuarios-residencial/${residencialData.residencialId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       
-      if (filtros.nombre) params.append('nombre', filtros.nombre);
-      if (filtros.rol) params.append('rol', filtros.rol);
-      
-      if (params.toString()) {
-        url += `?${params.toString()}`;
-      }
-
-      const response = await axios.get(url, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
+      setUsuariosSinFiltrar(response.data.usuarios);
       setUsuarios(response.data.usuarios);
       setResidencial(response.data.residencial);
     } catch (error) {
@@ -454,13 +509,8 @@ function UsuariosResidencial({ token, residencialData, onCancel, onLogout }) {
     setFiltros(prev => ({ ...prev, [campo]: valor }));
   };
 
-  const aplicarFiltros = () => {
-    cargarUsuarios();
-  };
-
   const limpiarFiltros = () => {
     setFiltros({ nombre: "", rol: "" });
-    cargarUsuarios();
   };
 
   if (cargando) {
@@ -503,9 +553,6 @@ function UsuariosResidencial({ token, residencialData, onCancel, onLogout }) {
             </select>
           </div>
           <div className="filtro-actions">
-            <button className="btn-aplicar-filtros" onClick={aplicarFiltros}>
-              🔍 Aplicar Filtros
-            </button>
             <button className="btn-limpiar-filtros" onClick={limpiarFiltros}>
               🗑️ Limpiar
             </button>
@@ -531,11 +578,19 @@ function UsuariosResidencial({ token, residencialData, onCancel, onLogout }) {
               <h3>{usuario.nombre}</h3>
               <span className={`usuario-rol ${usuario.rol}`}>
                 {usuario.rol === 'admin' ? '👤 Administrador' : 
-                 usuario.rol === 'residente' ? '🏠 Residente' : '🛡️ Guardia'}
+                usuario.rol === 'residente' ? '🏠 Residente' : '🛡️ Guardia'}
               </span>
             </div>
             <div className="usuario-info">
               <p><strong>Email:</strong> {usuario.email}</p>
+              <p><strong>Teléfono:</strong> {usuario.telefono}</p>
+
+              {/* Mostrar unidad residencial para admin o residente */}
+              {(usuario.rol === 'admin' || usuario.rol === 'residente') && (
+                <p>
+                  <strong>Unidad Residencial:</strong> {usuario.unidad_residencial || 'N/A'}
+                </p>
+              )}
               <p><strong>Fecha de creación:</strong> {new Date(usuario.fecha_creacion).toLocaleDateString()}</p>
             </div>
           </div>

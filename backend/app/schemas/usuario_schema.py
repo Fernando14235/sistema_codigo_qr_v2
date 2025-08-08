@@ -9,11 +9,6 @@ class Rol(str, Enum):
     residente   = "residente"
     guardia     = "guardia"
 
-# class EstadoUsuario(str, Enum):
-#     activo = "activo"
-#     inactivo = "inactivo"
-#     moroso = "moroso"
-
 class UsuarioBase(BaseModel):
     nombre: str
     email: EmailStr

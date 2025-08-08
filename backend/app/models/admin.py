@@ -9,6 +9,7 @@ class Administrador(Base):
     usuario_id = Column(Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
     residencial_id = Column(Integer, ForeignKey("residenciales.id"), nullable=True)
     telefono = Column(String(25), nullable=True)
+    unidad_residencial = Column(String(100), nullable=True)
     
     usuario = relationship("Usuario", back_populates="admin")
     residencial = relationship("Residencial", back_populates="administradores")

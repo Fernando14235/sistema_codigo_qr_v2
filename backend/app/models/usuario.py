@@ -12,11 +12,6 @@ class Rol(str, enum.Enum):
     residente   = "residente"
     guardia     = "guardia"
 
-# class EstadoUsuario(str, enum.Enum):
-#     activo = "activo"
-#     inactivo = "inactivo"
-#     moroso = "moroso"
-
 class Usuario(Base):
     __tablename__ = "usuarios"
 
@@ -26,7 +21,6 @@ class Usuario(Base):
     password_hash = Column(String(255), nullable=False)
     rol = Column(String(20), nullable=False)
     residencial_id = Column(Integer, ForeignKey("residenciales.id"), nullable=True)
-    #estado = Column(String(20), nullable=False, default=EstadoUsuario.activo)
     fecha_creacion = Column(DateTime(timezone=True), default=get_current_time)
     fecha_actualizacion = Column(DateTime(timezone=True), default=get_current_time, onupdate=get_current_time)
     ult_conexion = Column(DateTime(timezone=True), nullable=True)
@@ -37,11 +31,3 @@ class Usuario(Base):
     residente = relationship("Residente", back_populates="usuario", cascade="all, delete-orphan", uselist=False)
     admin = relationship("Administrador", back_populates="usuario", uselist=False, cascade="all, delete-orphan")
     super_admin = relationship("SuperAdmin", back_populates="usuario", uselist=False, cascade="all, delete-orphan")
-
-    # Constraints
-    # __table_args__ = (
-    #     CheckConstraint(
-    #         estado.in_(['activo', 'inactivo', 'moroso']),
-    #         name='check_estado_usuario'
-    #     ),
-    # )

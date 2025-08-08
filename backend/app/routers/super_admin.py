@@ -6,6 +6,7 @@ from app.utils.security import is_super_admin
 from app.services.user_service import crear_usuario
 from app.schemas.usuario_schema import UsuarioCreate, Usuario
 from app.models.usuario import Usuario as UsuarioModel
+from app.models.admin import Administrador
 from app.models.residencial import Residencial
 from app.models.residente import Residente
 from app.models.guardia import Guardia
@@ -71,13 +72,24 @@ def listar_administradores(db: Session = Depends(get_db)):
             if residencial:
                 residencial_nombre = residencial.nombre
         
+        # Obtener el teléfono del administrador
+        telefono = None
+        admin_info = db.query(Administrador).filter(Administrador.usuario_id == admin.id).first()
+        if admin_info:
+            telefono = admin_info.telefono
+            unidad_residencial = admin_info.unidad_residencial if admin_info.unidad_residencial else "N/A"
+
+
+        
         resultado.append({
             "id": admin.id,
             "nombre": admin.nombre,
             "email": admin.email,
             "residencial_id": admin.residencial_id,
             "residencial_nombre": residencial_nombre,
-            "fecha_creacion": admin.fecha_creacion
+            "fecha_creacion": admin.fecha_creacion,
+            "telefono": telefono,
+            "unidad_residencial": unidad_residencial
         })
     
     return resultado
@@ -111,10 +123,13 @@ def listar_usuarios_residencial(
     
     admins = admins_query.all()
     for admin in admins:
+        admin_info = db.query(Administrador).filter(Administrador.usuario_id == admin.id).first()
         resultado.append({
             "id": admin.id,
             "nombre": admin.nombre,
             "email": admin.email,
+            "telefono": admin_info.telefono if admin_info else None,
+            "unidad_residencial": admin_info.unidad_residencial if admin_info else None,
             "rol": "admin",
             "residencial_id": residencial_id,
             "residencial_nombre": residencial.nombre,
@@ -134,6 +149,8 @@ def listar_usuarios_residencial(
             "id": residente.id,
             "nombre": residente.usuario.nombre,
             "email": residente.usuario.email,
+            "telefono": residente.telefono,
+            "unidad_residencial": residente.unidad_residencial,
             "rol": "residente",
             "residencial_id": residencial_id,
             "residencial_nombre": residencial.nombre,
@@ -153,6 +170,7 @@ def listar_usuarios_residencial(
             "id": guardia.id,
             "nombre": guardia.usuario.nombre,
             "email": guardia.usuario.email,
+            "telefono": guardia.telefono,
             "rol": "guardia",
             "residencial_id": residencial_id,
             "residencial_nombre": residencial.nombre,
@@ -212,4 +230,4 @@ def listar_residenciales_super_admin(db: Session = Depends(get_db)):
             }
         })
     
-    return resultado 
+    return resultado

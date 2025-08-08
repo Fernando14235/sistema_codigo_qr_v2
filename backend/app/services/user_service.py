@@ -67,9 +67,11 @@ def crear_usuario(db: Session, usuario: UsuarioCreate, usuario_actual=None) -> U
             db_admin = Administrador(
                 usuario_id=db_usuario.id,
                 residencial_id=residencial_id_admin if residencial_id_admin else None,
-                telefono=telefono_normalizado
+                telefono=telefono_normalizado,
+                unidad_residencial=usuario.unidad_residencial if hasattr(usuario, 'unidad_residencial') else None
             )
             db.add(db_admin)
+            
         elif usuario.rol == "super_admin":
             from app.models.super_admin import SuperAdmin
             db_super_admin = SuperAdmin(
@@ -176,7 +178,38 @@ def obtener_usuario_por_id(db: Session, user_id: int, usuario_actual=None):
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="No tienes permiso para ver este usuario"
                 )
-        return usuario
+        
+        # Crear el diccionario de datos del usuario
+        usuario_data = {
+            "id": usuario.id,
+            "rol": usuario.rol,
+            "nombre": usuario.nombre,
+            "email": usuario.email,
+            "telefono": None,
+            "unidad_residencial": None,
+            "fecha_creacion": usuario.fecha_creacion,
+            "fecha_actualizacion": usuario.fecha_actualizacion,
+            "ult_conexion": usuario.ult_conexion
+        }
+        
+        # Agregar información específica según el rol
+        if usuario.rol == "residente":
+            residente = db.query(Residente).filter(Residente.usuario_id == usuario.id).first()
+            if residente:
+                usuario_data["telefono"] = residente.telefono
+                usuario_data["unidad_residencial"] = residente.unidad_residencial
+                usuario_data["residente_id"] = residente.id
+        elif usuario.rol == "guardia":
+            guardia = db.query(Guardia).filter(Guardia.usuario_id == usuario.id).first()
+            if guardia:
+                usuario_data["telefono"] = guardia.telefono
+        elif usuario.rol == "admin":
+            admin = db.query(Administrador).filter(Administrador.usuario_id == usuario.id).first()
+            if admin:
+                usuario_data["telefono"] = admin.telefono
+                usuario_data["unidad_residencial"] = admin.unidad_residencial
+        
+        return usuario_data
     except HTTPException as e:
         raise e
     except Exception as e:
@@ -209,6 +242,7 @@ def actualizar_usuario(db: Session, user_id: int, usuario, usuario_actual=None) 
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="No tienes permiso para actualizar este usuario"
                 )
+            
             # Forzar la residencial_id del admin en ambas tablas
             if residencial_id_admin:
                 db_usuario.residencial_id = residencial_id_admin
@@ -221,17 +255,22 @@ def actualizar_usuario(db: Session, user_id: int, usuario, usuario_actual=None) 
         if usuario.email and usuario.email != db_usuario.email:
             email_normalizado = validar_email_creacion_actualizacion(db, usuario.email, user_id)
             db_usuario.email = email_normalizado  # Usar email normalizado
+        
+        # Validar y normalizar teléfono
         telefono_normalizado = None
         if db_usuario.rol in ["residente", "guardia", "admin"] and usuario.telefono:
             validar_telefono_no_vacio(usuario.telefono)
             validar_formato_telefono_honduras(usuario.telefono)
             telefono_normalizado = normalizar_telefono_honduras(usuario.telefono)
+        
         update_data = usuario.dict(exclude_unset=True)
         for field, value in update_data.items():
             if field == "password" and value:
                 value = get_password_hash(value)
             if hasattr(db_usuario, field):
                 setattr(db_usuario, field, value)
+        
+        # Actualizar registros relacionados según el rol
         if db_usuario.rol == "residente":
             db_residente = db.query(Residente).filter(Residente.usuario_id == user_id).first()
             if db_residente:
@@ -255,6 +294,8 @@ def actualizar_usuario(db: Session, user_id: int, usuario, usuario_actual=None) 
             if db_admin:
                 if telefono_normalizado:
                     db_admin.telefono = telefono_normalizado
+                if usuario.unidad_residencial is not None:
+                    db_admin.unidad_residencial = usuario.unidad_residencial
                 # Actualizar residencial_id en tabla administradores para mantener consistencia
                 if usuario_actual and usuario_actual.rol == "admin" and residencial_id_admin:
                     db_admin.residencial_id = residencial_id_admin
