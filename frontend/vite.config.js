@@ -3,6 +3,18 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
+  base: '/',
+  server: {
+    host: true,
+    port: process.env.PORT || 5173,
+  },
+  preview: {
+    host: true,
+    port: process.env.PORT || 4173,
+    allowedHosts: [
+      "alluring-contentment-production.up.railway.app"
+    ]
+  },
   plugins: [
     react(),
     VitePWA({
@@ -17,54 +29,21 @@ export default defineConfig({
         orientation: 'portrait-primary',
         start_url: '.',
         "icons": [
-            {
-                "src": "resi16.png",
-                "sizes": "16x16",
-                "type": "image/png"
-            },
-            {
-                "src": "resi24.png",
-                "sizes": "24x24",
-                "type": "image/png"
-            },
-            {
-                "src": "resi32.png",
-                "sizes": "32x32",
-                "type": "image/png"
-            },
-            {
-                "src": "resi64.png",
-                "sizes": "64x64",
-                "type": "image/png"
-            },
-            {
-                "src": "resi192.png",
-                "sizes": "192x192",
-                "type": "image/png"
-            },
-            {
-                "src": "resi512.png",
-                "sizes": "512x512",
-                "type": "image/png"
-            }
+          { src: 'resi16.png', sizes: '16x16', type: 'image/png' },
+          { src: 'resi24.png', sizes: '24x24', type: 'image/png' },
+          { src: 'resi32.png', sizes: '32x32', type: 'image/png' },
+          { src: 'resi64.png', sizes: '64x64', type: 'image/png' },
+          { src: 'resi192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'resi512.png', sizes: '512x512', type: 'image/png' }
         ],
         "screenshots": [
-            {
-                "src": "screenshot1.png",
-                "sizes": "772x607",
-                "type": "image/png",
-                "form_factor": "wide"
-            },
-            {
-                "src": "screenshot2.png",
-                "sizes": "390x844",
-                "type": "image/png"
-            }
+          { src: 'screenshot1.png', sizes: '772x607', type: 'image/png', form_factor: 'wide' },
+          { src: 'screenshot2.png', sizes: '390x844', type: 'image/png' }
         ],
       },
       workbox: {
+        navigateFallback: 'index.html',
         globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
-        // Configuración para notificaciones push
         additionalManifestEntries: [
           { url: '/sw.js', revision: '1' }
         ],
@@ -92,7 +71,11 @@ export default defineConfig({
               networkTimeoutSeconds: 3,
               expiration: {
                 maxEntries: 10,
-                maxAgeSeconds: 6 * 60 * 60, // 6 horas
+                maxAgeSeconds: 21600, // 6 horas
+              },
+              backgroundSync: {
+                name: 'residencial-sync',
+                options: { maxRetentionTime: 1440 },
               },
             },
           },
@@ -104,7 +87,7 @@ export default defineConfig({
               networkTimeoutSeconds: 3,
               expiration: {
                 maxEntries: 20,
-                maxAgeSeconds: 24 * 60 * 60, // 24 horas
+                maxAgeSeconds: 86400, // 24 horas
               },
             },
           },
@@ -116,7 +99,7 @@ export default defineConfig({
               networkTimeoutSeconds: 3,
               expiration: {
                 maxEntries: 10,
-                maxAgeSeconds: 24 * 60 * 60, // 24 horas
+                maxAgeSeconds: 86400, // 24 horas
               },
             },
           },
@@ -128,7 +111,7 @@ export default defineConfig({
               networkTimeoutSeconds: 3,
               expiration: {
                 maxEntries: 50,
-                maxAgeSeconds: 12 * 60 * 60, // 12 horas
+                maxAgeSeconds: 43200, // 12 horas
               },
             },
           },
@@ -140,7 +123,7 @@ export default defineConfig({
               networkTimeoutSeconds: 3,
               expiration: {
                 maxEntries: 30,
-                maxAgeSeconds: 12 * 60 * 60, // 12 horas
+                maxAgeSeconds: 43200, // 12 horas
               },
             },
           },
@@ -149,7 +132,7 @@ export default defineConfig({
         backgroundSync: {
           name: 'residencial-sync',
           options: {
-            maxRetentionTime: 24 * 60, // 24 horas
+            maxRetentionTime: 86400, // 24 horas
           },
         },
       }

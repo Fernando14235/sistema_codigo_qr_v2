@@ -15,4 +15,3 @@ class Residente(Base):
     residencial = relationship("Residencial", back_populates="residentes")
     visitas = relationship("Visita", back_populates="residente")
     tickets = relationship("Ticket", back_populates="residente", cascade="all, delete-orphan")
-    pagos = relationship("Pago", back_populates="residente", cascade="all, delete-orphan")

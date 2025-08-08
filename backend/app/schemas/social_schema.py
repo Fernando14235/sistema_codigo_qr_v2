@@ -67,7 +67,7 @@ class SocialResponse(SocialBase):
     id: int
     admin_id: int
     residencial_id: int
-    estado: str = Field(..., pattern="^(publicado|fallido|archivado)$")
+    estado: str = Field(..., pattern="^(publicado|fallido)$")
     fecha_creacion: datetime
     imagenes: List[SocialImagenResponse] = []
     destinatarios: List[SocialDestinatarioResponse] = []

@@ -11,6 +11,7 @@ from app.utils.notificaciones import enviar_correo
 from app.utils.time import get_honduras_time
 import traceback
 from app.models import Usuario, Residente, Ticket
+from typing import List
 
 def enviar_notificacion_usuario_creado(usuario: Usuario, datos_creacion: UsuarioCreate):
     # Envia notificacion por correo cuando se crea un usuario con rol de residente
@@ -579,7 +580,15 @@ def enviar_notificacion_solicitud_aprobada(db: Session, visita, qr_img_b64: str)
         print(f"Error al enviar notificación de aprobación: {str(e)}")
         print(traceback.format_exc())
 
-def enviar_notificacion_nueva_publicacion(db: Session, titulo_publicacion: str, contenido: str, creador: str, notificar_a: str = 'todos', residencial_id: int = None):
+def enviar_notificacion_nueva_publicacion(
+    db: Session,
+    titulo_publicacion: str,
+    contenido: str,
+    creador: str,
+    notificar_a: str = 'todos',
+    residencial_id: int = None,
+    residentes_especificos: List[int] = None
+):
     try:
         asunto = "Nueva Publicación"
         mensaje_html = f"""
@@ -598,30 +607,44 @@ def enviar_notificacion_nueva_publicacion(db: Session, titulo_publicacion: str, 
             </html>
         """
         usuarios_notificados = []
+
+        # Notificar a administradores si es para todos o específicamente a admins
         if notificar_a in ('todos', 'admin'):
-            # Filtrar admins por residencial_id si se proporciona
             admin_query = db.query(Administrador)
             if residencial_id:
                 admin_query = admin_query.filter(Administrador.residencial_id == residencial_id)
             admins = admin_query.all()
-            
             for admin in admins:
                 if admin.usuario and admin.usuario.email:
                     exito = enviar_correo(admin.usuario.email, asunto, mensaje_html)
                     if exito:
                         usuarios_notificados.append(admin.usuario.email)
+
+        # Notificar a residentes
         if notificar_a in ('todos', 'residente'):
-            # Filtrar residentes por residencial_id si se proporciona
-            residente_query = db.query(Residente)
-            if residencial_id:
-                residente_query = residente_query.filter(Residente.residencial_id == residencial_id)
-            residentes = residente_query.all()
-            
-            for residente in residentes:
-                if residente.usuario and residente.usuario.email:
-                    exito = enviar_correo(residente.usuario.email, asunto, mensaje_html)
-                    if exito:
-                        usuarios_notificados.append(residente.usuario.email)
+            if residentes_especificos and isinstance(residentes_especificos, list) and len(residentes_especificos) > 0:
+                # Notificar solo a los residentes específicos seleccionados de la residencial
+                for residente_id in residentes_especificos:
+                    residente_query = db.query(Residente).filter(Residente.id == residente_id)
+                    if residencial_id:
+                        residente_query = residente_query.filter(Residente.residencial_id == residencial_id)
+                    residente = residente_query.first()
+                    if residente and residente.usuario and residente.usuario.email:
+                        exito = enviar_correo(residente.usuario.email, asunto, mensaje_html)
+                        if exito:
+                            usuarios_notificados.append(residente.usuario.email)
+            else:
+                # Notificar a todos los residentes de la residencial (si se especifica)
+                residente_query = db.query(Residente)
+                if residencial_id:
+                    residente_query = residente_query.filter(Residente.residencial_id == residencial_id)
+                residentes = residente_query.all()
+                for residente in residentes:
+                    if residente.usuario and residente.usuario.email:
+                        exito = enviar_correo(residente.usuario.email, asunto, mensaje_html)
+                        if exito:
+                            usuarios_notificados.append(residente.usuario.email)
+
         print(f"Alertas de nueva publicación enviadas a: {usuarios_notificados}")
     except Exception as e:
         print(f"Error al enviar alerta de nueva publicación: {str(e)}")

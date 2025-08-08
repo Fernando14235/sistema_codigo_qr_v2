@@ -103,7 +103,6 @@ def obtener_escaneos_dia_guardia(
     if usuario_actual.rol != "guardia":
         raise HTTPException(status_code=403, detail="Solo los guardias pueden acceder a este endpoint")
     
-    
     # Obtener el guardia
     guardia = db.query(Guardia).filter(Guardia.usuario_id == usuario_actual.id).first()
     if not guardia:

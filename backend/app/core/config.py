@@ -32,12 +32,9 @@ class Settings(BaseSettings):
     DEBUG_MODE: str
     ENVIRONMENT: str
     
-    # Variables adicionales que pueden estar en el entorno
-    VITE_API_URL: str = "http://localhost:8000"
-    
     class Config:
         env_file = ".env"
         case_sensitive = True
-        extra = "ignore"  # Ignorar campos extra en lugar de fallar
+        extra = "ignore" 
         
 settings = Settings()

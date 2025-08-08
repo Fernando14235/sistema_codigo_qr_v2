@@ -8,6 +8,23 @@ import { Chart, ArcElement, Tooltip, Legend } from "chart.js";
 Chart.register(ArcElement, Tooltip, Legend);
 
 function SocialDashboard({ token, rol }) {
+  // Función para generar colores diferentes para cada opción de encuesta
+  const getOpcionColor = (index) => {
+    const colors = [
+      '#1976d2', // Azul
+      '#43a047', // Verde
+      '#e53935', // Rojo
+      '#fbc02d', // Amarillo
+      '#8e24aa', // Púrpura
+      '#00bcd4', // Cyan
+      '#ff9800', // Naranja
+      '#c2185b', // Rosa
+      '#3f51b5', // Índigo
+      '#009688'  // Teal
+    ];
+    return colors[index % colors.length];
+  };
+
   const [tab, setTab] = useState(rol === "admin" ? "admin" : "residente");
   const [publicaciones, setPublicaciones] = useState([]);
   const [filtros, setFiltros] = useState({ tipo_publicacion: "", estado: "", fecha: "" });
@@ -494,11 +511,41 @@ function SocialDashboard({ token, rol }) {
                         Ya votaste por: <b>{detalle.opciones.find(o => o.id === detalleVotoRealizado)?.texto || "-"}</b>
                       </div>
                     ) : (
-                      <>
-                        {detalle.opciones.map(op => (
-                          <button key={op.id} style={{marginRight:8,marginBottom:4}} onClick={()=>votarEnEncuesta(detalle.id, op.id)} disabled={!!detalleVotoRealizado}>{op.texto}</button>
+                        <div className="encuesta-opciones-container">
+                        {detalle.opciones.map((op, index) => (
+                          <button 
+                            key={op.id} 
+                            className="encuesta-opcion-btn"
+                            onClick={()=>votarEnEncuesta(detalle.id, op.id)} 
+                            disabled={!!detalleVotoRealizado}
+                            style={{
+                              background: `linear-gradient(135deg, ${getOpcionColor(index)}, ${getOpcionColor(index)}dd)`,
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '12px',
+                              padding: '12px 20px',
+                              margin: '8px 8px 8px 0',
+                              fontSize: '1em',
+                              fontWeight: 'bold',
+                              cursor: 'pointer',
+                              transition: 'all 0.3s ease',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                              minWidth: '120px',
+                              textAlign: 'center'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.transform = 'translateY(-2px)';
+                              e.target.style.boxShadow = '0 6px 20px rgba(0,0,0,0.25)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.transform = 'translateY(0)';
+                              e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                            }}
+                          >
+                            {op.texto}
+                          </button>
                         ))}
-                      </>
+                      </div>
                     )}
                   </>
                 )}

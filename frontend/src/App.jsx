@@ -9,6 +9,7 @@ import 'webrtc-adapter';
 import AdminDashboard from './AdminDashboard';
 import GuardiaDashboard from './GuardiaDashboard';
 import ResidenteDashboard from './ResidenteDashboard';
+import SuperAdminDashboard from './SuperAdminDashboard';
 import PWADownloadButton from './components/PWA/PWADownloadButton';
 import OfflineIndicator from './components/Offline/OfflineIndicator';
 
@@ -34,7 +35,6 @@ function Login({ onLogin, notification, setNotification }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [cargando, setCargando] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const isMounted = useRef(true);
 
   useEffect(() => {
@@ -78,49 +78,13 @@ function Login({ onLogin, notification, setNotification }) {
           onChange={e => setEmail(e.target.value)}
           required
         />
-        <div style={{ position: 'relative', width: '100%' }}>
-          <input
-            type={showPassword ? "text" : "password"}
-            placeholder="Contraseña"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            required
-            style={{ width: '100%', paddingRight: 40 }}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword(v => !v)}
-            style={{
-              position: 'absolute',
-              right: 8,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: 10,
-              color: '#1976d2',
-              padding: 0
-            }}
-            tabIndex={-1}
-            aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-          >
-            {/* Iconos profesionales: ojo abierto y ojo tachado */}
-            {showPassword ? (
-              // Ojo tachado SVG
-              <svg width="25" height="25" viewBox="0 5 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M1 1L23 23" stroke="#1976d2" strokeWidth="2"/>
-                <path d="M12 5C7 5 2.73 8.11 1 12C1.73 13.66 2.91 15.09 4.41 16.17M9.9 9.9C10.27 9.63 10.73 9.5 11.2 9.5C12.49 9.5 13.5 10.51 13.5 11.8C13.5 12.27 13.37 12.73 13.1 13.1M7.11 7.11C8.39 6.4 10.13 6 12 6C17 6 21.27 9.11 23 13C22.27 14.66 21.09 16.09 19.59 17.17" stroke="#1976d2" strokeWidth="2"/>
-              </svg>
-            ) : (
-              // Ojo abierto SVG
-              <svg width="25" height="25" viewBox="0 5 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <ellipse cx="12" cy="12" rx="10" ry="6" stroke="#1976d2" strokeWidth="2"/>
-                <circle cx="12" cy="12" r="2.5" fill="#1976d2"/>
-              </svg>
-            )}
-          </button>
-        </div>
+        <input
+          type="password"
+          placeholder="Contraseña"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          required
+        />
         <button type="submit" disabled={cargando}>{cargando ? "Entrando..." : "Entrar"}</button>
       </form>
       <Notification {...notification} onClose={() => setNotification({ message: "", type: "" })} />
@@ -182,8 +146,6 @@ function App() {
     }
   };
 
-  usePushNotificationToasts(setNotification);
-
   return (
     <Router>
       <div>
@@ -206,6 +168,10 @@ function App() {
           {token && rol === "residente" && [
             <Route key="residente-root" path="/" element={<ResidenteDashboard token={token} nombre={nombre}  onLogout={handleLogout} />} />,
             <Route key="residente-any" path="*" element={<ResidenteDashboard token={token} nombre={nombre} onLogout={handleLogout} />} />
+          ]}
+          {token && rol === "super_admin" && [
+            <Route key="super-admin-root" path="/" element={<SuperAdminDashboard token={token} nombre={nombre} onLogout={handleLogout} />} />,
+            <Route key="super-admin-any" path="*" element={<SuperAdminDashboard token={token} nombre={nombre} onLogout={handleLogout} />} />
           ]}
         </Routes>
       </div>

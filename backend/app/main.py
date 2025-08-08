@@ -139,11 +139,10 @@ def actualizar_usuario_endpoint(user_id: int, usuario_data: UsuarioUpdate, usuar
 
 # Eliminar usuario
 @app.delete('/delete_usuarios/admin/{id}', tags=["Usuarios"])
-def eliminar_usuario(id: int, usuario_actual=Depends(verify_role(["admin", "super_admin"])), db: Session = Depends(get_db)):
+def eliminar_usuario_endpoint(id: int, usuario_actual=Depends(verify_role(["admin", "super_admin"])), db: Session = Depends(get_db)):
     return eliminar_usuario(db, id, usuario_actual=usuario_actual)
 
 
 # Ruta absoluta a la carpeta de uploads
 UPLOADS_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../uploads'))
-
 app.mount("/uploads", StaticFiles(directory=UPLOADS_PATH), name="uploads")

@@ -8,19 +8,87 @@ import UserMenu from "./components/UI/UserMenu";
 import PerfilUsuario from "./PerfilUsuario";
 import ConfiguracionUsuario from "./ConfiguracionUsuario";
 import ResidenteDashboard from "./ResidenteDashboard";
-import pushNotificationService from './services/pwa/pushNotifications';
 Chart.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
-// Iconos
+// Componente para vista en pantalla completa del QR
+function QRFullscreen({ qrUrl, onClose }) {
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100vw',
+      height: '100vh',
+      backgroundColor: 'rgba(0, 0, 0, 0.9)',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 9999,
+      padding: '20px'
+    }}>
+      <button
+        onClick={onClose}
+        style={{
+          position: 'absolute',
+          top: '20px',
+          right: '20px',
+          background: 'rgba(255, 255, 255, 0.2)',
+          border: 'none',
+          color: 'white',
+          fontSize: '24px',
+          cursor: 'pointer',
+          borderRadius: '50%',
+          width: '50px',
+          height: '50px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+      >
+        ✕
+      </button>
+      <div style={{ textAlign: 'center', color: 'white', maxWidth: '90vw', maxHeight: '90vh' }}>
+        <h2 style={{ marginBottom: '20px', fontSize: '24px' }}>Código QR de Acceso</h2>
+        <img
+          src={qrUrl}
+          alt="QR de la visita"
+          style={{
+            maxWidth: '80vw',
+            maxHeight: '60vh',
+            objectFit: 'contain',
+            border: '4px solid white',
+            borderRadius: '16px',
+            backgroundColor: 'white'
+          }}
+        />
+        <p style={{ marginTop: '20px', fontSize: '16px', opacity: 0.8 }}>Presiona ESC o haz clic en X para cerrar</p>
+      </div>
+    </div>
+  );
+}
+
+// Iconos SVG modernos
 const DeleteIcon = () => (
-  <span title="Eliminar" style={{ color: "#e53935", cursor: "pointer", marginRight: 8 }}>
-    🗑️
-  </span>
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" fill="currentColor"/>
+  </svg>
 );
+
 const EditIcon = () => (
-  <span title="Editar" style={{ color: "#1976d2", cursor: "pointer" }}>
-    ✏️
-  </span>
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>
+  </svg>
 );
 
 // Notificación tipo tarjeta
@@ -35,27 +103,46 @@ function Notification({ message, type, onClose }) {
 }
 
 function MainMenu({ nombre, rol, onLogout, onSelectVista }) {
+  const menuItems = [
+    { id: "usuarios", title: "Gestión de Usuarios", icon: "👥", description: "Crear, editar y eliminar usuarios del sistema" },
+    { id: "crear", title: "Crear Usuario", icon: "➕", description: "Agregar nuevos usuarios al sistema" },
+    { id: "estadisticas", title: "Estadísticas", icon: "📊", description: "Ver estadísticas y reportes del sistema" },
+    { id: "escaneos", title: "Historial de Escaneos", icon: "📱", description: "Revisar todos los escaneos QR realizados" },
+    { id: "historial", title: "Historial de Visitas", icon: "📋", description: "Ver el historial completo de visitas" },
+    { id: "crear_visita", title: "Crear Visita", icon: "🏠", description: "Crear nuevas visitas para residentes" },
+    { id: "mis_visitas", title: "Mis Visitas", icon: "📋", description: "Gestionar visitas propias del administrador" },
+    { id: "social", title: "Social", icon: "💬", description: "Gestionar contenido social y comunicaciones" },
+    { id: "tickets", title: "Tickets de Soporte", icon: "🎫", description: "Gestionar tickets de soporte técnico" },
+    { id: "solicitudes", title: "Solicitudes Pendientes", icon: "⏳", description: "Revisar solicitudes de visita pendientes" }
+  ];
+
   return (
     <div className="main-menu">
       <div className="main-menu-header">
         <div>
-          <span className="main-menu-user">👤 {nombre}</span>
-          <span className="main-menu-role">{rol && `(${rol})`}</span>
+          <span className="main-menu-user">{nombre}</span>
+          <span className="main-menu-role">{rol}</span>
         </div>
-        <button className="logout-btn" onClick={onLogout}>Cerrar sesión</button>
+        <button className="logout-btn" onClick={onLogout}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.1 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z" fill="currentColor"/>
+          </svg>
+          Cerrar Sesión
+        </button>
       </div>
-      <h1 className="main-menu-title">Panel Principal</h1>
+      <h1 className="main-menu-title">Panel de Administración</h1>
       <div className="main-menu-cards">
-        <button className="main-menu-card" onClick={() => onSelectVista("usuarios")}>👥<div>Gestión de Usuarios</div></button>
-        <button className="main-menu-card" onClick={() => onSelectVista("crear")}>➕<div>Crear Usuario</div></button>
-        <button className="main-menu-card" onClick={() => onSelectVista("historial")}>📋<div>Historial de Visitas</div></button>
-        <button className="main-menu-card" onClick={() => onSelectVista("crear_visita")}>➕<div>Crear Visita</div></button>
-        <button className="main-menu-card" onClick={() => onSelectVista("mis_visitas")}>📋<div>Mis Visitas</div></button>
-        <button className="main-menu-card" onClick={() => onSelectVista("escaneos")}>🕒<div>Escaneos</div></button>
-        <button className="main-menu-card" onClick={() => onSelectVista("social")}>💬<div>Social</div></button>
-        <button className="main-menu-card" onClick={() => onSelectVista("tickets")}>🎫<div>Tickets</div></button>
-        <button className="main-menu-card" onClick={() => onSelectVista("solicitudes")}>📝<div>Solicitudes Pendientes</div></button>
-        <button className="main-menu-card" onClick={() => onSelectVista("estadisticas")}>📊<div>Estadísticas</div></button>
+        {menuItems.map((item) => (
+          <div
+            key={item.id}
+            className="main-menu-card"
+            onClick={() => onSelectVista(item.id)}
+          >
+            <div className="menu-card-icon">{item.icon}</div>
+            <h3 className="menu-card-title">{item.title}</h3>
+            <p className="menu-card-description">{item.description}</p>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -303,7 +390,9 @@ function FormCrearVisitaAdmin({ token, onSuccess, onCancel, setVista, usuario })
   const coloresVehiculo = ["Blanco", "Negro", "Rojo", "Azul", "Gris", "Verde", "Amarillo", "Plateado"];
   const [bloqueado, setBloqueado] = useState(false);
   const [qrUrl, setQrUrl] = useState(null);
+  const [qrCode, setQrCode] = useState(null);
   const [bloquearSalir, setBloquearSalir] = useState(false);
+  const [showQRFullscreen, setShowQRFullscreen] = useState(false);
 
   useEffect(() => {
     if (qrUrl) {
@@ -511,8 +600,9 @@ function FormCrearVisitaAdmin({ token, onSuccess, onCancel, setVista, usuario })
           <img
             src={qrUrl}
             alt="QR de la visita"
-            style={{width: 220, height: 220, objectFit: 'contain', border: '2px solid #1976d2', borderRadius: 12, background: '#fff', marginBottom: 10
-            }}
+            style={{width: 220, height: 220, objectFit: 'contain', border: '2px solid #1976d2', borderRadius: 12, background: '#fff', marginBottom: 10, cursor: 'pointer'}}
+            onClick={() => setShowQRFullscreen(true)}
+            title="Haz clic para ver en pantalla completa"
           />
           <br/>
           <button type ="button" onClick={handleDownloadQR} className="btn-primary" style={{ marginTop: 8 }}>Descargar QR  </button>
@@ -520,6 +610,9 @@ function FormCrearVisitaAdmin({ token, onSuccess, onCancel, setVista, usuario })
             Guarda este QR en su galería para mostrarlo en la entrada
           </div>
         </div>
+      )}
+      {showQRFullscreen && qrUrl && (
+        <QRFullscreen qrUrl={qrUrl} onClose={() => setShowQRFullscreen(false)} />
       )}
     </form>
   );

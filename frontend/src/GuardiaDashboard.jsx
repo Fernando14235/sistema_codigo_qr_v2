@@ -13,41 +13,64 @@ import DataStatusIndicator from "./components/Offline/DataStatusIndicator";
 function BtnRegresar({ onClick }) {
   return (
     <button className="btn-regresar" onClick={onClick}>
-      ← Regresar
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" fill="currentColor"/>
+      </svg>
+      Regresar al Menú
     </button>
   );
 }
 
-// Menú principal para guardia
+// Menú principal para guardia (diseño versión 1)
 function MainMenuGuardia({ nombre, rol, onLogout, onSelectVista }) {
+  const menuItems = [
+    { id: "entrada", title: "Registrar Entrada", icon: "🚪", description: "Escanear QR para registrar entrada de visitantes" },
+    { id: "salida", title: "Registrar Salida", icon: "🚗", description: "Escanear QR para registrar salida de visitantes" },
+    { id: "escaneos", title: "Mis Escaneos del Día", icon: "🕒", description: "Ver historial de escaneos realizados hoy" }
+  ];
+
   return (
-    <div className="guardia-main-menu">
-      <div className="guardia-main-menu-header">
+    <div className="main-menu">
+      <div className="main-menu-header">
         <div>
-          <span className="guardia-main-menu-user">👮 {nombre}</span>
+          <span className="main-menu-user">{nombre}</span>
+          <span className="main-menu-role">{rol}</span>
         </div>
-        <button className="logout-btn" onClick={onLogout}>Cerrar sesión</button>
+        <button className="logout-btn" onClick={onLogout}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.1 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z" fill="currentColor"/>
+          </svg>
+          Cerrar Sesión
+        </button>
       </div>
-      <h1 className="guardia-main-menu-title">Panel Guardia</h1>
-      <div className="guardia-main-menu-cards">
-        <button className="guardia-main-menu-card" onClick={() => onSelectVista("entrada")}>🚪<div>Registrar Entrada</div></button>
-        <button className="guardia-main-menu-card" onClick={() => onSelectVista("salida")}>🚗<div>Registrar Salida</div></button>
-        <button className="guardia-main-menu-card" onClick={() => onSelectVista("escaneos")}>🕒<div>Mis Escaneos del Día</div></button>
+      <h1 className="main-menu-title">Panel de Guardia</h1>
+      <div className="main-menu-cards">
+        {menuItems.map((item) => (
+          <div
+            key={item.id}
+            className="main-menu-card"
+            onClick={() => onSelectVista(item.id)}
+          >
+            <div className="menu-card-icon">{item.icon}</div>
+            <h3 className="menu-card-title">{item.title}</h3>
+            <p className="menu-card-description">{item.description}</p>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-// Tabla de escaneos del guardia
+// Tabla de escaneos del guardia (estilo versión 1)
 function TablaEscaneosGuardia({ escaneos }) {
   return (
-    <div className="guardia-section">
+    <div className="admin-section">
       <h3>Escaneos del día</h3>
       {escaneos.length === 0 ? (
         <p>No hay escaneos registrados hoy.</p>
       ) : (
         <div style={{ overflowX: "auto" }}>
-          <table className="guardia-table">
+          <table className="admin-table">
             <thead>
               <tr>
                 <th>Fecha</th>
@@ -123,7 +146,7 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
 
   // Renderizado de vistas
   return (
-    <div className="guardia-dashboard">
+    <div className="admin-dashboard">
       <UserMenu
         usuario={usuario || { nombre, rol: "guardia" }}
         ultimaConexion={usuario?.ult_conexion}
@@ -138,7 +161,7 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
           <MainMenuGuardia nombre={usuario?.nombre || nombre} rol={usuario?.rol} onLogout={onLogout} onSelectVista={setVista} />
         )}
         {vista === 'entrada' && (
-          <div className="guardia-section">
+          <section className="admin-section">
             <BtnRegresar onClick={() => setVista('menu')} />
             <h3>Registrar Entrada</h3>
             <button className="btn-primary" onClick={() => { setModoScanner("entrada"); setMostrarScanner(true); }}>
@@ -147,10 +170,10 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
             {mostrarScanner && modoScanner === "entrada" && (
               <QrScannerGuardia modo="entrada" token={token} onClose={() => { setMostrarScanner(false); setModoScanner(null); }} />
             )}
-          </div>
+          </section>
         )}
         {vista === 'salida' && (
-          <div className="guardia-section">
+          <section className="admin-section">
             <BtnRegresar onClick={() => setVista('menu')} />
             <h3>Registrar Salida</h3>
             <button className="btn-primary" onClick={() => { setModoScanner("salida"); setMostrarScanner(true); }}>
@@ -159,10 +182,10 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
             {mostrarScanner && modoScanner === "salida" && (
               <QrScannerGuardia modo="salida" token={token} onClose={() => { setMostrarScanner(false); setModoScanner(null); }} />
             )}
-          </div>
+          </section>
         )}
         {vista === 'escaneos' && (
-          <div className="guardia-section">
+          <section className="admin-section">
             <BtnRegresar onClick={() => setVista('menu')} />
             <h3>Mis Escaneos del Día</h3>
             {!isOnline && <OfflineMessage rol="guardia" />}
@@ -170,7 +193,7 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
             {cargando && <p>Cargando escaneos...</p>}
             {error && <p style={{ color: "red" }}>{error}</p>}
             {!cargando && <TablaEscaneosGuardia escaneos={escaneos} />}
-          </div>
+          </section>
         )}
       </div>
     </div>

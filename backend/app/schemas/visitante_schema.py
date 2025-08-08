@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, validator
 from typing import Optional
 
 class VisitanteCreate(BaseModel):
@@ -11,8 +11,37 @@ class VisitanteCreate(BaseModel):
     color_vehiculo: Optional[str] = None   # Nuevo campo
     motivo_visita: str
 
-    @field_validator("placa_vehiculo", mode='before')
-    @classmethod
+    @validator("dni_conductor", pre=True, always=True)
+    def default_dni(cls, v):
+        if not v or v.strip() == "":
+            return "no agregado"
+        return v
+
+    @validator("telefono", pre=True, always=True)
+    def default_telefono(cls, v):
+        if not v or v.strip() == "":
+            return "no agregado"
+        return v
+
+    @validator("tipo_vehiculo", pre=True, always=True)
+    def default_tipo_vehiculo(cls, v):
+        if not v or v.strip() == "":
+            return "no agregado"
+        return v
+
+    @validator("marca_vehiculo", pre=True, always=True)
+    def default_marca_vehiculo(cls, v):
+        if not v or v.strip() == "":
+            return "no agregado"
+        return v
+
+    @validator("color_vehiculo", pre=True, always=True)
+    def default_color_vehiculo(cls, v):
+        if not v or v.strip() == "":
+            return "no agregado"
+        return v
+
+    @validator("placa_vehiculo", pre=True, always=True)
     def default_placa(cls, v):
         if not v or v.strip() == "":
             return "sin placa"

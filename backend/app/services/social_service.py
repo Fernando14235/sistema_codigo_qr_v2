@@ -266,10 +266,16 @@ def crear_publicacion_service(db: Session, social_data: SocialCreate, imagenes: 
     try:
         imagen_urls = save_uploaded_images(imagenes)
         social = create_social(db, social_data, imagenes=imagen_urls, current_user=current_user)
+        
+        # Determinar a quién notificar
         if social_data.para_todos:
             notificar_a = 'todos'
+            residentes_especificos = None
         else:
+            # Si no es para todos, notificar solo a los residentes específicos seleccionados
             notificar_a = 'residente'
+            residentes_especificos = [dest.residente_id for dest in social_data.destinatarios] if social_data.destinatarios else []
+        
         try:
             enviar_notificacion_nueva_publicacion(
                 db=db,
@@ -277,13 +283,15 @@ def crear_publicacion_service(db: Session, social_data: SocialCreate, imagenes: 
                 contenido=social_data.contenido,
                 creador=current_user.nombre,
                 notificar_a=notificar_a,
-                residencial_id=current_user.residencial_id
+                residencial_id=current_user.residencial_id,
+                residentes_especificos=residentes_especificos
             )
+                
         except Exception as e:
-            pass
+            print(f"Error enviando alerta de nueva publicación: {e}")
         return social
     except Exception as e:
-        raise e
+        raise HTTPException(status_code=500, detail=str(e))
 
 def listar_publicaciones_service(db: Session, current_user: Usuario, tipo_publicacion: Optional[str], estado: Optional[str], fecha: Optional[str]):
     return get_social_list(

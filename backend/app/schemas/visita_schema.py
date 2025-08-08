@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, validator, field_validator
 from typing import Optional
 from datetime import datetime
 from .visitante_schema import VisitanteResponse, VisitanteCreate
@@ -7,24 +7,50 @@ from typing import List
 
 class SolicitudVisitaCreate(BaseModel):
     nombre_visitante: str = Field(..., description="Nombre del visitante")
-    dni_visitante: Optional[str] = Field("no agregado", description="DNI del visitante")
-    telefono_visitante: Optional[str] = Field("no agregado", description="Teléfono del visitante")
+    dni_visitante: Optional[str] = Field(None, description="DNI del visitante")
+    telefono_visitante: Optional[str] = Field(None, description="Teléfono del visitante")
     fecha_entrada: datetime = Field(..., description="Fecha y hora de entrada")
     motivo_visita: str = Field(..., description="Motivo de la visita")
     tipo_vehiculo: str = Field(..., description="Tipo de vehículo")
-    marca_vehiculo: Optional[str] = Field("no agregado", description="Marca del vehículo")
-    color_vehiculo: Optional[str] = Field("no agregado", description="Color del vehículo")
-    placa_vehiculo: Optional[str] = Field("sin placa", description="Placa del vehículo")
+    marca_vehiculo: Optional[str] = Field(None, description="Marca del vehículo")
+    color_vehiculo: Optional[str] = Field(None, description="Color del vehículo")
+    placa_vehiculo: Optional[str] = Field(None, description="Placa del vehículo")
 
-    @field_validator("dni_visitante", mode='before')
-    @classmethod
-    def set_dni_default(cls, v):
-        return v if v and v.strip() else "No agregado"
+    @validator("dni_visitante", pre=True, always=True)
+    def default_dni_visitante(cls, v):
+        if not v or v.strip() == "":
+            return "no agregado"
+        return v
     
-    @field_validator("telefono_visitante", mode='before')
-    @classmethod
-    def set_telefono_default(cls, v):
-        return v if v and v.strip() else "No agregado"
+    @validator("telefono_visitante", pre=True, always=True)
+    def default_telefono_visitante(cls, v):
+        if not v or v.strip() == "":
+            return "no agregado"
+        return v
+
+    @validator("tipo_vehiculo", pre=True, always=True)
+    def default_tipo_vehiculo(cls, v):
+        if not v or v.strip() == "":
+            return "no agregado"
+        return v
+
+    @validator("marca_vehiculo", pre=True, always=True)
+    def default_marca_vehiculo(cls, v):
+        if not v or v.strip() == "":
+            return "no agregado"
+        return v
+
+    @validator("color_vehiculo", pre=True, always=True)
+    def default_color_vehiculo(cls, v):
+        if not v or v.strip() == "":
+            return "no agregado"
+        return v
+
+    @validator("placa_vehiculo", pre=True, always=True)
+    def default_placa_vehiculo(cls, v):
+        if not v or v.strip() == "":
+            return "sin placa"
+        return v
 
 class VisitaCreate(BaseModel):
     visitantes: List[VisitanteCreate]
@@ -32,8 +58,7 @@ class VisitaCreate(BaseModel):
     fecha_entrada: Optional[datetime] = None
     acompanantes: Optional[List[str]] = None
 
-    @field_validator("fecha_entrada", mode='before')
-    @classmethod
+    @validator("fecha_entrada", pre=True)
     def parse_fecha_entrada(cls, v):
         if v == "" or v is None:
             return None
@@ -98,6 +123,7 @@ class VisitaResponse(BaseModel):
     qr_expiracion: datetime
     qr_code_img_base64: Optional[str] = ""
     tipo_creador: str
+    qr_url: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -139,8 +165,7 @@ class VisitaUpdate(BaseModel):
     acompanantes: Optional[List[str]] = None
     visitante: Optional[VisitanteCreate] = None
 
-    @field_validator("fecha_entrada", mode='before')
-    @classmethod
+    @validator("fecha_entrada", pre=True)
     def parse_fecha_entrada(cls, v):
         if v == "" or v is None:
             return None

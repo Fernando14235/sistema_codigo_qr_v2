@@ -3,7 +3,7 @@ import axios from "axios";
 import { API_URL } from "./api";
 import "./css/GuardiaDashboard.css";
 import './css/App.css';
-import './css/ResidenteDashboard.css'; // Agrega este import para los nuevos estilos
+import './css/ResidenteDashboard.css';
 import SocialDashboard from "./SocialDashboard";
 import UserMenu from "./components/UI/UserMenu";
 import PerfilUsuario from "./PerfilUsuario";
@@ -23,41 +23,42 @@ function Notification({ message, type, onClose }) {
 
 // Menú principal para residente
 function MainMenuResidente({ nombre, rol, onLogout, onSelectVista }) {
+  const menuItems = [
+    { id: "visitas", title: "Mis Visitas", icon: "📋", description: "Ver y gestionar tus visitas registradas" },
+    { id: "crear", title: "Crear Visita", icon: "➕", description: "Crear una nueva visita con QR automático" },
+    { id: "solicitar", title: "Solicitar Visita", icon: "📝", description: "Solicitar aprobación al administrador" },
+    { id: "tickets", title: "Tickets de Soporte", icon: "🎫", description: "Crear y gestionar tickets de soporte" },
+    { id: "social", title: "Social", icon: "💬", description: "Comunicaciones y contenido social" },
+    { id: "notificaciones", title: "Notificaciones", icon: "🔔", description: "Ver tus notificaciones del sistema" }
+  ];
+
   return (
     <div className="main-menu">
       <div className="main-menu-header">
         <div>
-          <span className="main-menu-user">👤 {nombre}</span>
-          <span className="main-menu-role">{rol && `(${rol})`}</span>
+          <span className="main-menu-user">{nombre}</span>
+          <span className="main-menu-role">{rol}</span>
         </div>
-        <button className="logout-btn" onClick={onLogout}>Cerrar sesión</button>
+        <button className="logout-btn" onClick={onLogout}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.1 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z" fill="currentColor"/>
+          </svg>
+          Cerrar Sesión
+        </button>
       </div>
-      <h1 className="main-menu-title">Panel Residente</h1>
+      <h1 className="main-menu-title">Panel de Residente</h1>
       <div className="main-menu-cards">
-        <button className="main-menu-card" onClick={() => onSelectVista("visitas")}>
-          <span>📋</span>
-          <div>Mis Visitas</div>
-        </button>
-        <button className="main-menu-card" onClick={() => onSelectVista("crear")}>
-          <span>➕</span>
-          <div>Crear Visita</div>
-        </button>
-        <button className="main-menu-card" onClick={() => onSelectVista("solicitar")}>
-          <span>📝</span>
-          <div>Solicitar Visita</div>
-        </button>
-        <button className="main-menu-card" onClick={() => onSelectVista("tickets")}>
-          <span>🎫</span>
-          <div>Tickets</div>
-        </button>
-        <button className="main-menu-card" onClick={() => onSelectVista("social")}>
-          <span>💬</span>
-          <div>Social</div>
-        </button>
-        <button className="main-menu-card" onClick={() => onSelectVista("notificaciones")}>
-          <span>🔔</span>
-          <div>Notificaciones</div>
-        </button>
+        {menuItems.map((item) => (
+          <div
+            key={item.id}
+            className="main-menu-card"
+            onClick={() => onSelectVista(item.id)}
+          >
+            <div className="menu-card-icon">{item.icon}</div>
+            <h3 className="menu-card-title">{item.title}</h3>
+            <p className="menu-card-description">{item.description}</p>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -67,7 +68,10 @@ function MainMenuResidente({ nombre, rol, onLogout, onSelectVista }) {
 function BtnRegresar({ onClick }) {
   return (
     <button className="btn-regresar" onClick={onClick}>
-      ← Regresar
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" fill="currentColor"/>
+      </svg>
+      Regresar al Menú
     </button>
   );
 }
@@ -256,7 +260,7 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
         visitantes: [{
           nombre_conductor,
           dni_conductor,
-          telefono: "+504" + telefono,
+          telefono: telefono.trim() ? "+504" + telefono : "",
           tipo_vehiculo,
           marca_vehiculo: tipo_vehiculo === "Bus" ? "No aplica" : marca_vehiculo,
           color_vehiculo,
@@ -324,16 +328,16 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
       </div>
       <div className="form-row">
         <label>DNI del visitante:</label>
-        <input type="text" value={dni_conductor} onChange={e => setDNIConductor(e.target.value)} disabled={bloqueado} />
+        <input type="text" value={dni_conductor} onChange={e => setDNIConductor(e.target.value)} disabled={bloqueado || !!qrUrl} />
       </div>
       <div className="form-row">
         <label>Teléfono:</label>
         <span className="input-prefix">+504</span>
-        <input placeholder="XXXXXXXX" value={telefono} onChange={handleTelefonoChange} maxLength={8} disabled={bloqueado} />
+        <input placeholder="XXXXXXXX" value={telefono} onChange={handleTelefonoChange} maxLength={8} disabled={bloqueado || !!qrUrl} />
       </div>
       <div className="form-row">
         <label>Tipo de vehículo:</label>
-        <select value={tipo_vehiculo} onChange={e => setTipoVehiculo(e.target.value)} required disabled={bloqueado}>
+        <select value={tipo_vehiculo} onChange={e => setTipoVehiculo(e.target.value)} disabled={bloqueado || !!qrUrl}>
           <option value="">Selecciona un tipo</option>
           {tiposVehiculo.map(tipo => (
             <option key={tipo} value={tipo}>{tipo}</option>
@@ -342,7 +346,7 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
       </div>
       <div className="form-row">
         <label>Marca del vehículo:</label>
-        <select value={marca_vehiculo} onChange={e => setMarcaVehiculo(e.target.value)} required disabled={bloqueado}>
+        <select value={marca_vehiculo} onChange={e => setMarcaVehiculo(e.target.value)} disabled={bloqueado || !!qrUrl}>
           <option value="">Selecciona una marca</option>
           {(marcasPorTipo[tipo_vehiculo] || []).map(marca => (
             <option key={marca} value={marca}>{marca}</option>
@@ -351,7 +355,7 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
       </div>
       <div className="form-row">
         <label>Color del vehículo:</label>
-        <select value={color_vehiculo} onChange={e => setColorVehiculo(e.target.value)} required disabled={bloqueado}>
+        <select value={color_vehiculo} onChange={e => setColorVehiculo(e.target.value)} disabled={bloqueado || !!qrUrl}>
           <option value="">Selecciona un color</option>
           {coloresVehiculo.map(color => (
             <option key={color} value={color}>{color}</option>
@@ -360,11 +364,11 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
       </div>
       <div className="form-row">
         <label>Placa del vehículo:</label>
-        <input type="text" value={placa_vehiculo} onChange={e => setPlacaVehiculo(e.target.value)} disabled={bloqueado} />
+        <input type="text" value={placa_vehiculo} onChange={e => setPlacaVehiculo(e.target.value)} disabled={bloqueado || !!qrUrl} />
       </div>
       <div className="form-row">
         <label>Motivo de la visita:</label>
-        <select value={motivo} onChange={e => setMotivo(e.target.value)} required disabled={bloqueado}>
+        <select value={motivo} onChange={e => setMotivo(e.target.value)} required disabled={bloqueado || !!qrUrl}>
           <option value="">Selecciona un motivo</option>
           {motivosVisita.map(m => (
             <option key={m} value={m}>{m}</option>
@@ -373,16 +377,16 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
       </div>
       <div className="form-row">
         <label>Fecha y hora de entrada:</label>
-        <input type="datetime-local" value={fecha_entrada} onChange={e => setFechaEntrada(e.target.value)} required disabled={bloqueado} />
+        <input type="datetime-local" value={fecha_entrada} onChange={e => setFechaEntrada(e.target.value)} required disabled={bloqueado || !!qrUrl} />
       </div>
       <div className="form-row">
         <label>Cantidad de acompañantes:</label>
-        <input type="number" min="0" max="10" value={cantidadAcompanantes} onChange={e => setCantidadAcompanantes(e.target.value)} disabled={bloqueado} />
+        <input type="number" min="0" max="10" value={cantidadAcompanantes} onChange={e => setCantidadAcompanantes(e.target.value)} disabled={bloqueado || !!qrUrl} />
       </div>
       {acompanantes.map((a, idx) => (
         <div className="form-row" key={idx}>
           <label>Nombre del acompañante #{idx + 1}:</label>
-          <input type="text" value={a} onChange={e => handleAcompananteChange(idx, e.target.value)} required disabled={bloqueado} />
+          <input type="text" value={a} onChange={e => handleAcompananteChange(idx, e.target.value)} required disabled={bloqueado || !!qrUrl} />
         </div>
       ))}
       {error && <div className="qr-error">{error}</div>}
@@ -459,7 +463,7 @@ function FormEditarVisitaResidente({ token, visita, onSuccess, onCancel, setVist
         visitante: {
           nombre_conductor,
           dni_conductor,
-          telefono: "+504" + telefono,
+          telefono: telefono.trim() ? "+504" + telefono : "",
           tipo_vehiculo,
           marca_vehiculo: tipo_vehiculo === "Bus" ? "No aplica" : marca_vehiculo,
           color_vehiculo,
@@ -492,20 +496,20 @@ function FormEditarVisitaResidente({ token, visita, onSuccess, onCancel, setVist
       <h2 className="crear-visita-title">Editar Visita</h2>
       <div className="form-row">
         <label>Nombre del visitante:</label>
-        <input type="text" value={nombre_conductor} onChange={e => setNombreConductor(e.target.value)} required disabled={bloqueadoEditar} />
+        <input type="text" value={nombre_conductor} onChange={e => setNombreConductor(e.target.value)} required disabled={cargando || bloqueadoEditar} />
       </div>
       <div className="form-row">
         <label>DNI del visitante:</label>
-        <input type="text" value={dni_conductor} onChange={e => setDNIConductor(e.target.value)} required disabled={bloqueadoEditar} />
+        <input type="text" value={dni_conductor} onChange={e => setDNIConductor(e.target.value)} disabled={cargando || bloqueadoEditar} />
       </div>
       <div className="form-row">
         <label>Teléfono:</label>
         <span className="input-prefix">+504</span>
-        <input placeholder="XXXXXXXX" value={telefono} onChange={handleTelefonoChange} required maxLength={8} disabled={bloqueadoEditar} />
+        <input placeholder="XXXXXXXX" value={telefono} onChange={handleTelefonoChange} maxLength={8} disabled={cargando || bloqueadoEditar} />
       </div>
       <div className="form-row">
         <label>Tipo de vehículo:</label>
-        <select value={tipo_vehiculo} onChange={e => setTipoVehiculo(e.target.value)} required disabled={bloqueadoEditar}>
+        <select value={tipo_vehiculo} onChange={e => setTipoVehiculo(e.target.value)} disabled={cargando || bloqueadoEditar}>
           <option value="">Selecciona un tipo</option>
           {tiposVehiculo.map(tipo => (
             <option key={tipo} value={tipo}>{tipo}</option>
@@ -514,7 +518,7 @@ function FormEditarVisitaResidente({ token, visita, onSuccess, onCancel, setVist
       </div>
       <div className="form-row">
         <label>Marca del vehículo:</label>
-        <select value={marca_vehiculo} onChange={e => setMarcaVehiculo(e.target.value)} required disabled={bloqueadoEditar}>
+        <select value={marca_vehiculo} onChange={e => setMarcaVehiculo(e.target.value)} disabled={cargando || bloqueadoEditar}>
           <option value="">Selecciona una marca</option>
           {(marcasPorTipo[tipo_vehiculo] || []).map(marca => (
             <option key={marca} value={marca}>{marca}</option>
@@ -523,7 +527,7 @@ function FormEditarVisitaResidente({ token, visita, onSuccess, onCancel, setVist
       </div>
       <div className="form-row">
         <label>Color del vehículo:</label>
-        <select value={color_vehiculo} onChange={e => setColorVehiculo(e.target.value)} required disabled={bloqueadoEditar}>
+        <select value={color_vehiculo} onChange={e => setColorVehiculo(e.target.value)} disabled={cargando || bloqueadoEditar}>
           <option value="">Selecciona un color</option>
           {coloresVehiculo.map(color => (
             <option key={color} value={color}>{color}</option>
@@ -532,11 +536,11 @@ function FormEditarVisitaResidente({ token, visita, onSuccess, onCancel, setVist
       </div>
       <div className="form-row">
         <label>Placa del vehículo:</label>
-        <input type="text" value={placa_vehiculo} onChange={e => setPlacaVehiculo(e.target.value)} disabled={bloqueadoEditar} />
+        <input type="text" value={placa_vehiculo} onChange={e => setPlacaVehiculo(e.target.value)} disabled={cargando || bloqueadoEditar} />
       </div>
       <div className="form-row">
         <label>Motivo de la visita:</label>
-        <select value={motivo} onChange={e => setMotivo(e.target.value)} required disabled={bloqueadoEditar}>
+        <select value={motivo} onChange={e => setMotivo(e.target.value)} required disabled={cargando || bloqueadoEditar}>
           <option value="">Selecciona un motivo</option>
           {motivosVisita.map(m => (
             <option key={m} value={m}>{m}</option>
@@ -545,14 +549,14 @@ function FormEditarVisitaResidente({ token, visita, onSuccess, onCancel, setVist
       </div>
       <div className="form-row">
         <label>Fecha y hora de entrada:</label>
-        <input type="datetime-local" value={fecha_entrada} onChange={e => setFechaEntrada(e.target.value)} required disabled={bloqueadoEditar} />
+        <input type="datetime-local" value={fecha_entrada} onChange={e => setFechaEntrada(e.target.value)} required disabled={cargando || bloqueadoEditar} />
       </div>
       {error && <div className="qr-error">{error}</div>}
       <div className="form-actions">
         <button className="btn-primary" type="submit" disabled={cargando || bloqueadoEditar}>
           {cargando ? "Guardando..." : "Guardar Cambios"}
         </button>
-        <button className="btn-regresar" type="button" onClick={onCancel} style={{ marginLeft: 10 }} disabled={bloqueadoEditar} >
+        <button className="btn-regresar" type="button" onClick={onCancel} style={{ marginLeft: 10 }} disabled={cargando || bloqueadoEditar} >
           Cancelar
         </button>
       </div>
@@ -652,7 +656,7 @@ const FormSolicitarVisita = ({ token, onSuccess, onCancel, setVista }) => {
       </div>
       <div className="form-row">
         <label>Tipo de vehículo:</label>
-        <select value={tipoVehiculo} onChange={e => setTipoVehiculo(e.target.value)} required disabled={cargando}>
+        <select value={tipoVehiculo} onChange={e => setTipoVehiculo(e.target.value)} disabled={cargando}>
           <option value="">Selecciona un tipo</option>
           {tiposVehiculo.map(tipo => (
             <option key={tipo} value={tipo}>{tipo}</option>
@@ -661,7 +665,7 @@ const FormSolicitarVisita = ({ token, onSuccess, onCancel, setVista }) => {
       </div>
       <div className="form-row">
         <label>Marca del vehículo:</label>
-        <select value={marcaVehiculo} onChange={e => setMarcaVehiculo(e.target.value)} required disabled={cargando}>
+        <select value={marcaVehiculo} onChange={e => setMarcaVehiculo(e.target.value)} disabled={cargando}>
           <option value="">Selecciona una marca</option>
           {(marcasPorTipo[tipoVehiculo] || []).map(marca => (
             <option key={marca} value={marca}>{marca}</option>
@@ -670,7 +674,7 @@ const FormSolicitarVisita = ({ token, onSuccess, onCancel, setVista }) => {
       </div>
       <div className="form-row">
         <label>Color del vehículo:</label>
-        <select value={colorVehiculo} onChange={e => setColorVehiculo(e.target.value)} required disabled={cargando}>
+        <select value={colorVehiculo} onChange={e => setColorVehiculo(e.target.value)} disabled={cargando}>
           <option value="">Selecciona un color</option>
           {coloresVehiculo.map(color => (
             <option key={color} value={color}>{color}</option>
@@ -709,9 +713,42 @@ const FormSolicitarVisita = ({ token, onSuccess, onCancel, setVista }) => {
 
 // Componente para listar tickets del residente
 function TablaTicketsResidente({ tickets, onVerDetalle }) {
+  // Detectar si la pantalla es pequeña
+  const isMobile = window.innerWidth < 700;
+
   if (!tickets || tickets.length === 0) {
     return <p style={{ textAlign: 'center', color: '#888' }}>No tienes tickets registrados.</p>;
   }
+
+  if (isMobile) {
+    return (
+      <div style={{ width: '100%', marginBottom: 20 }}>
+        <h3 style={{ marginTop: 0, color: '#1976d2' }}>Mis Tickets</h3>
+        <div className="tickets-cards-mobile">
+          {tickets.map(ticket => (
+            <div className="ticket-card-mobile" key={ticket.id}>
+              <div className="ticket-card-mobile-info">
+                <div><b>ID:</b> #{ticket.id}</div>
+                <div><b>Título:</b> {ticket.titulo}</div>
+                <div><b>Estado:</b> <span className={`ticket-estado-badge ${ticket.estado}`}>{ticket.estado}</span></div>
+                <div><b>Fecha:</b> {new Date(ticket.fecha_creacion).toLocaleString()}</div>
+              </div>
+              <div className="ticket-card-mobile-action">
+                <span
+                  onClick={() => onVerDetalle(ticket)}
+                  style={{ color: '#1976d2', cursor: 'pointer', fontSize: 28 }}
+                  title="Ver detalle"
+                >
+                  👁️
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ width: '100%', marginBottom: 20 }}>
       <h3 style={{ marginTop: 0, color: '#1976d2' }}>Mis Tickets</h3>
@@ -861,7 +898,7 @@ function TicketDetalleResidente({ ticket, onRegresar }) {
   );
 }
 
-// Formulario para crear ticket (igual/similar a crear visita)
+// Formulario para crear ticket
 function FormCrearTicketResidente({ token, onSuccess, onCancel }) {
   const [titulo, setTitulo] = useState("");
   const [descripcion, setDescripcion] = useState("");
@@ -966,7 +1003,6 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
   const [notification, setNotification] = useState({ message: "", type: "" });
   const [notificaciones, setNotificaciones] = useState([]);
   const [visitaEditar, setVisitaEditar] = useState(null);
-  // Estados para tickets
   const [tickets, setTickets] = useState([]);
   const [cargandoTickets, setCargandoTickets] = useState(false);
   const [vistaTicket, setVistaTicket] = useState("listado");

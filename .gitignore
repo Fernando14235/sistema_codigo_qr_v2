@@ -9,6 +9,7 @@ node_modules/
 .env.*
 frontend/.env
 backend/.env
+frontend/dist/
 
 # Ignorar archivos de configuración de IDEs
 backend/app/alembic.ini
@@ -52,6 +53,7 @@ backend/alembic/versions/
 *.bak
 *.tmp
 *~
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

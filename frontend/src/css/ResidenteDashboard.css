@@ -1,8 +1,9 @@
 .form-visita-residente {
-  background: #fff;
-  border-radius: 14px;
-  box-shadow: 0 2px 16px #0001;
+  background: white;
+  border-radius: 16px;
   padding: 32px 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e2e8f0;
   max-width: 480px;
   margin: 0 auto;
   display: flex;
@@ -17,31 +18,33 @@
 }
 
 .form-visita-residente label {
-  font-weight: 500;
+  font-weight: 600;
   margin-bottom: 4px;
-  color: #222;
+  color: #2d3748;
+  font-size: 0.95em;
 }
 
 .form-visita-residente input,
 .form-visita-residente select {
-  padding: 8px 10px;
-  border: 1px solid #bbb;
-  border-radius: 6px;
-  font-size: 1em;
-  background: #f8f8f8;
-  transition: border 0.2s;
+  padding: 14px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 0.95em;
+  background: white;
+  transition: all 0.3s ease;
 }
 
 .form-visita-residente input:focus,
 .form-visita-residente select:focus {
-  border: 1.5px solid #1976d2;
   outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .form-visita-residente .input-prefix {
   margin-right: 4px;
   font-weight: bold;
-  color: #1976d2;
+  color: #667eea;
 }
 
 .form-actions {
@@ -52,13 +55,14 @@
 }
 
 .qr-error {
-  color: #fff;
-  background: #d32f2f;
-  padding: 10px 18px;
-  border-radius: 8px;
+  background: linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%);
+  color: #c53030;
+  padding: 12px 16px;
+  border-radius: 12px;
   margin-bottom: 16px;
-  font-weight: bold;
+  font-weight: 600;
   text-align: center;
+  border: 1px solid #feb2b2;
 }
 
 .notificaciones-section {
@@ -73,41 +77,68 @@
 }
 
 .notificacion-card {
-  background: #f6f8fa;
-  border-radius: 10px;
-  box-shadow: 0 1px 6px #0001;
-  padding: 18px 18px 12px 18px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  padding: 20px;
   margin-bottom: 16px;
-  border-left: 4px solid #1976d2;
-  transition: box-shadow 0.2s;
+  border: 2px solid #e2e8f0;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.notificacion-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+}
+
+.notificacion-card:hover::before {
+  transform: scaleX(1);
 }
 
 .notificacion-card:hover {
-  box-shadow: 0 4px 16px #1976d233;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+  border-color: #cbd5e0;
 }
 
 .notificacion-titulo {
-  font-weight: bold;
-  color: #1976d2;
-  margin-bottom: 6px;
+  font-weight: 700;
+  color: #2d3748;
+  margin-bottom: 8px;
   font-size: 1.1em;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .notificacion-mensaje {
-  color: #222;
-  margin-bottom: 8px;
+  color: #4a5568;
+  margin-bottom: 12px;
+  line-height: 1.5;
 }
 
 .notificacion-fecha {
-  color: #888;
-  font-size: 0.95em;
+  color: #718096;
+  font-size: 0.9em;
   text-align: right;
+  font-weight: 500;
 }
 
 .notificacion-vacia {
-  color: #888;
+  color: #718096;
   text-align: center;
   margin: 32px 0;
+  font-style: italic;
 }
 
 @media (max-width: 600px) {
@@ -129,17 +160,92 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 2px 12px #1976d233;
-    padding: 18px 14px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    padding: 20px;
     gap: 12px;
+    border: 2px solid #e2e8f0;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .visita-card-mobile::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+  }
+  .visita-card-mobile:hover::before {
+    transform: scaleX(1);
+  }
+  .visita-card-mobile:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+    border-color: #cbd5e0;
   }
   .visita-card-mobile-info {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 8px;
     font-size: 1em;
+    flex: 1;
+  }
+  .visita-card-header {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .visita-estado-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 0.8em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .visita-estado-badge[data-estado="pendiente"] {
+    background: #fed7d7;
+    color: #c53030;
+    border: 1px solid #feb2b2;
+  }
+  .visita-estado-badge[data-estado="solicitada"] {
+    background: #fef5e7;
+    color: #d69e2e;
+    border: 1px solid #fbd38d;
+  }
+  .visita-estado-badge[data-estado="aprobada"] {
+    background: #e6fffa;
+    color: #234e52;
+    border: 1px solid #81e6d9;
+  }
+  .visita-estado-badge[data-estado="rechazada"] {
+    background: #fed7d7;
+    color: #c53030;
+    border: 1px solid #feb2b2;
+  }
+  .visita-expiracion-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 0.8em;
+    font-weight: 600;
+  }
+  .visita-expiracion-badge[data-expiracion="N"] {
+    background: #e6fffa;
+    color: #234e52;
+    border: 1px solid #81e6d9;
+  }
+  .visita-expiracion-badge[data-expiracion="S"] {
+    background: #fed7d7;
+    color: #c53030;
+    border: 1px solid #feb2b2;
   }
   .visita-card-mobile-action {
     display: flex;
@@ -147,6 +253,90 @@
     justify-content: flex-end;
     min-width: 40px;
     height: 100%;
+  }
+  
+  /* Estilos para tarjetas de tickets móviles */
+  .tickets-cards-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin: 0 0 18px 0;
+  }
+  .ticket-card-mobile {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    padding: 20px;
+    gap: 12px;
+    border: 2px solid #e2e8f0;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .ticket-card-mobile::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+  }
+  .ticket-card-mobile:hover::before {
+    transform: scaleX(1);
+  }
+  .ticket-card-mobile:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+    border-color: #cbd5e0;
+  }
+  .ticket-card-mobile-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 1em;
+    flex: 1;
+  }
+  .ticket-card-mobile-action {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    min-width: 40px;
+    height: 100%;
+  }
+  .ticket-estado-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 0.8em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .ticket-estado-badge.pendiente {
+    background: #fed7d7;
+    color: #c53030;
+    border: 1px solid #feb2b2;
+  }
+  .ticket-estado-badge.en_proceso {
+    background: #fef5e7;
+    color: #d69e2e;
+    border: 1px solid #fbd38d;
+  }
+  .ticket-estado-badge.resuelto {
+    background: #e6fffa;
+    color: #234e52;
+    border: 1px solid #81e6d9;
+  }
+  .ticket-estado-badge.cerrado {
+    background: #edf2f7;
+    color: #4a5568;
+    border: 1px solid #cbd5e0;
   }
 }
 
