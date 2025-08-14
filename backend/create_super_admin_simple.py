@@ -44,14 +44,14 @@ os.environ.setdefault("EMAIL_USE_TLS", "true")
 os.environ.setdefault("FRONTEND_URL", "http://localhost:3000")
 
 # Configuración del Super Admin
-SUPER_ADMIN_NOMBRE = "Super Administrador"
-SUPER_ADMIN_EMAIL = "nandix2004@gmail.com"
-SUPER_ADMIN_PASSWORD = "Supernandix123!"
-SUPER_ADMIN_TELEFONO = "+50494634671"
+SUPER_ADMIN_NOMBRE = "FERVELA"
+SUPER_ADMIN_EMAIL = "josevelasquez9463@gmail.com"
+SUPER_ADMIN_PASSWORD = "Superadmin123!"
+SUPER_ADMIN_TELEFONO = "+50498781721"
 
 def create_super_admin():
     """Crea un super administrador en el sistema"""
-    print("🏗️  Creando Super Administrador para Residencial Access")
+    print("🏗️  Creando Super Administrador para Residencial Access con la cuenta de Hared")
     print("=" * 60)
     
     try:
@@ -61,10 +61,10 @@ def create_super_admin():
             Usuario.rol == Rol.super_admin
         ).first()
         
-        if existing_super_admin:
-            print(f"⚠️  Ya existe un super administrador con email: {existing_super_admin.email}")
-            print("   Si deseas crear uno nuevo, elimina el existente primero.")
-            return False
+        # if existing_super_admin:
+        #     print(f"⚠️  Ya existe un super administrador con email: {existing_super_admin.email}")
+        #     print("   Si deseas crear uno nuevo, elimina el existente primero.")
+        #     return False
         
         # Crear el usuario super admin
         password_hash = get_password_hash(SUPER_ADMIN_PASSWORD)

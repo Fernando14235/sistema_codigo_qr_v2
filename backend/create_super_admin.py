@@ -9,10 +9,10 @@ from app.core.config import settings
 
 def create_super_admin():
     super_admin_data = {
-        "nombre": "ADMIN",
-        "email": "nandix2004@gmail.com",
-        "password": "Supernandix2004",  # Cambia esta contraseña
-        "telefono": "+50494634671"
+        "nombre": "HARED MEZA",
+        "email": "haredmeza@tekhnosupport.com",
+        "password": "Superadmin123",  # Cambia esta contraseña
+        "telefono": "+50494745358"
     }
     db = SessionLocal()
     

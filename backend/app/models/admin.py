@@ -14,3 +14,4 @@ class Administrador(Base):
     usuario = relationship("Usuario", back_populates="admin")
     residencial = relationship("Residencial", back_populates="administradores")
     visitas = relationship("Visita", back_populates="admin")
+    vistas_admin = relationship("VistaAdmin", back_populates="admin", cascade="all, delete-orphan")

@@ -102,7 +102,7 @@ function Notification({ message, type, onClose }) {
   );
 }
 
-function MainMenu({ nombre, rol, onLogout, onSelectVista }) {
+function MainMenu({ nombre, rol, onLogout, onSelectVista, vistasDisponibles, isVistaDisponible }) {
   const menuItems = [
     { id: "usuarios", title: "Gestión de Usuarios", icon: "👥", description: "Crear, editar y eliminar usuarios del sistema" },
     { id: "crear", title: "Crear Usuario", icon: "➕", description: "Agregar nuevos usuarios al sistema" },
@@ -115,6 +115,9 @@ function MainMenu({ nombre, rol, onLogout, onSelectVista }) {
     { id: "tickets", title: "Tickets de Soporte", icon: "🎫", description: "Gestionar tickets de soporte técnico" },
     { id: "solicitudes", title: "Solicitudes Pendientes", icon: "⏳", description: "Revisar solicitudes de visita pendientes" }
   ];
+
+  // Filtrar solo las vistas disponibles
+  const menuItemsDisponibles = menuItems.filter(item => isVistaDisponible(item.id));
 
   return (
     <div className="main-menu">
@@ -132,17 +135,24 @@ function MainMenu({ nombre, rol, onLogout, onSelectVista }) {
       </div>
       <h1 className="main-menu-title">Panel de Administración</h1>
       <div className="main-menu-cards">
-        {menuItems.map((item) => (
-          <div
-            key={item.id}
-            className="main-menu-card"
-            onClick={() => onSelectVista(item.id)}
-          >
-            <div className="menu-card-icon">{item.icon}</div>
-            <h3 className="menu-card-title">{item.title}</h3>
-            <p className="menu-card-description">{item.description}</p>
+        {menuItemsDisponibles.length > 0 ? (
+          menuItemsDisponibles.map((item) => (
+            <div
+              key={item.id}
+              className="main-menu-card"
+              onClick={() => onSelectVista(item.id)}
+            >
+              <div className="menu-card-icon">{item.icon}</div>
+              <h3 className="menu-card-title">{item.title}</h3>
+              <p className="menu-card-description">{item.description}</p>
+            </div>
+          ))
+        ) : (
+          <div className="no-vistas-disponibles">
+            <p>No tienes vistas disponibles configuradas.</p>
+            <p>Contacta al super administrador para configurar tus permisos.</p>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
@@ -1404,12 +1414,76 @@ function AdminDashboard({ token, nombre, onLogout }) {
   const [busquedaTicket, setBusquedaTicket] = useState("");
   const [cargandoTickets, setCargandoTickets] = useState(false);
 
+  // Estados para vistas del administrador
+  const [vistasDisponibles, setVistasDisponibles] = useState([]);
+  const [cargandoVistas, setCargandoVistas] = useState(true);
+
   // Obtener datos completos del usuario autenticado
   useEffect(() => {
     axios.get(`${API_URL}/usuario/actual`, {
       headers: { Authorization: `Bearer ${token}` }
     }).then(res => setUsuario(res.data)).catch(() => {});
   }, [token]);
+
+  // Cargar vistas disponibles para el administrador
+  useEffect(() => {
+    const cargarVistasAdmin = async () => {
+      setCargandoVistas(true);
+      try {
+        const res = await axios.get(`${API_URL}/vistas/mi-configuracion`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setVistasDisponibles(res.data || []);
+      } catch (err) {
+        console.error("Error al cargar vistas:", err);
+        // Si hay error, permitir todas las vistas por defecto
+        setVistasDisponibles([]);
+      }
+      setCargandoVistas(false);
+    };
+
+    if (token) {
+      cargarVistasAdmin();
+    }
+  }, [token]);
+
+  // Función para verificar si una vista está disponible
+  const isVistaDisponible = (nombreVista) => {
+    // Si está cargando, permitir acceso por defecto
+    if (cargandoVistas) return true;
+    
+    // Si no hay vistas configuradas, permitir todas por defecto
+    if (!vistasDisponibles || vistasDisponibles.length === 0) return true;
+    
+    // Mapeo de nombres de vistas del frontend a nombres del backend
+    const mapeoVistas = {
+      'usuarios': ['Usuarios', 'Gestión de Usuarios', 'usuarios'],
+      'crear': ['Crear Usuario', 'Crear Usuarios', 'crear'],
+      'historial': ['Historial', 'Historial de Visitas', 'historial'],
+      'estadisticas': ['Estadísticas', 'Dashboard', 'estadisticas'],
+      'escaneos': ['Escaneos', 'Historial de Escaneos', 'Registro de Escaneos', 'escaneos'],
+      'social': ['Social', 'Publicaciones', 'social'],
+      'crear_visita': ['Crear Visita', 'Crear Visitas', 'crear_visita'],
+      'mis_visitas': ['Mis Visitas', 'Gestión de Visitas', 'mis_visitas'],
+      'solicitudes': ['Solicitudes', 'Solicitudes Pendientes', 'solicitudes'],
+      'tickets': ['Tickets', 'Tickets de Soporte', 'Soporte', 'tickets']
+    };
+
+    const nombresBackend = mapeoVistas[nombreVista] || [nombreVista];
+    
+    // Buscar coincidencia exacta o parcial
+    const vistaEncontrada = vistasDisponibles.find(vista => 
+      vista.activa && nombresBackend.some(nombre => {
+        const nombreLower = nombre.toLowerCase();
+        const vistaNombreLower = vista.nombre.toLowerCase();
+        return vistaNombreLower.includes(nombreLower) || 
+               nombreLower.includes(vistaNombreLower) ||
+               vistaNombreLower === nombreLower;
+      })
+    );
+    
+    return !!vistaEncontrada;
+  };
 
   // Cargar usuarios con filtros y orden
   const cargarUsuarios = async () => {
@@ -1673,9 +1747,16 @@ function AdminDashboard({ token, nombre, onLogout }) {
         {vista === 'perfil' && <PerfilUsuario usuario={usuario} onRegresar={() => setVista('menu')} />}
         {vista === 'config' && <ConfiguracionUsuario onRegresar={() => setVista('menu')} usuario={{ id: 1, rol: 'admin' }} />}
         {vista === 'menu' && (
-          <MainMenu nombre={usuario?.nombre || nombre} rol={usuario?.rol} onLogout={onLogout} onSelectVista={setVista} />
+          <MainMenu 
+            nombre={usuario?.nombre || nombre} 
+            rol={usuario?.rol} 
+            onLogout={onLogout} 
+            onSelectVista={setVista}
+            vistasDisponibles={vistasDisponibles}
+            isVistaDisponible={isVistaDisponible}
+          />
         )}
-        {vista === 'usuarios' && (
+        {vista === 'usuarios' && isVistaDisponible('usuarios') && (
           <section className="admin-section">
             <BtnRegresar onClick={() => setVista('menu')} />
             <h3>Usuarios</h3>
@@ -1742,13 +1823,13 @@ function AdminDashboard({ token, nombre, onLogout }) {
               )}
           </section>
         )}
-        {vista === 'crear' && (
+        {vista === 'crear' && isVistaDisponible('crear') && (
           <section className="admin-section">
             <BtnRegresar onClick={() => setVista('menu')} />
             <CrearUsuario token={token} onUsuarioCreado={cargarUsuarios} usuarioEditar={usuarioEditar} setUsuarioEditar={setUsuarioEditar} />
           </section>
         )}
-        {vista === 'historial' && (
+        {vista === 'historial' && isVistaDisponible('historial') && (
           <section className="admin-section">
             <BtnRegresar onClick={() => setVista('menu')} />
             <h3>Historial de Visitas</h3>
@@ -1821,7 +1902,7 @@ function AdminDashboard({ token, nombre, onLogout }) {
               )}
           </section>
         )}
-        {vista === 'estadisticas' && estadisticas && (
+        {vista === 'estadisticas' && estadisticas && isVistaDisponible('estadisticas') && (
           <section className="admin-section">
             <BtnRegresar onClick={() => setVista('menu')} />
             <h3>📊 Estadísticas Generales</h3>
@@ -1961,7 +2042,7 @@ function AdminDashboard({ token, nombre, onLogout }) {
             </div>
           </section>
         )}
-        {vista === 'escaneos' && (
+        {vista === 'escaneos' && isVistaDisponible('escaneos') && (
           <section className="admin-section">
             <BtnRegresar onClick={() => setVista('menu')} />
             <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
@@ -1981,13 +2062,13 @@ function AdminDashboard({ token, nombre, onLogout }) {
             )}
           </section>
         )}
-        {vista === 'social' && (
+        {vista === 'social' && isVistaDisponible('social') && (
           <section className="admin-section">
             <BtnRegresar onClick={() => setVista('menu')} />
             <SocialDashboard token={token} rol={usuario?.rol || "admin"} />
           </section>
         )}
-        {vista === 'crear_visita' && (
+        {vista === 'crear_visita' && isVistaDisponible('crear_visita') && (
           <section className="admin-section">
             <BtnRegresar onClick={() => setVista('menu')} />
             <h2 className="crear-visita-title">Crear Nueva Visita</h2>
@@ -2003,7 +2084,7 @@ function AdminDashboard({ token, nombre, onLogout }) {
             />
           </section>
         )}
-        {vista === 'mis_visitas' && !visitaEditar && (
+        {vista === 'mis_visitas' && !visitaEditar && isVistaDisponible('mis_visitas') && (
           <section className="admin-section">
             <BtnRegresar onClick={() => setVista('menu')} />
             <TablaVisitasAdmin 
@@ -2013,7 +2094,7 @@ function AdminDashboard({ token, nombre, onLogout }) {
             />
           </section>
         )}
-        {vista === 'mis_visitas' && visitaEditar && (
+        {vista === 'mis_visitas' && visitaEditar && isVistaDisponible('mis_visitas') && (
           <section className="admin-section">
             <BtnRegresar onClick={() => { setVisitaEditar(null); setVista('mis_visitas'); }} />
             <FormEditarVisitaAdmin
@@ -2028,7 +2109,7 @@ function AdminDashboard({ token, nombre, onLogout }) {
             />
           </section>
         )}
-        {vista === 'solicitudes' && (
+        {vista === 'solicitudes' && isVistaDisponible('solicitudes') && (
           <section className="admin-section">
             <BtnRegresar onClick={() => setVista('menu')} />
             <SolicitudesPendientes
@@ -2040,7 +2121,7 @@ function AdminDashboard({ token, nombre, onLogout }) {
             />
           </section>
         )}
-        {vista === 'tickets' && (
+        {vista === 'tickets' && isVistaDisponible('tickets') && (
           <section className="admin-section">
             <BtnRegresar onClick={() => setVista('menu')} />
             <h3>🎫 Gestión de Tickets</h3>
@@ -2082,7 +2163,7 @@ function AdminDashboard({ token, nombre, onLogout }) {
           </section>
         )}
         
-        {vista === 'ticket_detalle' && ticketDetalle && (
+        {vista === 'ticket_detalle' && ticketDetalle && isVistaDisponible('tickets') && (
           <section className="admin-section">
             <BtnRegresar onClick={() => { setTicketDetalle(null); setVista('tickets'); }} />
             <TicketDetalle 
@@ -2093,7 +2174,7 @@ function AdminDashboard({ token, nombre, onLogout }) {
           </section>
         )}
         
-        {vista === 'ticket_actualizar' && ticketActualizar && (
+        {vista === 'ticket_actualizar' && ticketActualizar && isVistaDisponible('tickets') && (
           <section className="admin-section">
             <BtnRegresar onClick={() => { setTicketActualizar(null); setVista('tickets'); }} />
             <FormActualizarTicket 

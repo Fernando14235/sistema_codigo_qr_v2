@@ -15,4 +15,5 @@ class Residencial(Base):
     usuarios = relationship("Usuario", back_populates="residencial")
     administradores = relationship("Administrador", back_populates="residencial")
     residentes = relationship("Residente", back_populates="residencial")
-    guardias = relationship("Guardia", back_populates="residencial") 
+    guardias = relationship("Guardia", back_populates="residencial")
+    vistas_residencial = relationship("VistaResidencial", back_populates="residencial", cascade="all, delete-orphan")

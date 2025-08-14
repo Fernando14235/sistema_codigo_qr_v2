@@ -1,0 +1,441 @@
+.gestionar-vistas-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.gestionar-vistas-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #e0e0e0;
+  flex-wrap: wrap;
+}
+
+.gestionar-vistas-header h2 {
+  margin: 0;
+  color: #000000;
+  font-size: 1.8rem;
+}
+
+.btn-regresar {
+  background: #6c757d;
+  color: white;
+  border: 1px solid #5a6268;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.btn-regresar:hover {
+  background: #5a6268;
+  border-color: #4e555b;
+  transform: translateX(-2px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-crear-vistas {
+  background: #4caf50;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  margin-left: auto;
+}
+
+.btn-crear-vistas:hover {
+  background: #45a049;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+}
+
+.gestionar-vistas-content {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+/* Sección de residenciales */
+.residenciales-section h3 {
+  color: #333;
+  margin-bottom: 15px;
+  font-size: 1.4rem;
+}
+
+.residenciales-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.residencial-card {
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.residencial-card:hover {
+  border-color: #1976d2;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.15);
+}
+
+.residencial-card.selected {
+  border-color: #1976d2;
+  background: #f3f8ff;
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.2);
+}
+
+.residencial-card h4 {
+  margin: 0 0 8px 0;
+  color: #1976d2;
+  font-size: 1.2rem;
+}
+
+.residencial-card p {
+  margin: 0 0 12px 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.residencial-stats {
+  display: flex;
+  gap: 15px;
+  font-size: 0.85rem;
+  color: #888;
+}
+
+/* Sección de vistas */
+.vistas-residencial-section,
+.vistas-admin-section {
+  background: #f9f9f9;
+  border-radius: 12px;
+  padding: 25px;
+  border: 1px solid #e0e0e0;
+}
+
+.vistas-residencial-section h3,
+.vistas-admin-section h3 {
+  color: #1976d2;
+  margin: 0 0 20px 0;
+  font-size: 1.3rem;
+}
+
+.vistas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 15px;
+}
+
+.vista-card {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.vista-card:hover {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  transform: translateY(-1px);
+}
+
+.vista-info h4 {
+  margin: 0 0 8px 0;
+  color: #333;
+  font-size: 1.1rem;
+}
+
+.vista-info p {
+  margin: 0 0 10px 0;
+  color: #666;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.vista-status {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.vista-status.configurada {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.vista-status.default {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.vista-status.bloqueada {
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ef5350;
+}
+
+.vista-status-container {
+  margin-top: 8px;
+}
+
+/* Switch toggle */
+.vista-toggle {
+  margin-left: 15px;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #1976d2;
+}
+
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+
+/* Estilos para vistas bloqueadas */
+.vista-card.bloqueada {
+  opacity: 0.6;
+  background: #fafafa;
+  border-color: #e0e0e0;
+}
+
+.vista-card.bloqueada .vista-info h4 {
+  color: #757575;
+}
+
+.vista-card.bloqueada .vista-info p {
+  color: #9e9e9e;
+}
+
+/* Switch deshabilitado */
+.switch.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.switch.disabled input {
+  cursor: not-allowed;
+}
+
+.switch.disabled .slider {
+  cursor: not-allowed;
+  background-color: #e0e0e0;
+}
+
+.switch.disabled input:checked + .slider {
+  background-color: #bdbdbd;
+}
+
+/* Información de jerarquía */
+.jerarquia-info {
+  background: #e3f2fd;
+  border: 1px solid #2196f3;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 20px;
+}
+
+.jerarquia-info p {
+  margin: 0;
+  color: #1565c0;
+  font-size: 0.9rem;
+}
+
+/* Sección de administradores */
+.admins-section h3 {
+  color: #333;
+  margin-bottom: 15px;
+  font-size: 1.3rem;
+}
+
+.admins-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.admin-card {
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.admin-card:hover {
+  border-color: #4caf50;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(76, 175, 80, 0.15);
+}
+
+.admin-card.selected {
+  border-color: #4caf50;
+  background: #f1f8e9;
+  box-shadow: 0 4px 8px rgba(76, 175, 80, 0.2);
+}
+
+.admin-card h4 {
+  margin: 0 0 6px 0;
+  color: #4caf50;
+  font-size: 1.1rem;
+}
+
+.admin-card p {
+  margin: 0 0 4px 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.admin-card span {
+  color: #888;
+  font-size: 0.85rem;
+}
+
+/* Estados de carga */
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+  font-style: italic;
+}
+
+/* Mensaje cuando no hay vistas disponibles */
+.no-vistas-disponibles {
+  text-align: center;
+  padding: 40px;
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  color: #856404;
+}
+
+.no-vistas-disponibles p {
+  margin: 8px 0;
+}
+
+/* Mensaje cuando no hay residenciales */
+.no-residenciales {
+  text-align: center;
+  padding: 40px;
+  background: #f8f9fa;
+  border: 2px dashed #dee2e6;
+  border-radius: 12px;
+  color: #6c757d;
+  grid-column: 1 / -1;
+}
+
+.no-residenciales p {
+  margin: 8px 0;
+  font-size: 1rem;
+}
+
+.no-residenciales p:first-child {
+  font-weight: 600;
+  color: #495057;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .gestionar-vistas-container {
+    padding: 15px;
+  }
+  
+  .gestionar-vistas-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  
+  .residenciales-grid,
+  .vistas-grid,
+  .admins-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .vista-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  
+  .vista-toggle {
+    margin-left: 0;
+    align-self: flex-end;
+  }
+}
+
+@media (max-width: 480px) {
+  .gestionar-vistas-header h2 {
+    font-size: 1.5rem;
+  }
+  
+  .vista-card {
+    padding: 15px;
+  }
+  
+  .residencial-stats {
+    flex-direction: column;
+    gap: 5px;
+  }
+}
