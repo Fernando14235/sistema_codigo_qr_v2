@@ -2,6 +2,18 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import './css/index.css';
 import App from './App';
+import { registerSW } from 'virtual:pwa-register';
+
+const updateSW = registerSW({
+  onNeedRefresh() {
+    if (confirm("Hay una nueva versión disponible. ¿Quieres actualizar ahora?")) {
+      updateSW(true);
+    }
+  },
+  onOfflineReady() {
+    console.log("La app está lista para usarse offline 🚀");
+  },
+});
 
 ReactDOM.render(
   <React.StrictMode>
