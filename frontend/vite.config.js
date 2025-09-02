@@ -12,7 +12,7 @@ export default defineConfig({
     host: true,
     port: process.env.PORT || 4173,
     allowedHosts: [
-      "alluring-contentment-production.up.railway.app"
+      "exquisite-healing-production.up.railway.app"
     ]
   },
   plugins: [
@@ -65,7 +65,6 @@ export default defineConfig({
               cacheName: 'google-fonts-webfonts',
             },
           },
-          // Cache para datos de la API
           {
             urlPattern: /.*\/admin\/estadisticas/,
             handler: 'NetworkFirst',
@@ -131,17 +130,7 @@ export default defineConfig({
             },
           },
         ],
-        // Background sync para acciones offline
-        backgroundSync: {
-          name: 'residencial-sync',
-          options: {
-            maxRetentionTime: 86400, // 24 horas
-          },
-        },
       }
     })
   ],
-  server: {
-    port: 3000
-  }
 });
