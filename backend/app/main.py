@@ -5,7 +5,7 @@ from app.database import SessionLocal
 from typing import Optional, List
 from app.routers import auth, usuarios, visitas, notificaciones, historial_visitas, estadisticas, sociales, tickets, residenciales, super_admin, vistas
 from app.services.user_service import crear_usuario, eliminar_usuario, obtener_usuario, obtener_usuario_por_id, actualizar_usuario
-from app.schemas.usuario_schema import Usuario, UsuarioCreate, UsuarioUpdate
+from app.schemas.usuario_schema import Usuario, UsuarioCreate, UsuarioUpdate, UsuarioCreateSuperAdmin
 from app.utils.security import get_current_user, verify_role
 from app.core.cors import add_cors
 from app.database import get_db
@@ -128,7 +128,7 @@ def crear_nuevo_usuario(usuario: UsuarioCreate, usuario_actual=Depends(verify_ro
 
 # Crear super admin (sin autenticación - solo para setup inicial)
 @app.post('/create_usuarios/super_admin', response_model=Usuario, tags=["Usuarios"])
-def crear_super_admin_endpoint(usuario: UsuarioCreate, db: Session = Depends(get_db)):
+def crear_super_admin_endpoint(usuario: UsuarioCreateSuperAdmin, db: Session = Depends(get_db)):
     # Verificar que no exista ya un super_admin
     existing_super_admin = db.query(UsuarioModel).filter(UsuarioModel.rol == "super_admin").first()
     if existing_super_admin:

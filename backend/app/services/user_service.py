@@ -45,7 +45,11 @@ def crear_usuario(db: Session, usuario: UsuarioCreate, usuario_actual=None) -> U
         email_normalizado = validar_email_creacion_actualizacion(db, usuario.email)
         # Crear usuario base
         # Para admins creados por super_admin, usar el residencial_id especificado
-        usuario_residencial_id = residencial_id_admin if residencial_id_admin else getattr(usuario, 'residencial_id', None)
+        # Para super_admin, siempre usar None independientemente del valor en el request
+        if usuario.rol == "super_admin":
+            usuario_residencial_id = None
+        else:
+            usuario_residencial_id = residencial_id_admin if residencial_id_admin else getattr(usuario, 'residencial_id', None)
         db_usuario = Usuario(
             nombre=usuario.nombre,
             email=email_normalizado,
