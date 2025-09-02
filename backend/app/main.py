@@ -129,14 +129,20 @@ def crear_nuevo_usuario(usuario: UsuarioCreate, usuario_actual=Depends(verify_ro
 # Crear super admin (sin autenticación - solo para setup inicial)
 @app.post('/create_usuarios/super_admin', response_model=Usuario, tags=["Usuarios"])
 def crear_super_admin_endpoint(usuario: UsuarioCreateSuperAdmin, db: Session = Depends(get_db)):
-    # Verificar que no exista ya un super_admin
-    existing_super_admin = db.query(UsuarioModel).filter(UsuarioModel.rol == "super_admin").first()
-    if existing_super_admin:
-        raise HTTPException(status_code=400, detail="Ya existe un super administrador en el sistema")
+    count_super_admins = db.query(UsuarioModel).filter(UsuarioModel.rol == "super_admin").count()
+    # Validar que no existan más de 1 (para permitir crear el segundo)
+    if count_super_admins >= 2:
+        raise HTTPException(
+            status_code=400, 
+            detail="No se pueden crear más de 2 super administradores en el sistema"
+        )
     
     # Verificar que el rol sea super_admin
     if usuario.rol != "super_admin":
-        raise HTTPException(status_code=400, detail="Este endpoint solo permite crear usuarios con rol super_admin")
+        raise HTTPException(
+            status_code=400, 
+            detail="Este endpoint solo permite crear usuarios con rol super_admin"
+        )
     
     return crear_usuario(db, usuario, usuario_actual=None)
 

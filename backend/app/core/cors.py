@@ -5,8 +5,7 @@ def add_cors(app):
         CORSMiddleware,
         allow_origins=[
             "sistemacodigoqrv2-production.up.railway.app",
-            "exquisite-healing-production.up.railway.app",  
-            #"*" #para permitir conexiones de cualquier origen de red
+            "exquisite-healing-production.up.railway.app",
         ],
         allow_credentials=True,
         allow_methods=["*"],

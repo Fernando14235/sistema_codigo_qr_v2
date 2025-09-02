@@ -26,7 +26,7 @@
     "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview --host",
-    "start": "vite preview --port $PORT --host",
+    "start": "vite preview",
     "test": "echo \"No test runner configured\""
   },
   "eslintConfig": {
