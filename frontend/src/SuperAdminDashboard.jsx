@@ -33,6 +33,8 @@ function CrearAdmin({ token, onAdminCreado, onCancel }) {
     nombre: "",
     email: "",
     password: "",
+    telefono: "",
+    unidad_residencial: "",
     residencial_id: ""
   });
   const [residenciales, setResidenciales] = useState([]);
@@ -63,18 +65,18 @@ function CrearAdmin({ token, onAdminCreado, onCancel }) {
       const adminData = {
         nombre: formData.nombre,
         email: formData.email,
-        telefono: formData.telefono.trim() ? "+504" + telefono : "",
+        telefono: formData.telefono.trim() ? "+504" + formData.telefono : "",
         password: formData.password,
         unidad_residencial: formData.unidad_residencial,
         rol: "admin"
       };
 
-      await axios.post(`${API_URL}/super-admin/crear-admin-residencial?residencial_id=${parseInt(formData.residencial_id)}`, adminData, {
+      await axios.post(`${API_URL}/super-admin/crear-admin-residencial/${parseInt(formData.residencial_id)}`, adminData, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       setNotification({ message: "Administrador creado exitosamente", type: "success" });
-      setFormData({ nombre: "", email: "", password: "", residencial_id: "" });
+      setFormData({ nombre: "", email: "", password: "", telefono: "", unidad_residencial: "", residencial_id: "" });
       onAdminCreado();
     } catch (error) {
       const message = error.response?.data?.detail || "Error al crear administrador";

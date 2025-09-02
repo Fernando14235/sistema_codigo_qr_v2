@@ -4,7 +4,7 @@ from typing import List, Optional
 from app.database import get_db
 from app.utils.security import is_super_admin
 from app.services.user_service import crear_usuario
-from app.schemas.usuario_schema import UsuarioCreate, Usuario
+from app.schemas.usuario_schema import UsuarioCreate, Usuario, UsuarioCreateSuperAdmin
 from app.models.usuario import Usuario as UsuarioModel
 from app.models.admin import Administrador
 from app.models.residencial import Residencial
@@ -23,10 +23,10 @@ from app.services.vista_service import determinar_vistas_admin
 
 router = APIRouter(prefix="/super-admin", tags=["Super Administrador"])
 
-@router.post("/crear-admin-residencial", dependencies=[Depends(verify_role(["super_admin"]))])
+@router.post("/crear-admin-residencial/{residencial_id}", dependencies=[Depends(verify_role(["super_admin"]))])
 def crear_admin_para_residencial(
-    admin_data: UsuarioCreate,
     residencial_id: int,
+    admin_data: UsuarioCreateSuperAdmin,
     db: Session = Depends(get_db)
 ):
     # Verificar que la residencial existe
@@ -44,12 +44,20 @@ def crear_admin_para_residencial(
             detail="Solo se pueden crear administradores con este endpoint"
         )
     
-    # Asignar la residencial al admin
-    admin_data.residencial_id = residencial_id
+    # Convertir a UsuarioCreate agregando el residencial_id
+    usuario_create_data = UsuarioCreate(
+        nombre=admin_data.nombre,
+        email=admin_data.email,
+        rol=admin_data.rol,
+        password=admin_data.password,
+        telefono=admin_data.telefono,
+        unidad_residencial=admin_data.unidad_residencial,
+        residencial_id=residencial_id
+    )
     
     # Crear el administrador
     try:
-        nuevo_admin = crear_usuario(db, admin_data)
+        nuevo_admin = crear_usuario(db, usuario_create_data)
         return {
             "message": "Administrador creado exitosamente",
             "admin": {
@@ -81,8 +89,9 @@ def listar_administradores(db: Session = Depends(get_db)):
             if residencial:
                 residencial_nombre = residencial.nombre
         
-        # Obtener el teléfono del administrador
+        # Obtener el teléfono y unidad residencial del administrador
         telefono = None
+        unidad_residencial = "N/A"
         admin_info = db.query(Administrador).filter(Administrador.usuario_id == admin.id).first()
         if admin_info:
             telefono = admin_info.telefono
@@ -358,24 +367,38 @@ def toggle_vista_residencial(residencial_id: int, vista_id: int, activa: bool, d
 @router.get("/admin/{admin_id}/vistas", dependencies=[Depends(verify_role(["super_admin"]))])
 def obtener_vistas_admin(admin_id: int, db: Session = Depends(get_db)):
     """Obtener las vistas configuradas para un administrador específico con información de restricciones"""
-    # Verificar que el administrador existe
-    admin = db.query(Administrador).filter(Administrador.id == admin_id).first()
-    if not admin:
+    try:
+        # Verificar que el administrador existe
+        admin = db.query(Administrador).filter(Administrador.id == admin_id).first()
+        if not admin:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Administrador no encontrado"
+            )
+        
+        # Obtener información del usuario del admin
+        admin_usuario = db.query(UsuarioModel).filter(UsuarioModel.id == admin.usuario_id).first()
+        admin_nombre = admin_usuario.nombre if admin_usuario else "Desconocido"
+        
+        # Obtener vistas con información completa de restricciones
+        vistas_con_restricciones = obtener_vistas_admin_con_restricciones(db, admin_id)
+        
+        return {
+            "admin": {
+                "id": admin.id,
+                "nombre": admin_nombre
+            },
+            "vistas": vistas_con_restricciones
+        }
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        print(f"Error en obtener_vistas_admin: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Administrador no encontrado"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error interno del servidor: {str(e)}"
         )
-    
-    # Obtener vistas con información completa de restricciones
-    vistas_con_restricciones = obtener_vistas_admin_con_restricciones(db, admin_id)
-    
-    return {
-        "admin": {
-            "id": admin.id,
-            "nombre": admin.usuario.nombre if admin.usuario else "Desconocido"
-        },
-        "vistas": vistas_con_restricciones
-    }
 
 @router.post("/admin/{admin_id}/vistas/{vista_id}/toggle", dependencies=[Depends(verify_role(["super_admin"]))])
 def toggle_vista_admin(admin_id: int, vista_id: int, activa: bool, db: Session = Depends(get_db)):

@@ -4,6 +4,7 @@ from app.models.vista_residencial import VistaResidencial
 from app.models.vista_admin import VistaAdmin
 from app.models.residencial import Residencial
 from app.models.admin import Administrador
+from app.models.usuario import Usuario
 from app.schemas.vista_schema import VistaCreate, VistaUpdate
 from app.schemas.vista_residencial_schema import VistaResidencialCreate, VistaResidencialUpdate
 from app.schemas.vista_admin_schema import VistaAdminCreate, VistaAdminUpdate
@@ -214,13 +215,14 @@ def obtener_configuracion_vistas(db: Session, admin_id: int) -> VistaConfigRespo
             )
     
         # Obtener todas las vistas disponibles
+        todas_vistas = db.query(Vista).all()
         vistas_disponibles = [
             VistaConfigItem(
                 id=vista.id,
                 nombre=vista.nombre,
-                descripcion=vista.descripcion,
+                descripcion=vista.descripcion or "",
                 activa=True  # Por defecto todas las vistas están activas
-            ) for vista in db.query(Vista).all()
+            ) for vista in todas_vistas
         ]
         
         # Obtener configuración de vistas para la residencial del administrador
@@ -228,52 +230,69 @@ def obtener_configuracion_vistas(db: Session, admin_id: int) -> VistaConfigRespo
         if admin.residencial_id:
             vistas_residencial_db = db.query(VistaResidencial).filter(
                 VistaResidencial.residencial_id == admin.residencial_id
-            ).join(Vista).all()
+            ).all()
             
             if vistas_residencial_db:
                 residencial = db.query(Residencial).filter(Residencial.id == admin.residencial_id).first()
+                
+                # Crear lista de vistas con su configuración
+                vistas_config = []
+                for vr in vistas_residencial_db:
+                    # Buscar la vista correspondiente
+                    vista = next((v for v in todas_vistas if v.id == vr.vista_id), None)
+                    if vista:
+                        vistas_config.append(VistaConfigItem(
+                            id=vista.id,
+                            nombre=vista.nombre,
+                            descripcion=vista.descripcion or "",
+                            activa=vr.activa
+                        ))
+                
                 vistas_residencial = VistaResidencialConfig(
                     residencial_id=admin.residencial_id,
                     nombre_residencial=residencial.nombre if residencial else "Desconocido",
-                    vistas=[
-                        VistaConfigItem(
-                            id=vr.vista.id,
-                            nombre=vr.vista.nombre,
-                            descripcion=vr.vista.descripcion,
-                            activa=vr.activa
-                        ) for vr in vistas_residencial_db
-                    ]
+                    vistas=vistas_config
                 )
         
         # Obtener configuración de vistas para el administrador específico
         vistas_admin_db = db.query(VistaAdmin).filter(
             VistaAdmin.admin_id == admin_id
-        ).join(Vista).all()
+        ).all()
         
         vistas_admin = None
         if vistas_admin_db:
-            admin_info = db.query(Administrador).join(Administrador.usuario).filter(Administrador.id == admin_id).first()
+            # Obtener información del admin
+            admin_usuario = db.query(Usuario).filter(Usuario.id == admin.usuario_id).first()
+            
+            # Crear lista de vistas con su configuración
+            vistas_config = []
+            for va in vistas_admin_db:
+                # Buscar la vista correspondiente
+                vista = next((v for v in todas_vistas if v.id == va.vista_id), None)
+                if vista:
+                    vistas_config.append(VistaConfigItem(
+                        id=vista.id,
+                        nombre=vista.nombre,
+                        descripcion=vista.descripcion or "",
+                        activa=va.activa
+                    ))
+            
             vistas_admin = VistaAdminConfig(
                 admin_id=admin_id,
-                nombre_admin=admin_info.usuario.nombre if admin_info and admin_info.usuario else "Desconocido",
-                vistas=[
-                    VistaConfigItem(
-                        id=va.vista.id,
-                        nombre=va.vista.nombre,
-                        descripcion=va.vista.descripcion,
-                        activa=va.activa
-                    ) for va in vistas_admin_db
-                ]
+                nombre_admin=admin_usuario.nombre if admin_usuario else "Desconocido",
+                vistas=vistas_config
             )
         
-            return VistaConfigResponse(
-                vistas_disponibles=vistas_disponibles,
-                vistas_residencial=vistas_residencial,
-                vistas_admin=vistas_admin
-            )
+        return VistaConfigResponse(
+            vistas_disponibles=vistas_disponibles,
+            vistas_residencial=vistas_residencial,
+            vistas_admin=vistas_admin
+        )
         
     except Exception as e:
         print(f"Error en obtener_configuracion_vistas: {str(e)}")
+        import traceback
+        traceback.print_exc()
         # En caso de error, devolver configuración básica
         return VistaConfigResponse(
             vistas_disponibles=[],
@@ -373,33 +392,42 @@ def determinar_vistas_admin(db: Session, admin_id: int) -> List[VistaConfigItem]
 def obtener_vistas_admin_con_restricciones(db: Session, admin_id: int) -> List[dict]:
     """Obtener todas las vistas para un administrador, incluyendo las bloqueadas por residencial"""
     try:
-        # Obtener toda la configuración
-        config = obtener_configuracion_vistas(db, admin_id)
-        
-        if not config.vistas_disponibles:
+        # Verificar que el administrador existe
+        admin = db.query(Administrador).filter(Administrador.id == admin_id).first()
+        if not admin:
             return []
         
-        # Crear resultado con información completa
-        resultado = []
+        # Obtener todas las vistas disponibles
+        todas_vistas = db.query(Vista).all()
+        if not todas_vistas:
+            return []
         
-        # Obtener vistas bloqueadas por residencial
-        vistas_bloqueadas_por_residencial = set()
+        # Obtener configuración de residencial si existe
         configuracion_residencial = {}
+        vistas_bloqueadas_por_residencial = set()
         
-        if config.vistas_residencial and config.vistas_residencial.vistas:
-            for vista in config.vistas_residencial.vistas:
-                configuracion_residencial[vista.id] = vista.activa
-                if not vista.activa:
-                    vistas_bloqueadas_por_residencial.add(vista.id)
+        if admin.residencial_id:
+            vistas_residencial = db.query(VistaResidencial).filter(
+                VistaResidencial.residencial_id == admin.residencial_id
+            ).all()
+            
+            for vr in vistas_residencial:
+                configuracion_residencial[vr.vista_id] = vr.activa
+                if not vr.activa:
+                    vistas_bloqueadas_por_residencial.add(vr.vista_id)
         
         # Obtener configuración específica del admin
         configuracion_admin = {}
-        if config.vistas_admin and config.vistas_admin.vistas:
-            for vista in config.vistas_admin.vistas:
-                configuracion_admin[vista.id] = vista.activa
+        vistas_admin = db.query(VistaAdmin).filter(
+            VistaAdmin.admin_id == admin_id
+        ).all()
+        
+        for va in vistas_admin:
+            configuracion_admin[va.vista_id] = va.activa
         
         # Procesar cada vista disponible
-        for vista in config.vistas_disponibles:
+        resultado = []
+        for vista in todas_vistas:
             # Determinar el estado final
             bloqueada_por_residencial = vista.id in vistas_bloqueadas_por_residencial
             configurada_residencial = vista.id in configuracion_residencial
@@ -418,7 +446,7 @@ def obtener_vistas_admin_con_restricciones(db: Session, admin_id: int) -> List[d
             resultado.append({
                 "id": vista.id,
                 "nombre": vista.nombre,
-                "descripcion": vista.descripcion,
+                "descripcion": vista.descripcion or "",
                 "activa": activa_final,
                 "bloqueada_por_residencial": bloqueada_por_residencial,
                 "configurada_residencial": configurada_residencial,
@@ -431,4 +459,6 @@ def obtener_vistas_admin_con_restricciones(db: Session, admin_id: int) -> List[d
         
     except Exception as e:
         print(f"Error en obtener_vistas_admin_con_restricciones: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return []

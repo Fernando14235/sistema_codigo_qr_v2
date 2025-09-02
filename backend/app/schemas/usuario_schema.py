@@ -18,6 +18,7 @@ class UsuarioBase(BaseModel):
 class UsuarioCreate(UsuarioBase):
     password: constr(min_length=6)
     telefono: str 
+    residencial_id: int
     
     @model_validator(mode='after')
     def validar_unidad_residencial(self):
@@ -36,6 +37,22 @@ class Usuario(UsuarioBase):
     
     class Config:
         from_attributes = True
+
+class UsuarioCreateSuperAdmin(BaseModel):
+    """Schema para crear usuarios desde super admin - residencial_id se toma de la URL"""
+    nombre: str
+    email: EmailStr
+    rol: Rol
+    password: constr(min_length=6)
+    telefono: str
+    unidad_residencial: Optional[str] = None
+    
+    @model_validator(mode='after')
+    def validar_unidad_residencial(self):
+        if self.rol == 'residente':
+            if not self.unidad_residencial or not isinstance(self.unidad_residencial, str) or self.unidad_residencial.strip() == "":
+                raise ValueError('unidad_residencial es obligatoria y debe ser un texto no vacío si el rol es residente')
+        return self
 
 class UsuarioUpdate(BaseModel):
     nombre: Optional[str] = None

@@ -103,6 +103,7 @@ def obtener_usuario_actual(usuario_actual: UsuarioModel = Depends(get_current_us
             admin = db.query(Administrador).filter(Administrador.usuario_id == usuario_actual.id).first()
             if admin:
                 data["telefono"] = admin.telefono
+                data["unidad_residencial"] = admin.unidad_residencial
                 if admin.residencial:
                     data["residencial_nombre"] = admin.residencial.nombre
         # Para super_admin, residencial_nombre queda como None
@@ -114,24 +115,30 @@ def obtener_usuario_actual(usuario_actual: UsuarioModel = Depends(get_current_us
 @app.get('/usuarios/admin/{id}', response_model=Usuario, tags=["Usuarios"])
 def obtener_usuario_por_id(id: int, usuario_actual=Depends(verify_role(["admin", "super_admin"])), db: Session = Depends(get_db)):
     try:
-        usuario = obtener_usuario_por_id(db, id, usuario_actual=usuario_actual)
-        data = usuario.__dict__.copy()
-        
-        if usuario.rol == "residente":
-            from app.models.residente import Residente
-            residente = db.query(Residente).filter(Residente.usuario_id == usuario.id).first()
-            data["unidad_residencial"] = residente.unidad_residencial if residente else None
-        else:
-            data["unidad_residencial"] = None
-            
-        return data
+        # The obtener_usuario_por_id function already returns a dict with all the necessary data
+        usuario_data = obtener_usuario_por_id(db, id, usuario_actual=usuario_actual)
+        return usuario_data
     except HTTPException as e:
         raise e
 
 # Crear un nuevo usuario
 @app.post('/create_usuarios/admin', response_model=Usuario, tags=["Usuarios"])
-def crear_nuevo_usuario(usuario: UsuarioCreate, usuario_actual=Depends(verify_role(["admin"])), db: Session = Depends(get_db)):
+def crear_nuevo_usuario(usuario: UsuarioCreate, usuario_actual=Depends(verify_role(["super_admin","admin"])), db: Session = Depends(get_db)):
     return crear_usuario(db, usuario, usuario_actual)
+
+# Crear super admin (sin autenticación - solo para setup inicial)
+@app.post('/create_usuarios/super_admin', response_model=Usuario, tags=["Usuarios"])
+def crear_super_admin_endpoint(usuario: UsuarioCreate, db: Session = Depends(get_db)):
+    # Verificar que no exista ya un super_admin
+    existing_super_admin = db.query(UsuarioModel).filter(UsuarioModel.rol == "super_admin").first()
+    if existing_super_admin:
+        raise HTTPException(status_code=400, detail="Ya existe un super administrador en el sistema")
+    
+    # Verificar que el rol sea super_admin
+    if usuario.rol != "super_admin":
+        raise HTTPException(status_code=400, detail="Este endpoint solo permite crear usuarios con rol super_admin")
+    
+    return crear_usuario(db, usuario, usuario_actual=None)
 
 # Actualizar usuario
 @app.put('/update_usuarios/admin/{user_id}', response_model=Usuario, tags=["Usuarios"])

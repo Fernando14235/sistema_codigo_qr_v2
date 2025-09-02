@@ -17,7 +17,7 @@ from app.utils.time import get_honduras_time
 
 def crear_usuario(db: Session, usuario: UsuarioCreate, usuario_actual=None) -> Usuario:
     try:
-        # Si el usuario actual es admin, forzar la residencial_id
+        # Determinar residencial_id según el usuario actual
         residencial_id_admin = None
         if usuario_actual and usuario_actual.rol == "admin":
             residencial_id_admin = usuario_actual.residencial_id
@@ -26,6 +26,12 @@ def crear_usuario(db: Session, usuario: UsuarioCreate, usuario_actual=None) -> U
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="El administrador no tiene residencial asignada"
                 )
+        elif usuario_actual and usuario_actual.rol == "super_admin":
+            # Super admin puede especificar residencial_id directamente
+            residencial_id_admin = getattr(usuario, 'residencial_id', None)
+        elif not usuario_actual:
+            # Creación sin usuario actual (setup inicial de super_admin)
+            residencial_id_admin = getattr(usuario, 'residencial_id', None)
         # Validaciones de teléfono
         if usuario.rol in ["residente", "guardia", "admin"]:
             validar_telefono_no_vacio(usuario.telefono)
@@ -38,12 +44,14 @@ def crear_usuario(db: Session, usuario: UsuarioCreate, usuario_actual=None) -> U
         # Validar email único (el formato ya se valida en el schema)
         email_normalizado = validar_email_creacion_actualizacion(db, usuario.email)
         # Crear usuario base
+        # Para admins creados por super_admin, usar el residencial_id especificado
+        usuario_residencial_id = residencial_id_admin if residencial_id_admin else getattr(usuario, 'residencial_id', None)
         db_usuario = Usuario(
             nombre=usuario.nombre,
             email=email_normalizado,
             password_hash=get_password_hash(usuario.password),
             rol=usuario.rol,
-            residencial_id=residencial_id_admin if residencial_id_admin else None
+            residencial_id=usuario_residencial_id
         )
         db.add(db_usuario)
         db.flush()  # Asignar ID sin confirmar transacción
@@ -64,9 +72,11 @@ def crear_usuario(db: Session, usuario: UsuarioCreate, usuario_actual=None) -> U
             )
             db.add(db_guardia)
         elif usuario.rol == "admin":
+            # Para admins, usar el residencial_id determinado anteriormente
+            admin_residencial_id = residencial_id_admin if residencial_id_admin else getattr(usuario, 'residencial_id', None)
             db_admin = Administrador(
                 usuario_id=db_usuario.id,
-                residencial_id=residencial_id_admin if residencial_id_admin else None,
+                residencial_id=admin_residencial_id,
                 telefono=telefono_normalizado,
                 unidad_residencial=usuario.unidad_residencial if hasattr(usuario, 'unidad_residencial') else None
             )
@@ -148,6 +158,7 @@ def obtener_usuario(db: Session, id: int = None, nombre: str = None, rol: str = 
                 admin = db.query(Administrador).filter(Administrador.usuario_id == usuario.id).first()
                 if admin:
                     usuario_data["telefono"] = admin.telefono
+                    usuario_data["unidad_residencial"] = admin.unidad_residencial
             usuarios_filtrados.append(usuario_data)
         return usuarios_filtrados
     except Exception as e:
