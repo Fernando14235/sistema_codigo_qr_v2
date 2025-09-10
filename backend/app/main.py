@@ -4,6 +4,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from app.database import SessionLocal
 from typing import Optional, List
 from app.routers import auth, usuarios, visitas, notificaciones, historial_visitas, estadisticas, sociales, tickets, residenciales, super_admin, vistas
+# Importar middleware de limpieza para el pool de hilos
+from app.middleware import cleanup
 from app.services.user_service import crear_usuario, eliminar_usuario, obtener_usuario, obtener_usuario_por_id, actualizar_usuario
 from app.schemas.usuario_schema import Usuario, UsuarioCreate, UsuarioUpdate, UsuarioCreateSuperAdmin, UsuarioCreateAdmin
 from app.utils.security import get_current_user, verify_role
@@ -50,6 +52,25 @@ def home():
                         <h1>Sistema de Control Residencial Version 2</h1>
                         <style>width: 100%</style>
                         ''')
+
+@app.get('/health', tags=["Salud"])
+def health_check():
+    """Endpoint para verificar el estado del sistema"""
+    try:
+        from app.utils.async_notifications import email_executor
+        return {
+            "status": "healthy",
+            "email_pool": {
+                "active_threads": email_executor._threads.__len__() if hasattr(email_executor, '_threads') else 0,
+                "max_workers": email_executor._max_workers,
+                "shutdown": email_executor._shutdown
+            }
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e)
+        }
 
 # obtener todos los usuarios
 @app.get('/usuarios/admin', tags=["Usuarios"])

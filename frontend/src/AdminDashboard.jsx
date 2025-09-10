@@ -167,7 +167,7 @@ function BtnRegresar({ onClick }) {
   );
 }
 
-function CrearUsuario({ token, onUsuarioCreado, usuarioEditar, setUsuarioEditar }) {
+function CrearUsuario({ token, onUsuarioCreado, usuarioEditar, setUsuarioEditar, setVista }) {
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [rol, setRol] = useState("residente");
@@ -217,15 +217,25 @@ function CrearUsuario({ token, onUsuarioCreado, usuarioEditar, setUsuarioEditar 
         });
         setMensaje("Usuario actualizado correctamente");
         setUsuarioEditar(null);
-        if (typeof setVista === 'function') setVista('usuarios');
+        // Llamar onUsuarioCreado para recargar la lista
+        if (onUsuarioCreado) onUsuarioCreado();
+        // Redirigir después de un breve delay para mostrar el mensaje
+        setTimeout(() => {
+          if (typeof setVista === 'function') setVista('usuarios');
+        }, 1000);
       } else {
         await axios.post(`${API_URL}/create_usuarios/admin`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setMensaje("Usuario creado correctamente");
-      setNombre(""); setEmail(""); setRol("residente"); setPassword(""); setTelefono(""); setUnidadResidencial("");
-      if (onUsuarioCreado) onUsuarioCreado();
-        if (typeof setVista === 'function') setVista('usuarios');
+        // Limpiar formulario
+        setNombre(""); setEmail(""); setRol("residente"); setPassword(""); setTelefono(""); setUnidadResidencial("");
+        // Llamar onUsuarioCreado para recargar la lista
+        if (onUsuarioCreado) onUsuarioCreado();
+        // Redirigir después de un breve delay para mostrar el mensaje
+        setTimeout(() => {
+          if (typeof setVista === 'function') setVista('usuarios');
+        }, 1000);
       }
     } catch (err) {
       console.error("Error completo:", err);
@@ -334,7 +344,24 @@ function CrearUsuario({ token, onUsuarioCreado, usuarioEditar, setUsuarioEditar 
             Cancelar
           </button>
         )}
-        <span style={{ marginLeft: 16, color: mensaje.includes("Error") ? "red" : "#1976d2" }}>{mensaje}</span>
+        {mensaje && (
+          <div style={{ 
+            marginLeft: 16, 
+            padding: "8px 12px",
+            borderRadius: "6px",
+            backgroundColor: mensaje.includes("Error") ? "#ffebee" : "#e8f5e8",
+            color: mensaje.includes("Error") ? "#c62828" : "#2e7d32",
+            border: `1px solid ${mensaje.includes("Error") ? "#ffcdd2" : "#c8e6c9"}`,
+            fontSize: "0.9em",
+            fontWeight: "500",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px"
+          }}>
+            {mensaje.includes("Error") ? "❌" : mensaje.includes("correctamente") ? "✅" : "⏳"}
+            {mensaje}
+          </div>
+        )}
       </div>
     </form>
   );

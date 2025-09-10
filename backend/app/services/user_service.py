@@ -7,6 +7,7 @@ from app.schemas.usuario_schema import UsuarioCreate
 from app.utils.security import get_password_hash
 from app.utils.validators import validar_email_unico, validar_email_creacion_actualizacion, validar_formato_telefono_honduras, validar_telefono_no_vacio, normalizar_telefono_honduras
 from app.services.notificacion_service import enviar_notificacion_usuario_creado
+from app.utils.async_notifications import enviar_notificacion_usuario_creado_async
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timezone
@@ -103,9 +104,10 @@ def crear_usuario(db: Session, usuario: UsuarioCreate, usuario_actual=None) -> U
         db.commit()
         db.refresh(db_usuario)
         try:
-            enviar_notificacion_usuario_creado(db_usuario, usuario)
+            # Enviar notificación de forma asíncrona para no bloquear la respuesta
+            enviar_notificacion_usuario_creado_async(db_usuario, usuario)
         except Exception as e:
-            print(f"Error al enviar notificación de usuario creado: {str(e)}")
+            print(f"Error al programar envío de notificación de usuario creado: {str(e)}")
             # No fallar la creación del usuario por un error de notificación
         return db_usuario
     except HTTPException as e:

@@ -14,6 +14,7 @@ from app.models import Usuario, Residente, Ticket
 from typing import List
 
 def enviar_notificacion_usuario_creado(usuario: Usuario, datos_creacion: UsuarioCreate):
+    # DEPRECATED: Usar enviar_notificacion_usuario_creado_async para mejor rendimiento
     # Envia notificacion por correo cuando se crea un usuario con rol de residente
     try:
         asunto = "¡Bienvenido a Residencial Access!"

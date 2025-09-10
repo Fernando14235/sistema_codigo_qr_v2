@@ -6,6 +6,7 @@ from app.core.config import settings
 import base64
 import os
 import logging
+import socket
 
 def enviar_correo(destinatario: str, asunto: str, html: str, qr_img_b64: str = None):
     try:
@@ -29,12 +30,14 @@ def enviar_correo(destinatario: str, asunto: str, html: str, qr_img_b64: str = N
             imagen.add_header("Content-Disposition", "inline", filename="qr.png")
             msg.attach(imagen)
 
-
-        with smtplib.SMTP_SSL(settings.EMAIL_SMTP_SERVER, settings.EMAIL_SMTP_PORT) as server:
+        # Configurar timeout optimizado para Railway/producción
+        socket.setdefaulttimeout(15)
+        
+        with smtplib.SMTP_SSL(settings.EMAIL_SMTP_SERVER, settings.EMAIL_SMTP_PORT, timeout=15) as server:
             server.login(settings.EMAIL_ADDRESS, settings.EMAIL_PASSWORD)
             server.send_message(msg)
 
         return True
     except Exception as e:
-        logging.error(f"Error al enviar correo: {e}")
+        logging.error(f"Error al enviar correo a {destinatario}: {e}")
         return False
