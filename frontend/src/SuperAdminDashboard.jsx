@@ -56,10 +56,16 @@ function CrearAdmin({ token, onAdminCreado, onCancel }) {
     }
   };
 
+  const handleTelefonoChange = (e) => {
+    // Solo permitir números y limitar a 8 dígitos
+    const value = e.target.value.replace(/\D/g, '').slice(0, 8);
+    setFormData({...formData, telefono: value});
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setCargando(true);
-    setNotification({ message: "", type: "" });
+    setNotification({ message: "Creando administrador...", type: "info" });
 
     try {
       const adminData = {
@@ -77,7 +83,11 @@ function CrearAdmin({ token, onAdminCreado, onCancel }) {
 
       setNotification({ message: "Administrador creado exitosamente", type: "success" });
       setFormData({ nombre: "", email: "", password: "", telefono: "", unidad_residencial: "", residencial_id: "" });
-      onAdminCreado();
+      
+      // Redirigir automáticamente a la lista de administradores después de 1.5 segundos
+      setTimeout(() => {
+        onAdminCreado();
+      }, 1500);
     } catch (error) {
       const message = error.response?.data?.detail || "Error al crear administrador";
       setNotification({ message, type: "error" });
@@ -120,14 +130,18 @@ function CrearAdmin({ token, onAdminCreado, onCancel }) {
           </div>
 
           <div className="form-group">
-            <label>Telefono:</label>
+            <label>Teléfono:</label>
             <input
-              type="number"
-              placeholder="xxxx-xxxx"
+              type="text"
+              placeholder="xxxxxxxx"
               value={formData.telefono}
-              onChange={(e) => setFormData({...formData, telefono: e.target.value})}
+              onChange={handleTelefonoChange}
+              maxLength="8"
               required
             />
+            <small style={{color: '#718096', fontSize: '0.8em', marginTop: '4px'}}>
+              Formato: 8 dígitos sin guiones (ej: 98897887)
+            </small>
           </div>
           
           <div className="form-group">
@@ -170,7 +184,14 @@ function CrearAdmin({ token, onAdminCreado, onCancel }) {
 
         <div className="form-actions">
           <button type="submit" className="btn-primary" disabled={cargando}>
-            {cargando ? "Creando..." : "Crear Administrador"}
+            {cargando ? (
+              <>
+                <span className="spinner"></span>
+                Creando administrador...
+              </>
+            ) : (
+              "Crear Administrador"
+            )}
           </button>
         </div>
       </form>
@@ -185,6 +206,8 @@ function ListarAdmins({ token, onCancel, onLogout }) {
   const [admins, setAdmins] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [notification, setNotification] = useState({ message: "", type: "" });
+  const [adminEditando, setAdminEditando] = useState(null);
+  const [mostrarModalEliminar, setMostrarModalEliminar] = useState(null);
 
   useEffect(() => {
     cargarAdmins();
@@ -203,6 +226,56 @@ function ListarAdmins({ token, onCancel, onLogout }) {
     }
   };
 
+  const handleEditarAdmin = (admin) => {
+    setAdminEditando({
+      ...admin,
+      telefono: admin.telefono ? admin.telefono.replace('+504', '') : ''
+    });
+  };
+
+  const handleGuardarEdicion = async (e) => {
+    e.preventDefault();
+    try {
+      const adminData = {
+        nombre: adminEditando.nombre,
+        email: adminEditando.email,
+        telefono: adminEditando.telefono.trim() ? "+504" + adminEditando.telefono : "",
+        unidad_residencial: adminEditando.unidad_residencial
+      };
+
+      await axios.put(`${API_URL}/update_usuarios/admin/${adminEditando.id}`, adminData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setNotification({ message: "Administrador actualizado exitosamente", type: "success" });
+      setAdminEditando(null);
+      cargarAdmins();
+    } catch (error) {
+      const message = error.response?.data?.detail || "Error al actualizar administrador";
+      setNotification({ message, type: "error" });
+    }
+  };
+
+  const handleEliminarAdmin = async (adminId) => {
+    try {
+      await axios.delete(`${API_URL}/delete_usuarios/admin/${adminId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setNotification({ message: "Administrador eliminado exitosamente", type: "success" });
+      setMostrarModalEliminar(null);
+      cargarAdmins();
+    } catch (error) {
+      const message = error.response?.data?.detail || "Error al eliminar administrador";
+      setNotification({ message, type: "error" });
+    }
+  };
+
+  const handleTelefonoChange = (e) => {
+    const value = e.target.value.replace(/\D/g, '').slice(0, 8);
+    setAdminEditando({...adminEditando, telefono: value});
+  };
+
   if (cargando) {
     return <div className="loading">Cargando administradores...</div>;
   }
@@ -212,6 +285,9 @@ function ListarAdmins({ token, onCancel, onLogout }) {
       <div className="section-header">
         <h2>Administradores del Sistema</h2>
         <div className="header-actions">
+          <button className="btn-refresh" onClick={cargarAdmins}>
+            🔄 Actualizar
+          </button>
           <button className="btn-regresar" onClick={onCancel}>
             ← Regresar
           </button>
@@ -228,8 +304,23 @@ function ListarAdmins({ token, onCancel, onLogout }) {
             <div className="admin-info">
               <p><strong>Email:</strong> {admin.email}</p>
               <p><strong>Residencial:</strong> {admin.residencial_nombre}</p>
-              <p><strong>Telefono:</strong> {admin.telefono}</p>
+              <p><strong>Teléfono:</strong> {admin.telefono}</p>
+              <p><strong>Unidad:</strong> {admin.unidad_residencial}</p>
               <p><strong>Fecha de creación:</strong> {new Date(admin.fecha_creacion).toLocaleDateString()}</p>
+            </div>
+            <div className="admin-actions">
+              <button 
+                className="btn-editar" 
+                onClick={() => handleEditarAdmin(admin)}
+              >
+                ✏️ Editar
+              </button>
+              <button 
+                className="btn-eliminar" 
+                onClick={() => setMostrarModalEliminar(admin)}
+              >
+                🗑️ Eliminar
+              </button>
             </div>
           </div>
         ))}
@@ -238,6 +329,96 @@ function ListarAdmins({ token, onCancel, onLogout }) {
       {admins.length === 0 && (
         <div className="empty-state">
           <p>No hay administradores registrados</p>
+        </div>
+      )}
+
+      {/* Modal de edición */}
+      {adminEditando && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Editar Administrador</h3>
+              <button className="modal-close" onClick={() => setAdminEditando(null)}>×</button>
+            </div>
+            <form onSubmit={handleGuardarEdicion}>
+              <div className="form-group">
+                <label>Nombre completo:</label>
+                <input
+                  type="text"
+                  value={adminEditando.nombre}
+                  onChange={(e) => setAdminEditando({...adminEditando, nombre: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Email:</label>
+                <input
+                  type="email"
+                  value={adminEditando.email}
+                  onChange={(e) => setAdminEditando({...adminEditando, email: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Teléfono:</label>
+                <input
+                  type="text"
+                  placeholder="xxxxxxxx"
+                  value={adminEditando.telefono}
+                  onChange={handleTelefonoChange}
+                  maxLength="8"
+                  required
+                />
+                <small style={{color: '#718096', fontSize: '0.8em', marginTop: '4px'}}>
+                  Formato: 8 dígitos sin guiones (ej: 98897887)
+                </small>
+              </div>
+              <div className="form-group">
+                <label>Unidad residencial:</label>
+                <input
+                  type="text"
+                  value={adminEditando.unidad_residencial}
+                  onChange={(e) => setAdminEditando({...adminEditando, unidad_residencial: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="btn-cancelar" onClick={() => setAdminEditando(null)}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn-primary">
+                  Guardar Cambios
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación de eliminación */}
+      {mostrarModalEliminar && (
+        <div className="modal-overlay">
+          <div className="modal-content modal-confirm">
+            <div className="modal-header">
+              <h3>Confirmar Eliminación</h3>
+              <button className="modal-close" onClick={() => setMostrarModalEliminar(null)}>×</button>
+            </div>
+            <div className="modal-body">
+              <p>¿Estás seguro de que deseas eliminar al administrador <strong>{mostrarModalEliminar.nombre}</strong>?</p>
+              <p className="warning-text">Esta acción no se puede deshacer.</p>
+            </div>
+            <div className="modal-actions">
+              <button className="btn-cancelar" onClick={() => setMostrarModalEliminar(null)}>
+                Cancelar
+              </button>
+              <button 
+                className="btn-eliminar-confirm" 
+                onClick={() => handleEliminarAdmin(mostrarModalEliminar.id)}
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -984,7 +1165,8 @@ function SuperAdminDashboard({ token, nombre, onLogout }) {
 
   const handleAdminCreado = () => {
     setNotification({ message: "Administrador creado exitosamente", type: "success" });
-    setTimeout(() => setVista("menu"), 2000);
+    // Redirigir automáticamente a la lista de administradores
+    setTimeout(() => setVista("listar-admins"), 1500);
   };
 
   const handleResidencialCreada = () => {

@@ -561,6 +561,65 @@ def crear_vistas_por_defecto(db: Session = Depends(get_db)):
             detail=f"Error al crear vistas: {str(e)}"
         )
 
+@router.put("/asignar-residencial-admin/{admin_id}", dependencies=[Depends(verify_role(["super_admin"]))])
+def asignar_residencial_admin(admin_id: int, residencial_id: int, db: Session = Depends(get_db)):
+    """Asignar una residencial a un administrador existente"""
+    
+    # Verificar que el administrador existe
+    admin_usuario = db.query(UsuarioModel).filter(
+        UsuarioModel.id == admin_id,
+        UsuarioModel.rol == "admin"
+    ).first()
+    
+    if not admin_usuario:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Administrador no encontrado"
+        )
+    
+    # Verificar que la residencial existe
+    residencial = db.query(Residencial).filter(Residencial.id == residencial_id).first()
+    if not residencial:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Residencial no encontrada"
+        )
+    
+    # Obtener el registro de administrador
+    admin_info = db.query(Administrador).filter(Administrador.usuario_id == admin_id).first()
+    if not admin_info:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Registro de administrador no encontrado"
+        )
+    
+    try:
+        # Actualizar residencial_id en la tabla usuarios
+        admin_usuario.residencial_id = residencial_id
+        
+        # Actualizar residencial_id en la tabla administradores
+        admin_info.residencial_id = residencial_id
+        
+        db.commit()
+        
+        return {
+            "message": f"Residencial asignada exitosamente al administrador {admin_usuario.nombre}",
+            "admin": {
+                "id": admin_usuario.id,
+                "nombre": admin_usuario.nombre,
+                "email": admin_usuario.email,
+                "residencial_id": residencial_id,
+                "residencial_nombre": residencial.nombre
+            }
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al asignar residencial: {str(e)}"
+        )
+
 @router.get("/debug/vistas", dependencies=[Depends(verify_role(["super_admin"]))])
 def debug_vistas_sistema(db: Session = Depends(get_db)):
     """Endpoint de debug para verificar el estado de las vistas"""

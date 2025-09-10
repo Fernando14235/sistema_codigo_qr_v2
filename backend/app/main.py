@@ -5,7 +5,7 @@ from app.database import SessionLocal
 from typing import Optional, List
 from app.routers import auth, usuarios, visitas, notificaciones, historial_visitas, estadisticas, sociales, tickets, residenciales, super_admin, vistas
 from app.services.user_service import crear_usuario, eliminar_usuario, obtener_usuario, obtener_usuario_por_id, actualizar_usuario
-from app.schemas.usuario_schema import Usuario, UsuarioCreate, UsuarioUpdate, UsuarioCreateSuperAdmin
+from app.schemas.usuario_schema import Usuario, UsuarioCreate, UsuarioUpdate, UsuarioCreateSuperAdmin, UsuarioCreateAdmin
 from app.utils.security import get_current_user, verify_role
 from app.core.cors import add_cors
 from app.database import get_db
@@ -123,8 +123,36 @@ def obtener_usuario_por_id(id: int, usuario_actual=Depends(verify_role(["admin",
 
 # Crear un nuevo usuario
 @app.post('/create_usuarios/admin', response_model=Usuario, tags=["Usuarios"])
-def crear_nuevo_usuario(usuario: UsuarioCreate, usuario_actual=Depends(verify_role(["super_admin","admin"])), db: Session = Depends(get_db)):
-    return crear_usuario(db, usuario, usuario_actual)
+def crear_nuevo_usuario(usuario: UsuarioCreateAdmin, usuario_actual=Depends(verify_role(["super_admin","admin"])), db: Session = Depends(get_db)):
+    # Convertir UsuarioCreateAdmin a UsuarioCreate agregando el residencial_id
+    if usuario_actual.rol == "admin":
+        # Obtener el residencial_id del admin actual
+        admin = db.query(Administrador).filter(Administrador.usuario_id == usuario_actual.id).first()
+        if not admin or not admin.residencial_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El administrador no tiene una residencial asignada. Contacte al super administrador."
+            )
+        residencial_id = admin.residencial_id
+    else:
+        # Si es super_admin, necesita especificar residencial_id (esto no debería pasar con este endpoint)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Los super administradores deben usar el endpoint específico para crear usuarios"
+        )
+    
+    # Crear UsuarioCreate con el residencial_id obtenido
+    usuario_create = UsuarioCreate(
+        nombre=usuario.nombre,
+        email=usuario.email,
+        rol=usuario.rol,
+        password=usuario.password,
+        telefono=usuario.telefono,
+        unidad_residencial=usuario.unidad_residencial,
+        residencial_id=residencial_id
+    )
+    
+    return crear_usuario(db, usuario_create, usuario_actual)
 
 # Crear super admin (sin autenticación - solo para setup inicial)
 @app.post('/create_usuarios/super_admin', response_model=Usuario, tags=["Usuarios"])

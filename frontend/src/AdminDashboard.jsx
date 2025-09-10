@@ -228,8 +228,19 @@ function CrearUsuario({ token, onUsuarioCreado, usuarioEditar, setUsuarioEditar 
         if (typeof setVista === 'function') setVista('usuarios');
       }
     } catch (err) {
-      if (err.response && err.response.data && err.response.data.detail) {
-        setMensaje("Error: " + err.response.data.detail);
+      console.error("Error completo:", err);
+      if (err.response && err.response.data) {
+        if (typeof err.response.data.detail === 'string') {
+          setMensaje("Error: " + err.response.data.detail);
+        } else if (err.response.data.detail && typeof err.response.data.detail === 'object') {
+          setMensaje("Error: " + JSON.stringify(err.response.data.detail));
+        } else if (err.response.data.message) {
+          setMensaje("Error: " + err.response.data.message);
+        } else {
+          setMensaje("Error: " + JSON.stringify(err.response.data));
+        }
+      } else if (err.message) {
+        setMensaje("Error: " + err.message);
       } else {
         setMensaje("Error al crear/actualizar usuario");
       }
@@ -1759,7 +1770,18 @@ function AdminDashboard({ token, nombre, onLogout }) {
         {vista === 'usuarios' && isVistaDisponible('usuarios') && (
           <section className="admin-section">
             <BtnRegresar onClick={() => setVista('menu')} />
-            <h3>Usuarios</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3>Usuarios</h3>
+              {isVistaDisponible('crear') && (
+                <button 
+                  className="btn-primary" 
+                  onClick={() => setVista('crear')}
+                  style={{ padding: '10px 20px', fontSize: '14px' }}
+                >
+                  ➕ Crear Usuario
+                </button>
+              )}
+            </div>
             <div className="admin-search">
               <input
                 type="text"
@@ -1825,8 +1847,17 @@ function AdminDashboard({ token, nombre, onLogout }) {
         )}
         {vista === 'crear' && isVistaDisponible('crear') && (
           <section className="admin-section">
-            <BtnRegresar onClick={() => setVista('menu')} />
-            <CrearUsuario token={token} onUsuarioCreado={cargarUsuarios} usuarioEditar={usuarioEditar} setUsuarioEditar={setUsuarioEditar} />
+            <BtnRegresar onClick={() => setVista('usuarios')} />
+            <CrearUsuario 
+              token={token} 
+              onUsuarioCreado={() => {
+                cargarUsuarios();
+                setVista('usuarios');
+              }} 
+              usuarioEditar={usuarioEditar} 
+              setUsuarioEditar={setUsuarioEditar}
+              setVista={setVista}
+            />
           </section>
         )}
         {vista === 'historial' && isVistaDisponible('historial') && (

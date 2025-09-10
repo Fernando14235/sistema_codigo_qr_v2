@@ -20,11 +20,18 @@ def crear_usuario(db: Session, usuario: UsuarioCreate, usuario_actual=None) -> U
         # Determinar residencial_id según el usuario actual
         residencial_id_admin = None
         if usuario_actual and usuario_actual.rol == "admin":
-            residencial_id_admin = usuario_actual.residencial_id
+            # Para admins, obtener residencial_id de la tabla administradores
+            admin = db.query(Administrador).filter(Administrador.usuario_id == usuario_actual.id).first()
+            if admin and admin.residencial_id:
+                residencial_id_admin = admin.residencial_id
+            else:
+                # Fallback: usar residencial_id del usuario si existe
+                residencial_id_admin = usuario_actual.residencial_id
+                
             if not residencial_id_admin:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="El administrador no tiene residencial asignada"
+                    detail=f"El administrador {usuario_actual.nombre} (ID: {usuario_actual.id}) no tiene residencial asignada. Contacte al super administrador para asignar una residencial."
                 )
         elif usuario_actual and usuario_actual.rol == "super_admin":
             # Super admin puede especificar residencial_id directamente
@@ -95,7 +102,11 @@ def crear_usuario(db: Session, usuario: UsuarioCreate, usuario_actual=None) -> U
             db.add(db_super_admin)
         db.commit()
         db.refresh(db_usuario)
-        enviar_notificacion_usuario_creado(db_usuario, usuario)
+        try:
+            enviar_notificacion_usuario_creado(db_usuario, usuario)
+        except Exception as e:
+            print(f"Error al enviar notificación de usuario creado: {str(e)}")
+            # No fallar la creación del usuario por un error de notificación
         return db_usuario
     except HTTPException as e:
         db.rollback()
