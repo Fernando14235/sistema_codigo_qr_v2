@@ -8,14 +8,16 @@ export default defineConfig({
     host: true,
     port: process.env.PORT || 5173,
     allowedHosts: [
-      "tsapp.tekhnosupport.com"      
+      "tsapp.tekhnosupport.com",
+      "exquisite-healing-production.up.railway.app"      
     ]
   },
   preview: {
     host: true,
     port: process.env.PORT || 4173,
     allowedHosts: [
-      "tsapp.tekhnosupport.com"    
+      "tsapp.tekhnosupport.com",
+      "exquisite-healing-production.up.railway.app"      
     ]
   },
   plugins: [
