@@ -6,6 +6,7 @@ def add_cors(app):
         allow_origins=[
             "https://sistemacodigoqrv2-production.up.railway.app",
             "https://exquisite-healing-production.up.railway.app",
+            "https://tsapp.tekhnosupport.com"
         ],
         allow_credentials=True,
         allow_methods=["*"],
