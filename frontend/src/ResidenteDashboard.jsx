@@ -327,7 +327,7 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
         <input type="text" value={nombre_conductor} onChange={e => setNombreConductor(e.target.value)} required disabled={bloqueado || !!qrUrl} />
       </div>
       <div className="form-row">
-        <label>DNI del visitante:</label>
+        <label>DNI del visitante: <span style={{color: '#666', fontSize: '0.9em', fontWeight: 'normal'}}>(Opcional)</span></label>
         <input type="text" value={dni_conductor} onChange={e => setDNIConductor(e.target.value)} disabled={bloqueado || !!qrUrl} />
       </div>
       <div className="form-row">
@@ -363,7 +363,7 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
         </select>
       </div>
       <div className="form-row">
-        <label>Placa del vehículo:</label>
+        <label>Placa del vehículo: <span style={{color: '#666', fontSize: '0.9em', fontWeight: 'normal'}}>(Opcional)</span></label>
         <input type="text" value={placa_vehiculo} onChange={e => setPlacaVehiculo(e.target.value)} disabled={bloqueado || !!qrUrl} />
       </div>
       <div className="form-row">
@@ -380,7 +380,7 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
         <input type="datetime-local" value={fecha_entrada} onChange={e => setFechaEntrada(e.target.value)} required disabled={bloqueado || !!qrUrl} />
       </div>
       <div className="form-row">
-        <label>Cantidad de acompañantes:</label>
+        <label>Cantidad de acompañantes: <span style={{color: '#666', fontSize: '0.9em', fontWeight: 'normal'}}>(Opcional)</span></label>
         <input type="number" min="0" max="10" value={cantidadAcompanantes} onChange={e => setCantidadAcompanantes(e.target.value)} disabled={bloqueado || !!qrUrl} />
       </div>
       {acompanantes.map((a, idx) => (
@@ -408,7 +408,9 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
             }}
           />
           <br/>
-          <button type ="button" onClick={handleDownloadQR} className="btn-primary" style={{ marginTop: 8 }}>Descargar QR  </button>
+          <div style={{ textAlign: 'center', marginTop: 8 }}>
+            <button type ="button" onClick={handleDownloadQR} className="btn-primary">Descargar QR</button>
+          </div>
           <div style={{ color: '#1976d2', marginTop: 6, fontSize: '0.98em' }}>
             Guarda este QR en tu galería para mostrarlo en la entrada
           </div>
@@ -499,7 +501,7 @@ function FormEditarVisitaResidente({ token, visita, onSuccess, onCancel, setVist
         <input type="text" value={nombre_conductor} onChange={e => setNombreConductor(e.target.value)} required disabled={cargando || bloqueadoEditar} />
       </div>
       <div className="form-row">
-        <label>DNI del visitante:</label>
+        <label>DNI del visitante: <span style={{color: '#666', fontSize: '0.9em', fontWeight: 'normal'}}>(Opcional)</span></label>
         <input type="text" value={dni_conductor} onChange={e => setDNIConductor(e.target.value)} disabled={cargando || bloqueadoEditar} />
       </div>
       <div className="form-row">
@@ -535,7 +537,7 @@ function FormEditarVisitaResidente({ token, visita, onSuccess, onCancel, setVist
         </select>
       </div>
       <div className="form-row">
-        <label>Placa del vehículo:</label>
+        <label>Placa del vehículo: <span style={{color: '#666', fontSize: '0.9em', fontWeight: 'normal'}}>(Opcional)</span></label>
         <input type="text" value={placa_vehiculo} onChange={e => setPlacaVehiculo(e.target.value)} disabled={cargando || bloqueadoEditar} />
       </div>
       <div className="form-row">
@@ -646,7 +648,7 @@ const FormSolicitarVisita = ({ token, onSuccess, onCancel, setVista }) => {
         <input type="text" value={nombreVisitante} onChange={e => setNombreVisitante(e.target.value)} required disabled={cargando} />
       </div>
       <div className="form-row">
-        <label>DNI del visitante:</label>
+        <label>DNI del visitante: <span style={{color: '#666', fontSize: '0.9em', fontWeight: 'normal'}}>(Opcional)</span></label>
         <input type="text" value={dniVisitante} onChange={e => setDniVisitante(e.target.value)} disabled={cargando} />
       </div>
       <div className="form-row">
@@ -682,7 +684,7 @@ const FormSolicitarVisita = ({ token, onSuccess, onCancel, setVista }) => {
         </select>
       </div>
       <div className="form-row">
-        <label>Placa del vehículo:</label>
+        <label>Placa del vehículo: <span style={{color: '#666', fontSize: '0.9em', fontWeight: 'normal'}}>(Opcional)</span></label>
         <input type="text" value={placaVehiculo} onChange={e => setPlacaVehiculo(e.target.value)} disabled={cargando} />
       </div>
       <div className="form-row">

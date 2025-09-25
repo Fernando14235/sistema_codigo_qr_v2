@@ -28,7 +28,7 @@ function Notification({ message, type, onClose }) {
 }
 
 // Componente para crear administradores
-function CrearAdmin({ token, onAdminCreado, onCancel }) {
+function CrearAdmin({ token, onAdminCreado, onCancel, onNotification }) {
   const [formData, setFormData] = useState({
     nombre: "",
     email: "",
@@ -84,6 +84,9 @@ function CrearAdmin({ token, onAdminCreado, onCancel }) {
       setNotification({ message: "Administrador creado exitosamente", type: "success" });
       setFormData({ nombre: "", email: "", password: "", telefono: "", unidad_residencial: "", residencial_id: "" });
       
+      // Mostrar notificación global también
+      if (onNotification) onNotification({ message: "Administrador creado exitosamente", type: "success" });
+      
       // Redirigir automáticamente a la lista de administradores después de 1.5 segundos
       setTimeout(() => {
         onAdminCreado();
@@ -91,6 +94,8 @@ function CrearAdmin({ token, onAdminCreado, onCancel }) {
     } catch (error) {
       const message = error.response?.data?.detail || "Error al crear administrador";
       setNotification({ message, type: "error" });
+      // Mostrar error global también
+      if (onNotification) onNotification({ message, type: "error" });
     } finally {
       setCargando(false);
     }
@@ -1195,7 +1200,8 @@ function SuperAdminDashboard({ token, nombre, onLogout }) {
         <CrearAdmin 
           token={token} 
           onAdminCreado={handleAdminCreado} 
-          onCancel={handleRegresar} 
+          onCancel={handleRegresar}
+          onNotification={setNotification}
         />
       )}
 

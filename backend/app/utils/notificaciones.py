@@ -1,43 +1,66 @@
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.image import MIMEImage
+# app/utils/notificaciones.py
+import logging
+import sib_api_v3_sdk
+from sib_api_v3_sdk.rest import ApiException
 from app.core.config import settings
 import base64
-import os
-import logging
-import socket
 
-def enviar_correo(destinatario: str, asunto: str, html: str, qr_img_b64: str = None):
+# CONFIGURACIÓN DE BREVO
+configuration = sib_api_v3_sdk.Configuration()
+configuration.api_key["api-key"] = settings.BREVO_API_KEY
+api_client = sib_api_v3_sdk.ApiClient(configuration)
+api_instance = sib_api_v3_sdk.TransactionalEmailsApi(api_client)
+
+def enviar_correo(destinatario: str, asunto: str, html: str, qr_img_b64: str = None) -> bool:
+    """
+    Envía un correo electronico usando Brevo.
+    Si se proporciona qr_img_b64, se incrusta como imagen inline en el cuerpo del correo.
+    """
+    sender = {"name": "Tekhno App", "email": settings.EMAIL_ADDRESS}
+    to = [{"email": destinatario}]
+
     try:
-        msg = MIMEMultipart("related")
-        msg['From'] = settings.EMAIL_ADDRESS
-        msg['To'] = destinatario
-        msg['Subject'] = asunto
-        
-        # Parte alternativa (HTML)
-        mensaje_alternativo = MIMEMultipart("alternative")
-        msg.attach(mensaje_alternativo)
-        
-        # Parte HTML
-        parte_html = MIMEText(html, "html")
-        mensaje_alternativo.attach(parte_html)
-        
+        # Crear el email base
+        email = sib_api_v3_sdk.SendSmtpEmail(
+            to=to,
+            sender=sender,
+            subject=asunto,
+            html_content=html
+        )
+
+        # Incrustar QR en el HTML si se proporciona
         if qr_img_b64:
-            qr_bytes = base64.b64decode(qr_img_b64)
-            imagen = MIMEImage(qr_bytes, _subtype="png")
-            imagen.add_header("Content-ID", "<qrimage>")
-            imagen.add_header("Content-Disposition", "inline", filename="qr.png")
-            msg.attach(imagen)
+            try:
+                # Limpiar el base64 si viene con prefijo data:image
+                if qr_img_b64.startswith('data:image'):
+                    qr_img_b64 = qr_img_b64.split(',')[1]
+                
+                # Validar que sea base64 válido
+                try:
+                    base64.b64decode(qr_img_b64, validate=True)
+                except Exception as decode_error:
+                    return False
 
-        # Configurar timeout optimizado para Railway/producción
-        socket.setdefaulttimeout(15)
-        
-        with smtplib.SMTP_SSL(settings.EMAIL_SMTP_SERVER, settings.EMAIL_SMTP_PORT, timeout=15) as server:
-            server.login(settings.EMAIL_ADDRESS, settings.EMAIL_PASSWORD)
-            server.send_message(msg)
+                # IMPORTANTE: Usar el mismo nombre que se referencia en el HTML
+                email.attachment = [
+                    {
+                        "name": "qrimage.png",
+                        "content": qr_img_b64,
+                        "type": "image/png",
+                        "disposition": "inline",
+                        "content_id": "qrimage"
+                    }
+                ]
+            except Exception as e:
+                return False
 
+        # Enviar correo
+        api_instance.send_transac_email(email)
         return True
+
+    except ApiException as e:
+        logging.error(f"❌ Error de API de Brevo al enviar correo a {destinatario}: {e}")
+        return False
     except Exception as e:
-        logging.error(f"Error al enviar correo a {destinatario}: {e}")
+        logging.error(f"❌ Error general al enviar correo a {destinatario}: {e}")
         return False

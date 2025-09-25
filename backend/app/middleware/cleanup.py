@@ -6,7 +6,7 @@ def cleanup_resources():
     Función para limpiar recursos al cerrar la aplicación
     """
     try:
-        email_executor.shutdown(wait=True, timeout=30)
+        email_executor.shutdown(wait=True)
         print("Pool de hilos de email cerrado correctamente")
     except Exception as e:
         print(f"Error al cerrar pool de hilos de email: {e}")

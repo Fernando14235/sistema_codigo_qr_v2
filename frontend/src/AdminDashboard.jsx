@@ -167,7 +167,7 @@ function BtnRegresar({ onClick }) {
   );
 }
 
-function CrearUsuario({ token, onUsuarioCreado, usuarioEditar, setUsuarioEditar, setVista }) {
+function CrearUsuario({ token, onUsuarioCreado, usuarioEditar, setUsuarioEditar, setVista, onNotification }) {
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [rol, setRol] = useState("residente");
@@ -217,6 +217,8 @@ function CrearUsuario({ token, onUsuarioCreado, usuarioEditar, setUsuarioEditar,
         });
         setMensaje("Usuario actualizado correctamente");
         setUsuarioEditar(null);
+        // Mostrar notificación de éxito
+        if (onNotification) onNotification({ message: "Usuario actualizado correctamente", type: "success" });
         // Llamar onUsuarioCreado para recargar la lista
         if (onUsuarioCreado) onUsuarioCreado();
         // Redirigir después de un breve delay para mostrar el mensaje
@@ -228,6 +230,8 @@ function CrearUsuario({ token, onUsuarioCreado, usuarioEditar, setUsuarioEditar,
           headers: { Authorization: `Bearer ${token}` }
         });
         setMensaje("Usuario creado correctamente");
+        // Mostrar notificación de éxito
+        if (onNotification) onNotification({ message: "Usuario creado correctamente", type: "success" });
         // Limpiar formulario
         setNombre(""); setEmail(""); setRol("residente"); setPassword(""); setTelefono(""); setUnidadResidencial("");
         // Llamar onUsuarioCreado para recargar la lista
@@ -571,17 +575,17 @@ function FormCrearVisitaAdmin({ token, onSuccess, onCancel, setVista, usuario })
         <input type="text" value={nombre_conductor} onChange={e => setNombreConductor(e.target.value)} required disabled={bloqueado || !!qrUrl} />
       </div>
       <div className="form-row">
-        <label>DNI del visitante:</label>
-        <input type="text" value={dni_conductor} onChange={e => setDNIConductor(e.target.value)} required disabled={bloqueado || !!qrUrl} />
+        <label>DNI del visitante: <span style={{color: '#666', fontSize: '0.9em', fontWeight: 'normal'}}>(Opcional)</span></label>
+        <input type="text" value={dni_conductor} onChange={e => setDNIConductor(e.target.value)} disabled={bloqueado || !!qrUrl} />
       </div>
       <div className="form-row">
         <label>Teléfono:</label>
         <span className="input-prefix">+504</span>
-        <input placeholder="XXXXXXXX" value={telefono} onChange={handleTelefonoChange} required maxLength={8} disabled={bloqueado || !!qrUrl} />
+        <input placeholder="XXXXXXXX" value={telefono} onChange={handleTelefonoChange} maxLength={8} disabled={bloqueado || !!qrUrl} />
       </div>
       <div className="form-row">
         <label>Tipo de vehículo:</label>
-        <select value={tipo_vehiculo} onChange={e => setTipoVehiculo(e.target.value)} required disabled={bloqueado || !!qrUrl}>
+        <select value={tipo_vehiculo} onChange={e => setTipoVehiculo(e.target.value)} disabled={bloqueado || !!qrUrl}>
           <option value="">Selecciona un tipo</option>
           {tiposVehiculo.map(tipo => (
             <option key={tipo} value={tipo}>{tipo}</option>
@@ -590,7 +594,7 @@ function FormCrearVisitaAdmin({ token, onSuccess, onCancel, setVista, usuario })
       </div>
       <div className="form-row">
         <label>Marca del vehículo:</label>
-        <select value={marca_vehiculo} onChange={e => setMarcaVehiculo(e.target.value)} required disabled={bloqueado || !!qrUrl}>
+        <select value={marca_vehiculo} onChange={e => setMarcaVehiculo(e.target.value)} disabled={bloqueado || !!qrUrl}>
           <option value="">Selecciona una marca</option>
           {(marcasPorTipo[tipo_vehiculo] || []).map(marca => (
             <option key={marca} value={marca}>{marca}</option>
@@ -599,7 +603,7 @@ function FormCrearVisitaAdmin({ token, onSuccess, onCancel, setVista, usuario })
       </div>
       <div className="form-row">
         <label>Color del vehículo:</label>
-        <select value={color_vehiculo} onChange={e => setColorVehiculo(e.target.value)} required disabled={bloqueado || !!qrUrl}>
+        <select value={color_vehiculo} onChange={e => setColorVehiculo(e.target.value)} disabled={bloqueado || !!qrUrl}>
           <option value="">Selecciona un color</option>
           {coloresVehiculo.map(color => (
             <option key={color} value={color}>{color}</option>
@@ -607,7 +611,7 @@ function FormCrearVisitaAdmin({ token, onSuccess, onCancel, setVista, usuario })
         </select>
       </div>
       <div className="form-row">
-        <label>Placa del vehículo:</label>
+        <label>Placa del vehículo: <span style={{color: '#666', fontSize: '0.9em', fontWeight: 'normal'}}>(Opcional)</span></label>
         <input type="text" value={placa_vehiculo} onChange={e => setPlacaVehiculo(e.target.value)} disabled={bloqueado || !!qrUrl} />
       </div>
       <div className="form-row">
@@ -624,7 +628,7 @@ function FormCrearVisitaAdmin({ token, onSuccess, onCancel, setVista, usuario })
         <input type="datetime-local" value={fecha_entrada} onChange={e => setFechaEntrada(e.target.value)} required disabled={bloqueado || !!qrUrl} />
       </div>
       <div className="form-row">
-        <label>Cantidad de acompañantes:</label>
+        <label>Cantidad de acompañantes: <span style={{color: '#666', fontSize: '0.9em', fontWeight: 'normal'}}>(Opcional)</span></label>
         <input type="number" min="0" max="10" value={cantidadAcompanantes} onChange={e => setCantidadAcompanantes(e.target.value)} disabled={bloqueado || !!qrUrl} />
       </div>
       {acompanantes.map((a, idx) => (
@@ -653,7 +657,9 @@ function FormCrearVisitaAdmin({ token, onSuccess, onCancel, setVista, usuario })
             title="Haz clic para ver en pantalla completa"
           />
           <br/>
-          <button type ="button" onClick={handleDownloadQR} className="btn-primary" style={{ marginTop: 8 }}>Descargar QR  </button>
+          <div style={{ textAlign: 'center', marginTop: 8 }}>
+            <button type ="button" onClick={handleDownloadQR} className="btn-primary">Descargar QR</button>
+          </div>
           <div style={{ color: '#1976d2', marginTop: 6, fontSize: '0.98em' }}>
             Guarda este QR en su galería para mostrarlo en la entrada
           </div>
@@ -830,8 +836,8 @@ function FormEditarVisitaAdmin({ token, visita, onSuccess, onCancel }) {
         <input type="text" value={nombre_conductor} onChange={e => setNombreConductor(e.target.value)} required disabled={cargando || bloqueadoEditar} />
       </div>
       <div className="form-row">
-        <label>DNI del visitante:</label>
-        <input type="text" value={dni_conductor} onChange={e => setDNIConductor(e.target.value)} required disabled={cargando || bloqueadoEditar} />
+        <label>DNI del visitante: <span style={{color: '#666', fontSize: '0.9em', fontWeight: 'normal'}}>(Opcional)</span></label>
+        <input type="text" value={dni_conductor} onChange={e => setDNIConductor(e.target.value)} disabled={cargando || bloqueadoEditar} />
       </div>
       <div className="form-row">
         <label>Teléfono:</label>
@@ -866,7 +872,7 @@ function FormEditarVisitaAdmin({ token, visita, onSuccess, onCancel }) {
         </select>
       </div>
       <div className="form-row">
-        <label>Placa del vehículo:</label>
+        <label>Placa del vehículo: <span style={{color: '#666', fontSize: '0.9em', fontWeight: 'normal'}}>(Opcional)</span></label>
         <input type="text" value={placa_vehiculo} onChange={e => setPlacaVehiculo(e.target.value)} disabled={cargando || bloqueadoEditar} />
       </div>
       <div className="form-row">
@@ -1884,6 +1890,7 @@ function AdminDashboard({ token, nombre, onLogout }) {
               usuarioEditar={usuarioEditar} 
               setUsuarioEditar={setUsuarioEditar}
               setVista={setVista}
+              onNotification={setNotification}
             />
           </section>
         )}

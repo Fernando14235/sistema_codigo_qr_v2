@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from typing import Optional
 
 class Settings(BaseSettings):
     DATABASE_URL: str
@@ -20,11 +21,7 @@ class Settings(BaseSettings):
     EMAIL_SMTP_PORT: int
     EMAIL_USE_TLS: bool
     EMAIL_USE_SSL: bool
-    
-    # WhatsApp
-    #WHATSAPP_FROM: str
-    #WHATSAPP_ACCOUNT_SID: str
-    #WHATSAPP_AUTH_TOKEN: str
+    BREVO_API_KEY: str
     
     # cors
     FRONTEND_URL: str

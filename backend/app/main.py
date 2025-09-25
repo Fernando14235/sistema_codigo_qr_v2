@@ -1,10 +1,10 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Query
 from fastapi.responses import HTMLResponse
+from fastapi_mcp import FastApiMCP
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.database import SessionLocal
 from typing import Optional, List
 from app.routers import auth, usuarios, visitas, notificaciones, historial_visitas, estadisticas, sociales, tickets, residenciales, super_admin, vistas
-# Importar middleware de limpieza para el pool de hilos
 from app.middleware import cleanup
 from app.services.user_service import crear_usuario, eliminar_usuario, obtener_usuario, obtener_usuario_por_id, actualizar_usuario
 from app.schemas.usuario_schema import Usuario, UsuarioCreate, UsuarioUpdate, UsuarioCreateSuperAdmin, UsuarioCreateAdmin
@@ -34,6 +34,8 @@ app.include_router(notificaciones.router)
 app.include_router(residenciales.router)
 app.include_router(super_admin.router)
 app.include_router(vistas.router)
+mcp = FastApiMCP(app)
+mcp.mount_http()
 
 # Llamada a la función de expiración de visitas
 def actu_visita_expiracion():
@@ -55,7 +57,6 @@ def home():
 
 @app.get('/health', tags=["Salud"])
 def health_check():
-    """Endpoint para verificar el estado del sistema"""
     try:
         from app.utils.async_notifications import email_executor
         return {

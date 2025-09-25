@@ -2,6 +2,8 @@
 fastapi==0.109.2
 uvicorn==0.27.1
 python-dotenv==1.0.1
+resend==2.13.1
+sib_api_v3_sdk==7.6.0
 
 # Base de datos
 sqlalchemy==2.0.28

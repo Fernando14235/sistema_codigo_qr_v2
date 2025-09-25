@@ -156,37 +156,59 @@ def enviar_notificacion_residente(db: Session, visita, qr_img_b64: str, acompana
         asunto = "Nueva visita programada"
         mensaje_html = f"""
             <html>
-                <body>
-                    <h2>¡Hola {nombre_destinatario}!</h2>
-                    <p>Tu visita fue creada exitosamente.</p>
-                    <h3>👤 Datos del visitante</h3>
-                    <ul>
-                        <li><strong>Nombre del Visitante:</strong> {visita.visitante.nombre_conductor}</li>
-                        <li><strong>DNI del Visitante:</strong> {visita.visitante.dni_conductor}</li>
-                        <li><strong>Teléfono del Visitante:</strong> {visita.visitante.telefono}</li>
-                        <li><strong>Tipo de vehículo:</strong> {visita.visitante.tipo_vehiculo}</li>
-                        <li><strong>Marca del Vehiculo:</strong> {visita.visitante.marca_vehiculo}</li>
-                        <li><strong>Color del Vehiculo:</strong> {visita.visitante.color_vehiculo}</li>
-                        <li><strong>Placa del Vehiculo:</strong> {visita.visitante.placa_vehiculo}</li>
-                    </ul>
-                    <h3>📝 Detalles de la visita</h3>
-                    <ul>
-                        <li><strong>Motivo:</strong> {visita.notas}</li>
-                        <li><strong>Fecha de entrada:</strong> {(visita.fecha_entrada.astimezone(get_honduras_time().tzinfo) if visita.fecha_entrada.tzinfo else visita.fecha_entrada).strftime('%Y-%m-%d %H:%M:%S')}</li>
-                        <br>
-                        <li><strong>Fecha de Expiracion:</strong> {(visita.qr_expiracion.astimezone(get_honduras_time().tzinfo) if visita.qr_expiracion.tzinfo else visita.qr_expiracion).strftime('%Y-%m-%d %H:%M:%S')}</li>
-                    </ul>
+                <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                    <div style="max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+                        <div style="background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                            <h1 style="color: #2c3e50; text-align: center; margin-bottom: 30px;">
+                                📝 ¡Tu visita fue creada exitosamente!
+                            </h1>
+                            <p style="font-size: 16px; margin-bottom: 20px;">
+                                Hola <strong>{nombre_destinatario}</strong>,
+                            </p>
+                            <div style="background-color: #e8f4fd; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                                <h3 style="color: #2980b9; margin-top: 0;">👤 Datos del visitante</h3>
+                                <ul style="list-style: none; padding: 0;">
+                                    <li style="margin-bottom: 10px;"><strong>Nombre:</strong> {visita.visitante.nombre_conductor}</li>
+                                    <li style="margin-bottom: 10px;"><strong>DNI:</strong> {visita.visitante.dni_conductor}</li>
+                                    <li style="margin-bottom: 10px;"><strong>Teléfono:</strong> {visita.visitante.telefono}</li>
+                                    <li style="margin-bottom: 10px;"><strong>Tipo de vehículo:</strong> {visita.visitante.tipo_vehiculo}</li>
+                                    <li style="margin-bottom: 10px;"><strong>Marca:</strong> {visita.visitante.marca_vehiculo}</li>
+                                    <li style="margin-bottom: 10px;"><strong>Color:</strong> {visita.visitante.color_vehiculo}</li>
+                                    <li style="margin-bottom: 10px;"><strong>Placa:</strong> {visita.visitante.placa_vehiculo}</li>
+                                </ul>
+                            </div>
+                            <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                                <h3 style="color: #155724; margin-top: 0;">📝 Detalles de la visita</h3>
+                                <ul style="list-style: none; padding: 0;">
+                                    <li style="margin-bottom: 10px;"><strong>Motivo:</strong> {visita.notas}</li>
+                                    <li style="margin-bottom: 10px;"><strong>Fecha de entrada:</strong> {(visita.fecha_entrada.astimezone(get_honduras_time().tzinfo) if visita.fecha_entrada.tzinfo else visita.fecha_entrada).strftime('%Y-%m-%d %H:%M:%S')}</li>
+                                    <li style="margin-bottom: 10px;"><strong>Fecha de Expiración:</strong> {(visita.qr_expiracion.astimezone(get_honduras_time().tzinfo) if visita.qr_expiracion.tzinfo else visita.qr_expiracion).strftime('%Y-%m-%d %H:%M:%S')}</li>
+                                </ul>
+                            </div>
         """
         if acompanantes:
-            mensaje_html += "<br><strong>Acompañantes:</strong> " + ", ".join(acompanantes)
+            mensaje_html += f"""
+                            <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                                <h3 style="color: #856404; margin-top: 0;">👥 Acompañantes</h3>
+                                <p>{", ".join(acompanantes)}</p>
+                            </div>
+            """
+
         mensaje_html += """
-                    <h3>🔐 Código QR</h3>
-                    <p>Presentar este código al guardia en la entrada:</p>
-                    <img src="cid:qrimage" alt="Código QR" width="200" height="200"/>
-                    <p><strong>No compartir este codigo QR a personas no autorizadas</strong></p>
+                            <p style="text-align: center; margin-top: 30px; font-size: 14px; color: #666;">
+                                Si tienes alguna pregunta o necesitas ayuda, no dudes en contactar al administrador.
+                            </p>
+                            <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                            <p style="text-align: center; font-size: 12px; color: #999;">
+                                Este es un mensaje automático del sistema Residencial Access.<br>
+                                <strong>No respondas a este correo.</strong>
+                            </p>
+                        </div>
+                    </div>
                 </body>
             </html>
         """
+
         exito = enviar_correo(email_destinatario, asunto, mensaje_html, qr_img_b64)
         estado = "enviado" if exito else "fallido"
         from app.models.notificacion import Notificacion
@@ -234,18 +256,38 @@ def enviar_notificacion_guardia(db: Session, visita):
             if guardia.usuario and guardia.usuario.email:
                 mensaje_html = f"""
                     <html>
-                        <body>
-                            <h2>¡Notificación de nueva visita!</h2>
-                            <h2>¡Hola {guardia.usuario.nombre}!</h2>
-                            <h3>Se ha creado una nueva visita para el usuario <strong>{nombre_creador}</strong>.</h3>
-                            <h3>👤 Datos del visitante</h3>
-                            <ul>
-                                <li><strong>Nombre del Visitante:</strong> {visita.visitante.nombre_conductor}</li>
-                                <li><strong>Tipo de vehículo:</strong> {visita.visitante.tipo_vehiculo}</li>
-                                <li><strong>Marca del Vehiculo:</strong> {visita.visitante.marca_vehiculo}</li>
-                                <li><strong>Color del Vehiculo:</strong> {visita.visitante.color_vehiculo}</li>
-                                <li><strong>Placa del Vehiculo:</strong> {visita.visitante.placa_vehiculo}</li>
-                            </ul>
+                        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                            <div style="max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+                                <div style="background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                                    <h1 style="color: #2c3e50; text-align: center; margin-bottom: 30px;">
+                                        🚨 ¡Notificación de nueva visita!
+                                    </h1>
+                                    <p style="font-size: 16px; margin-bottom: 20px;">
+                                        Hola <strong>{guardia.usuario.nombre}</strong>,
+                                    </p>
+                                    <p style="font-size: 16px; margin-bottom: 20px;">
+                                        Se ha creado una nueva visita para el usuario <strong>{nombre_creador}</strong>.
+                                    </p>
+                                    <div style="background-color: #e8f4fd; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                                        <h3 style="color: #2980b9; margin-top: 0;">👤 Datos del visitante</h3>
+                                        <ul style="list-style: none; padding: 0;">
+                                            <li style="margin-bottom: 10px;"><strong>Nombre:</strong> {visita.visitante.nombre_conductor}</li>
+                                            <li style="margin-bottom: 10px;"><strong>Tipo de vehículo:</strong> {visita.visitante.tipo_vehiculo}</li>
+                                            <li style="margin-bottom: 10px;"><strong>Marca:</strong> {visita.visitante.marca_vehiculo}</li>
+                                            <li style="margin-bottom: 10px;"><strong>Color:</strong> {visita.visitante.color_vehiculo}</li>
+                                            <li style="margin-bottom: 10px;"><strong>Placa:</strong> {visita.visitante.placa_vehiculo}</li>
+                                        </ul>
+                                    </div>
+                                    <p style="text-align: center; margin-top: 30px; font-size: 14px; color: #666;">
+                                        Por favor, verifica la identidad y los datos del visitante al momento de su ingreso.
+                                    </p>
+                                    <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                                    <p style="text-align: center; font-size: 12px; color: #999;">
+                                        Este es un mensaje automático del sistema Residencial Access.<br>
+                                        <strong>No respondas a este correo.</strong>
+                                    </p>
+                                </div>
+                            </div>
                         </body>
                     </html>
                 """
