@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Query
 from fastapi.responses import HTMLResponse
-from fastapi_mcp import FastApiMCP
+
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.database import SessionLocal
 from typing import Optional, List
@@ -34,8 +34,6 @@ app.include_router(notificaciones.router)
 app.include_router(residenciales.router)
 app.include_router(super_admin.router)
 app.include_router(vistas.router)
-mcp = FastApiMCP(app)
-mcp.mount_http()
 
 # Llamada a la función de expiración de visitas
 def actu_visita_expiracion():
