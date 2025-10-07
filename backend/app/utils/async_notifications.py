@@ -21,7 +21,6 @@ def enviar_correo_async(destinatario: str, asunto: str, html: str, qr_img_b64: s
         try:
             return enviar_correo(destinatario, asunto, html, qr_img_b64)
         except Exception as e:
-            logging.error(f"Error en envío asíncrono de correo a {destinatario}: {e}")
             return False
     
     # Enviar en un hilo separado
@@ -141,17 +140,10 @@ def enviar_notificacion_usuario_creado_async(usuario: Usuario, datos_creacion: U
         # Enviar el correo de forma asíncrona
         future = enviar_correo_async(usuario.email, asunto, mensaje_html)
         
-        # Log del intento de envío
-        logging.info(f"Correo de bienvenida programado para envío asíncrono a {usuario.email} (Usuario ID: {usuario.id})")
-        
         # Callback para logging del resultado
         def log_result(future):
             try:
-                result = future.result(timeout=1)  # No bloquear mucho tiempo
-                if result:
-                    logging.info(f"Correo enviado exitosamente a {usuario.email}")
-                else:
-                    logging.warning(f"Fallo en envío de correo a {usuario.email}")
+                future.result(timeout=1)  # No bloquear mucho tiempo
             except Exception as e:
                 logging.error(f"Error en callback de correo para {usuario.email}: {e}")
         
@@ -159,5 +151,4 @@ def enviar_notificacion_usuario_creado_async(usuario: Usuario, datos_creacion: U
         return future
 
     except Exception as e:
-        logging.error(f"Error al programar envío de notificación de usuario creado: {str(e)}")
         return None

@@ -394,7 +394,6 @@ def obtener_vistas_admin(admin_id: int, db: Session = Depends(get_db)):
     except HTTPException as e:
         raise e
     except Exception as e:
-        print(f"Error en obtener_vistas_admin: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error interno del servidor: {str(e)}"

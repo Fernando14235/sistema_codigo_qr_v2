@@ -159,7 +159,6 @@ def obtener_mis_vistas(db: Session = Depends(get_db), current_user = Depends(ver
         
     except Exception as e:
         # En caso de error, devolver todas las vistas de la base de datos
-        print(f"Error en obtener_mis_vistas: {str(e)}")
         import traceback
         traceback.print_exc()
         

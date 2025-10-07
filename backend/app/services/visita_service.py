@@ -195,7 +195,6 @@ def crear_visita_con_qr(db: Session, visita_data: VisitaCreate, admin_id: int = 
         raise e
     except Exception as e:
         db.rollback()
-        print(f"Error al crear la visita: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -266,7 +265,6 @@ def validar_qr_visita(db: Session, qr_code: str, guardia_id: int) -> dict:
         raise e
     except Exception as e:
         db.rollback()
-        print(f"Error al validar QR: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -303,9 +301,6 @@ def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str =
             visita_residencial_id = admin.residencial_id
         else:
             return {"valido": False, "error": "Visita sin creador válido."}
-
-        # DEBUG: Imprimir valores y tipos
-        print(f"DEBUG: guardia.residencial_id={guardia.residencial_id} ({type(guardia.residencial_id)}) | visita_residencial_id={visita_residencial_id} ({type(visita_residencial_id)})")
 
         # Validar que ambos sean int y no None
         if guardia.residencial_id is None or visita_residencial_id is None:
@@ -372,7 +367,6 @@ def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str =
         raise e
     except Exception as e:
         db.rollback()
-        print(f"Error al validar QR de entrada: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -449,7 +443,6 @@ def registrar_salida_visita(db: Session, qr_code: str, guardia_id: int) -> dict:
         raise e
     except Exception as e:
         db.rollback()
-        print(f"Error al registrar salida: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -530,7 +523,6 @@ def obtener_historial_escaneos_dia(db: Session, guardia_id: int = None, residenc
         }
         
     except Exception as e:
-        print(f"Error al obtener historial de escaneos del día: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -678,7 +670,6 @@ def editar_visita_residente(db: Session, visita_id: int, usuario_id: int, visita
         raise e
     except Exception as e:
         db.rollback()
-        print(f"Error al editar la visita: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -711,7 +702,6 @@ def eliminar_visita_residente(db: Session, visita_id: int, usuario_id: int, rol:
         raise e
     except Exception as e:
         db.rollback()
-        print(f"Error al eliminar la visita: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -780,7 +770,6 @@ def crear_solicitud_visita_residente(db: Session, solicitud_data: SolicitudVisit
             print(f"Error al enviar notificación de solicitud: {str(e)}")
 
         db.commit()
-        
         return {
             "mensaje": "Solicitud de visita enviada exitosamente al administrador",
             "visita_id": visita.id,
@@ -793,7 +782,6 @@ def crear_solicitud_visita_residente(db: Session, solicitud_data: SolicitudVisit
         raise e
     except Exception as e:
         db.rollback()
-        print(f"Error al crear solicitud de visita: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -875,7 +863,6 @@ def aprobar_solicitud_visita_admin(db: Session, visita_id: int, admin_id: int) -
         raise e
     except Exception as e:
         db.rollback()
-        print(f"Error al aprobar solicitud de visita: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -911,7 +898,6 @@ def obtener_solicitudes_pendientes_admin(db: Session) -> list:
         return result
 
     except Exception as e:
-        print(f"Error al obtener solicitudes pendientes: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
