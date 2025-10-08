@@ -8,6 +8,7 @@ from app.models.visitante import Visitante
 from app.models.residente import Residente
 from app.models.admin import Administrador
 from app.models.residencial import Residencial
+from sqlalchemy import literal
 from app.services.notificacion_service import enviar_notificacion_residente, enviar_notificacion_guardia, enviar_notificacion_visita_actualizada, enviar_notificacion_solicitud_visita, enviar_notificacion_solicitud_aprobada
 from app.schemas.visita_schema import VisitaCreate, VisitaQRResponse, VisitaUpdate, SolicitudVisitaCreate
 from app.schemas.visitante_schema import VisitanteCreate, VisitanteResponse
@@ -195,81 +196,14 @@ def crear_visita_con_qr(db: Session, visita_data: VisitaCreate, admin_id: int = 
         raise e
     except Exception as e:
         db.rollback()
+        print(f"Error al crear la visita: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al crear la visita: {str(e)}"
         )
 
-def validar_qr_visita(db: Session, qr_code: str, guardia_id: int) -> dict:
-    try:
-        # 1. Validacion del codigo QR
-        _, error = validar_payload_qr(qr_code)
-        if error:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Código QR no identificado, no puede pasar!"
-            )
-            
-        now_utc = datetime.now(timezone.utc)
-        
-        # 2. Busqueda de la visita
-        visitas = db.query(Visita).filter(Visita.qr_code == qr_code).all()
-        if not visitas:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Codigo QR no identificado, no puede pasar!"
-            )
-            
-        # 3. Validar expiración
-        visitantes_aprobados = []
-        for visita in visitas:
-            if visita.qr_expiracion < now_utc:
-                visita.estado = "expirado"
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="El QR ha expirado"
-                )
-            if visita.fecha_entrada > now_utc:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Aún no es la hora de entrada programada para esta visita"
-                )
-            # Aprobamos esta visita
-            visita.estado = "aprobado"
-            visita.guardia_id = guardia_id
-            visitantes_aprobados.append({
-                "nombre_conductor": visita.visitante.nombre_conductor,
-                "dni_conductor": visita.visitante.dni_conductor,
-                "telefono": visita.visitante.telefono,
-                "tipo_vehiculo": visita.visitante.tipo_vehiculo,
-                "placa_vehiculo": visita.visitante.placa_vehiculo,
-                "motivo_visita": visita.visitante.motivo_visita
-            })
-        db.commit()
-
-        if not visitantes_aprobados:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Ningún visitante fue aprobado. El QR puede estar expirado o aún no es válido."
-            )
-
-        return {
-            "valido": True,
-            "visitantes": visitantes_aprobados,
-            "estado": visita.estado
-        }
-
-    except HTTPException as e:
-        db.rollback()
-        raise e
-    except Exception as e:
-        db.rollback()
-        print(traceback.format_exc())
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al validar QR: {str(e)}"
-        )
+# Función eliminada - se usa validar_qr_entrada en su lugar
 
 def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str = None) -> dict:
     try:
@@ -278,9 +212,22 @@ def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str =
         if not visitas:
             return {"valido": False, "error": "Código QR no identificado, no puede pasar!"}
 
-        # Busca todas las visitas con ese QR
+        # Busca todas las visitas con ese QR que estén en estado válido para escanear
         visita = next((v for v in visitas if v.estado == "pendiente"), None)
         if not visita:
+            # Verificar si hay visitas ya procesadas para dar un mensaje más específico
+            visita_procesada = next((v for v in visitas if v.estado in ["aprobado", "completado"]), None)
+            if visita_procesada:
+                return {"valido": False, "error": "Esta visita ya ha sido procesada anteriormente."}
+            
+            visita_expirada = next((v for v in visitas if v.estado == "expirado"), None)
+            if visita_expirada:
+                return {"valido": False, "error": "Esta visita ha expirado."}
+                
+            visita_rechazada = next((v for v in visitas if v.estado == "rechazado"), None)
+            if visita_rechazada:
+                return {"valido": False, "error": "Esta visita fue rechazada anteriormente."}
+                
             return {"valido": False, "error": "No hay visitantes pendientes para este QR."}
 
         # Validar que el guardia y la visita pertenezcan a la misma residencial
@@ -301,6 +248,9 @@ def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str =
             visita_residencial_id = admin.residencial_id
         else:
             return {"valido": False, "error": "Visita sin creador válido."}
+
+        # DEBUG: Imprimir valores y tipos
+        print(f"DEBUG: guardia.residencial_id={guardia.residencial_id} ({type(guardia.residencial_id)}) | visita_residencial_id={visita_residencial_id} ({type(visita_residencial_id)})")
 
         # Validar que ambos sean int y no None
         if guardia.residencial_id is None or visita_residencial_id is None:
@@ -324,20 +274,22 @@ def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str =
                 db.commit()
                 return {"valido": False, "error": "El QR ha expirado"}
 
-        # Validar hora de entrada en zona Honduras
-        if visita.fecha_entrada:
-            if now_hn < visita.fecha_entrada:
-                return {
-                    "valido": False,
-                    "error": "Aún no es la hora de entrada programada para esta visita"
-                }
+        # Verificar si la visita llega antes de la hora programada
+        entrada_anticipada = False
+        mensaje_entrada_anticipada = ""
         
-        # Aplicar acción si se especifica
-        if accion == "aprobar":
+        if visita.fecha_entrada and now_hn < visita.fecha_entrada:
+            entrada_anticipada = True
+            mensaje_entrada_anticipada = "⚠️ ENTRADA ANTICIPADA: El visitante llegó antes de la hora programada"
+        
+        # Aplicar acción si se especifica, o aprobar por defecto si no se especifica
+        if accion == "aprobar" or accion is None:
             visita.estado = "aprobado"
+            print(f"DEBUG: Cambiando estado de visita {visita.id} a 'aprobado'")
         elif accion == "rechazar":
             visita.estado = "rechazado"
-        elif accion is not None:
+            print(f"DEBUG: Cambiando estado de visita {visita.id} a 'rechazado'")
+        else:
             raise HTTPException(status_code=400, detail="Acción inválida.")
         
         # Asignar guardia a la visita
@@ -346,7 +298,13 @@ def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str =
         # Obtener información del visitante para la respuesta
         visitante = db.query(Visitante).filter(Visitante.id == visita.visitante_id).first()
         
+        # Hacer flush antes del commit para asegurar que los cambios se apliquen
+        db.flush()
         db.commit()
+        
+        # Verificar que el cambio se aplicó correctamente
+        db.refresh(visita)
+        print(f"DEBUG: Estado final de visita {visita.id} después del commit: {visita.estado}")
         
         return {
             "valido": True,
@@ -359,7 +317,9 @@ def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str =
                 "motivo_visita": visitante.motivo_visita
             },
             "estado": visita.estado,
-            "visita_id": visita.id
+            "visita_id": visita.id,
+            "entrada_anticipada": entrada_anticipada,
+            "mensaje_entrada_anticipada": mensaje_entrada_anticipada if entrada_anticipada else None
         }
         
     except HTTPException as e:
@@ -367,6 +327,7 @@ def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str =
         raise e
     except Exception as e:
         db.rollback()
+        print(f"Error al validar QR de entrada: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -443,6 +404,7 @@ def registrar_salida_visita(db: Session, qr_code: str, guardia_id: int) -> dict:
         raise e
     except Exception as e:
         db.rollback()
+        print(f"Error al registrar salida: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -456,49 +418,81 @@ def obtener_historial_escaneos_dia(db: Session, guardia_id: int = None, residenc
         fecha_inicio = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
         fecha_fin = now_utc.replace(hour=23, minute=59, second=59, microsecond=999999)
         
-        # Construir consulta base con filtro por residencial_id
-        query = db.query(
+        # Construir consulta base que incluya tanto visitas de residentes como de administradores
+        # Primero, consulta para visitas creadas por residentes
+        query_residentes = db.query(
             EscaneoQR,
             Visita,
             Visitante,
-            Residente,
-            Usuario,
-            Guardia
+            Guardia,
+            Usuario.nombre.label('creador_nombre'),
+            Residente.unidad_residencial.label('unidad_residencial')
         ).join(
             Visita, EscaneoQR.visita_id == Visita.id
         ).join(
             Visitante, Visita.visitante_id == Visitante.id
         ).join(
+            Guardia, EscaneoQR.guardia_id == Guardia.id
+        ).join(
             Residente, Visita.residente_id == Residente.id
         ).join(
             Usuario, Residente.usuario_id == Usuario.id
-        ).join(
-            Guardia, EscaneoQR.guardia_id == Guardia.id
         ).filter(
             EscaneoQR.fecha_escaneo >= fecha_inicio,
-            EscaneoQR.fecha_escaneo <= fecha_fin
+            EscaneoQR.fecha_escaneo <= fecha_fin,
+            Visita.residente_id.isnot(None)
         )
         
-        # Filtrar por residencial_id si se proporciona
-        if residencial_id:
-            query = query.filter(Residente.residencial_id == residencial_id)
+        # Segunda consulta para visitas creadas por administradores
+        query_admins = db.query(
+            EscaneoQR,
+            Visita,
+            Visitante,
+            Guardia,
+            Usuario.nombre.label('creador_nombre'),
+            literal("Admin").label('unidad_residencial')
+        ).join(
+            Visita, EscaneoQR.visita_id == Visita.id
+        ).join(
+            Visitante, Visita.visitante_id == Visitante.id
+        ).join(
+            Guardia, EscaneoQR.guardia_id == Guardia.id
+        ).join(
+            Administrador, Visita.admin_id == Administrador.id
+        ).join(
+            Usuario, Administrador.usuario_id == Usuario.id
+        ).filter(
+            EscaneoQR.fecha_escaneo >= fecha_inicio,
+            EscaneoQR.fecha_escaneo <= fecha_fin,
+            Visita.admin_id.isnot(None)
+        )
         
         # Filtrar por guardia específico si se proporciona
         if guardia_id:
-            query = query.filter(EscaneoQR.guardia_id == guardia_id)
+            query_residentes = query_residentes.filter(EscaneoQR.guardia_id == guardia_id)
+            query_admins = query_admins.filter(EscaneoQR.guardia_id == guardia_id)
         
-        # Filtrar por nombre de guardia si se proporciona
-        if nombre_guardia:
-            query = query.filter(Usuario.nombre.ilike(f"%{nombre_guardia}%"))
+        # Filtrar por residencial_id si se proporciona
+        if residencial_id:
+            query_residentes = query_residentes.filter(Residente.residencial_id == residencial_id)
+            query_admins = query_admins.filter(Administrador.residencial_id == residencial_id)
         
-        # Ejecutar consulta ordenada por fecha de escaneo descendente
-        resultados = query.order_by(EscaneoQR.fecha_escaneo.desc()).all()
+        # Ejecutar ambas consultas y combinar resultados
+        resultados_residentes = query_residentes.order_by(EscaneoQR.fecha_escaneo.desc()).all()
+        resultados_admins = query_admins.order_by(EscaneoQR.fecha_escaneo.desc()).all()
         
         # Procesar resultados
         escaneos = []
-        for escaneo, visita, visitante, residente, usuario_residente, guardia in resultados:
+        
+        # Procesar escaneos de visitas creadas por residentes
+        for escaneo, visita, visitante, guardia, creador_nombre, unidad_residencial in resultados_residentes:
             fecha_escaneo_utc = to_utc(escaneo.fecha_escaneo)
             tipo_escaneo = "salida" if visita.fecha_salida and fecha_escaneo_utc >= to_utc(visita.fecha_salida) else "entrada"
+            
+            # Verificar si fue entrada anticipada
+            entrada_anticipada = False
+            if tipo_escaneo == "entrada" and visita.fecha_entrada:
+                entrada_anticipada = fecha_escaneo_utc < to_utc(visita.fecha_entrada)
             
             escaneos.append({
                 "id_escaneo": escaneo.id,
@@ -510,11 +504,44 @@ def obtener_historial_escaneos_dia(db: Session, guardia_id: int = None, residenc
                 "tipo_vehiculo": visitante.tipo_vehiculo,
                 "placa_vehiculo": visitante.placa_vehiculo,
                 "motivo_visita": visitante.motivo_visita,
-                "nombre_residente": usuario_residente.nombre,
-                "unidad_residencial": residente.unidad_residencial,
+                "nombre_residente": creador_nombre,
+                "unidad_residencial": unidad_residencial,
                 "estado_visita": visita.estado,
-                "tipo_escaneo": tipo_escaneo
+                "tipo_escaneo": tipo_escaneo,
+                "tipo_creador": "residente",
+                "entrada_anticipada": entrada_anticipada
             })
+        
+        # Procesar escaneos de visitas creadas por administradores
+        for escaneo, visita, visitante, guardia, creador_nombre, unidad_residencial in resultados_admins:
+            fecha_escaneo_utc = to_utc(escaneo.fecha_escaneo)
+            tipo_escaneo = "salida" if visita.fecha_salida and fecha_escaneo_utc >= to_utc(visita.fecha_salida) else "entrada"
+            
+            # Verificar si fue entrada anticipada
+            entrada_anticipada = False
+            if tipo_escaneo == "entrada" and visita.fecha_entrada:
+                entrada_anticipada = fecha_escaneo_utc < to_utc(visita.fecha_entrada)
+            
+            escaneos.append({
+                "id_escaneo": escaneo.id,
+                "fecha_escaneo": fecha_escaneo_utc,
+                "dispositivo": escaneo.dispositivo or "No especificado",
+                "nombre_guardia": guardia.usuario.nombre if guardia.usuario else f"Guardia {guardia.id}",
+                "nombre_visitante": visitante.nombre_conductor,
+                "dni_visitante": visitante.dni_conductor,
+                "tipo_vehiculo": visitante.tipo_vehiculo,
+                "placa_vehiculo": visitante.placa_vehiculo,
+                "motivo_visita": visitante.motivo_visita,
+                "nombre_residente": f"{creador_nombre} (Admin)",
+                "unidad_residencial": "Administrador",
+                "estado_visita": visita.estado,
+                "tipo_escaneo": tipo_escaneo,
+                "tipo_creador": "admin",
+                "entrada_anticipada": entrada_anticipada
+            })
+        
+        # Ordenar todos los escaneos por fecha descendente
+        escaneos.sort(key=lambda x: x["fecha_escaneo"], reverse=True)
         
         return {
             "escaneos": escaneos,
@@ -523,6 +550,7 @@ def obtener_historial_escaneos_dia(db: Session, guardia_id: int = None, residenc
         }
         
     except Exception as e:
+        print(f"Error al obtener historial de escaneos del día: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -670,6 +698,7 @@ def editar_visita_residente(db: Session, visita_id: int, usuario_id: int, visita
         raise e
     except Exception as e:
         db.rollback()
+        print(f"Error al editar la visita: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -702,6 +731,7 @@ def eliminar_visita_residente(db: Session, visita_id: int, usuario_id: int, rol:
         raise e
     except Exception as e:
         db.rollback()
+        print(f"Error al eliminar la visita: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -770,6 +800,7 @@ def crear_solicitud_visita_residente(db: Session, solicitud_data: SolicitudVisit
             print(f"Error al enviar notificación de solicitud: {str(e)}")
 
         db.commit()
+        
         return {
             "mensaje": "Solicitud de visita enviada exitosamente al administrador",
             "visita_id": visita.id,
@@ -782,6 +813,7 @@ def crear_solicitud_visita_residente(db: Session, solicitud_data: SolicitudVisit
         raise e
     except Exception as e:
         db.rollback()
+        print(f"Error al crear solicitud de visita: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -863,6 +895,7 @@ def aprobar_solicitud_visita_admin(db: Session, visita_id: int, admin_id: int) -
         raise e
     except Exception as e:
         db.rollback()
+        print(f"Error al aprobar solicitud de visita: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -898,6 +931,7 @@ def obtener_solicitudes_pendientes_admin(db: Session) -> list:
         return result
 
     except Exception as e:
+        print(f"Error al obtener solicitudes pendientes: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

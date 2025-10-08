@@ -1,3 +1,5 @@
+# app/utils/notificaciones.py
+import logging
 import sib_api_v3_sdk
 from sib_api_v3_sdk.rest import ApiException
 from app.core.config import settings
@@ -10,6 +12,10 @@ api_client = sib_api_v3_sdk.ApiClient(configuration)
 api_instance = sib_api_v3_sdk.TransactionalEmailsApi(api_client)
 
 def enviar_correo(destinatario: str, asunto: str, html: str, qr_img_b64: str = None) -> bool:
+    """
+    Envía un correo electronico usando Brevo.
+    Si se proporciona qr_img_b64, se incrusta como imagen inline en el cuerpo del correo.
+    """
     sender = {"name": "Tekhno App", "email": settings.EMAIL_ADDRESS}
     to = [{"email": destinatario}]
 
@@ -53,6 +59,8 @@ def enviar_correo(destinatario: str, asunto: str, html: str, qr_img_b64: str = N
         return True
 
     except ApiException as e:
+        logging.error(f"❌ Error de API de Brevo al enviar correo a {destinatario}: {e}")
         return False
     except Exception as e:
+        logging.error(f"❌ Error general al enviar correo a {destinatario}: {e}")
         return False

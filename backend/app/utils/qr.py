@@ -107,10 +107,10 @@ def generar_imagen_qr_personalizada(
 
     # 4. Cargar fuentes (usa fuentes del sistema o default)
     try:
-        font_titulo = ImageFont.truetype("arialbd.ttf", 28)
-        font_normal = ImageFont.truetype("arial.ttf", 22)
-        font_small = ImageFont.truetype("arial.ttf", 18)
-        font_fecha = ImageFont.truetype("arial.ttf", 26)  # Aumentar tamaño para fechas
+        font_titulo = ImageFont.truetype("arialbd.ttf", 32)  # Aumentar tamaño del título
+        font_normal = ImageFont.truetype("arial.ttf", 26)   # Aumentar tamaño del texto normal
+        font_small = ImageFont.truetype("arial.ttf", 20)    # Aumentar tamaño del texto pequeño
+        font_fecha = ImageFont.truetype("arialbd.ttf", 28)  # Ajustar tamaño para fechas
     except:
         font_titulo = ImageFont.load_default()
         font_normal = ImageFont.load_default()
@@ -118,19 +118,21 @@ def generar_imagen_qr_personalizada(
         font_fecha = ImageFont.load_default()
 
     # 5. Escribir textos
-    # Título superior
+    # Título superior - más grande y mejor centrado
     texto_superior = f"Hola {nombre_visitante}, {nombre_residente} te ha invitado a:"
-    draw.text((ancho_total//2, 20), texto_superior, font=font_normal, fill="black", anchor="mm")
-    draw.text((ancho_total//2, 55), nombre_residencial, font=font_titulo, fill="#2980b9", anchor="mm")
+    draw.text((ancho_total//2, 25), texto_superior, font=font_normal, fill="black", anchor="mm")
+    draw.text((ancho_total//2, 65), nombre_residencial, font=font_titulo, fill="#2980b9", anchor="mm")
 
-    # Dirección (unidad residencial)
-    draw.text((ancho_total//2, 90), unidad_residencial, font=font_normal, fill="black", anchor="mm")
+    # Dirección (unidad residencial) - mejor centrado
+    draw.text((ancho_total//2, 95), unidad_residencial, font=font_normal, fill="black", anchor="mm")
 
-    # Fechas
+    # Fechas - Perfectamente centrado
     fecha_creacion_str = fecha_creacion.strftime("%d-%b-%Y - %I:%M %p")
     fecha_expiracion_str = fecha_expiracion.strftime("%d-%b-%Y - %I:%M %p")
-    draw.text((60, alto + margen_superior + 8), f"Se creó:\n{fecha_creacion_str}", font=font_fecha, fill="black")
-    draw.text((ancho_total - 60, alto + margen_superior + 10), f"El Código Expira:\n{fecha_expiracion_str}", font=font_fecha, fill="black", anchor="rm")
+    
+    # Texto perfectamente centrado para la expiración
+    texto_expiracion = f"El Codigo Expira:\n{fecha_expiracion_str}"
+    draw.text((ancho_total//2, alto + margen_superior + 50), texto_expiracion, font=font_fecha, fill="black", anchor="mm")
 
     # 6. Convertir a base64
     buffered = io.BytesIO()

@@ -48,14 +48,29 @@ def validar_qr(
     db: Session = Depends(get_db),
     usuario: TokenData = Depends(get_current_user)
 ):
+    # Logging detallado para debugging
+    logging.info(f"🔍 INICIO - Validando QR")
+    logging.info(f"👤 Usuario: {usuario.id} ({usuario.rol})")
+    logging.info(f"📱 QR Code: {request.qr_code[:20]}..." if len(request.qr_code) > 20 else f"📱 QR Code: {request.qr_code}")
+    logging.info(f"⚡ Acción: {request.accion}")
+    
+    # Validar que el QR no esté vacío
+    if not request.qr_code or not request.qr_code.strip():
+        logging.error("❌ QR Code vacío o inválido")
+        return {"valido": False, "error": "Código QR vacío o inválido"}
+    
     # Obtener el guardia actual
     guardia = db.query(Guardia).filter(Guardia.usuario_id == usuario.id).first()
     if not guardia:
+        logging.error(f"❌ Guardia no encontrado para usuario_id: {usuario.id}")
         return {"valido": False, "error": "Guardia no encontrado"}
 
     # Llamar al servicio para validar el QR
     accion = request.accion.value if request.accion else None
+    logging.info(f"Acción procesada: {accion}")
+    
     resultado = validar_qr_entrada(db, request.qr_code, guardia.id, accion)
+    logging.info(f"Resultado de validación: {resultado}")
     
     if not resultado["valido"]:
         return resultado
@@ -72,21 +87,26 @@ def validar_qr(
     db.add(escaneo_qr)
     db.commit()
 
+    # Obtener el estado actualizado de la visita para confirmar el cambio
+    visita_actualizada = db.query(Visita).filter(Visita.id == resultado["visita_id"]).first()
+    logging.info(f"Estado final de la visita {resultado['visita_id']}: {visita_actualizada.estado}")
+
     # Enviar notificación al residente después del escaneo
     try:
         usuario_obj = db.query(Usuario).filter(Usuario.id == usuario.id).first()
-        visita = db.query(Visita).filter(Visita.id == resultado["visita_id"]).first()
-        enviar_notificacion_escaneo(db, visita, get_username(usuario_obj))
+        enviar_notificacion_escaneo(db, visita_actualizada, get_username(usuario_obj))
     except Exception as e:
         logging.error(f"Error al enviar notificación tras escaneo QR: {e}")
         
     return {
         "valido": True,
         "visitante": resultado["visitante"],
-        "estado": resultado["estado"],
+        "estado": visita_actualizada.estado,  # Usar el estado actualizado de la BD
+        "visita_id": resultado["visita_id"],
+        "accion_aplicada": accion,
         "guardia": {
             "id": guardia.id,
-            "nombre": guardia.usuario.nombre if guardia else usuario_obj.nombre,
+            "nombre": guardia.usuario.nombre if guardia.usuario else f"Guardia {guardia.id}",
             "rol": usuario.rol
         }
     }
@@ -201,3 +221,172 @@ def aprobar_solicitud_visita(
     usuario: TokenData = Depends(get_current_user)
 ):
     return aprobar_solicitud_visita_admin(db, visita_id, usuario.id)
+
+@router.get("/debug/visita/{visita_id}", dependencies=[Depends(verify_role(["admin", "guardia"]))])
+def debug_visita_estado(
+    visita_id: int,
+    db: Session = Depends(get_db),
+    usuario: TokenData = Depends(get_current_user)
+):
+    """Endpoint para debuggear el estado de una visita específica"""
+    visita = db.query(Visita).filter(Visita.id == visita_id).first()
+    if not visita:
+        raise HTTPException(status_code=404, detail="Visita no encontrada")
+    
+    return {
+        "visita_id": visita.id,
+        "estado": visita.estado,
+        "qr_code": visita.qr_code[:20] + "..." if visita.qr_code else None,
+        "guardia_id": visita.guardia_id,
+        "fecha_entrada": visita.fecha_entrada,
+        "qr_expiracion": visita.qr_expiracion,
+        "tipo_creador": visita.tipo_creador
+    }
+
+@router.post("/debug/test-qr-payload", dependencies=[Depends(verify_role(["admin", "guardia"]))])
+def test_qr_payload(
+    request: ValidarQRRequest,
+    usuario: TokenData = Depends(get_current_user)
+):
+    """Endpoint para probar que el payload del QR llegue correctamente"""
+    return {
+        "received_data": {
+            "qr_code": request.qr_code,
+            "qr_code_length": len(request.qr_code) if request.qr_code else 0,
+            "qr_code_type": type(request.qr_code).__name__,
+            "accion": request.accion,
+            "accion_value": request.accion.value if request.accion else None,
+        },
+        "usuario": {
+            "id": usuario.id,
+            "rol": usuario.rol
+        },
+        "validation_status": "OK - Datos recibidos correctamente"
+    }
+
+@router.get("/admin/escaneos-guardia", dependencies=[Depends(verify_role(["admin"]))])
+def obtener_escaneos_guardia_admin(
+    db: Session = Depends(get_db),
+    usuario: TokenData = Depends(get_current_user),
+    guardia_id: int = None,
+    fecha_inicio: str = None,
+    fecha_fin: str = None,
+    limit: int = 50
+):
+    """Endpoint para que los administradores vean los escaneos realizados por guardias"""
+    try:
+        from datetime import datetime, timezone
+        from app.models.escaneo_qr import EscaneoQR
+        from app.models.guardia import Guardia
+        from app.models.usuario import Usuario
+        from app.models.visitante import Visitante
+        from app.models.residente import Residente
+        from app.models.administrador import Administrador
+        
+        # Verificar que el usuario es admin
+        admin = db.query(Administrador).filter(Administrador.usuario_id == usuario.id).first()
+        if not admin:
+            raise HTTPException(status_code=403, detail="Solo administradores pueden acceder a esta información")
+        
+        # Construir consulta base
+        query = db.query(
+            EscaneoQR,
+            Visita,
+            Visitante,
+            Guardia,
+            Usuario.nombre.label('nombre_guardia')
+        ).join(
+            Visita, EscaneoQR.visita_id == Visita.id
+        ).join(
+            Visitante, Visita.visitante_id == Visitante.id
+        ).join(
+            Guardia, EscaneoQR.guardia_id == Guardia.id
+        ).join(
+            Usuario, Guardia.usuario_id == Usuario.id
+        )
+        
+        # Filtrar por residencial del admin
+        if admin.residencial_id:
+            query = query.filter(Guardia.residencial_id == admin.residencial_id)
+        
+        # Filtrar por guardia específico si se proporciona
+        if guardia_id:
+            query = query.filter(EscaneoQR.guardia_id == guardia_id)
+        
+        # Filtrar por fechas si se proporcionan
+        if fecha_inicio:
+            try:
+                fecha_inicio_dt = datetime.fromisoformat(fecha_inicio.replace('Z', '+00:00'))
+                query = query.filter(EscaneoQR.fecha_escaneo >= fecha_inicio_dt)
+            except ValueError:
+                pass
+                
+        if fecha_fin:
+            try:
+                fecha_fin_dt = datetime.fromisoformat(fecha_fin.replace('Z', '+00:00'))
+                query = query.filter(EscaneoQR.fecha_escaneo <= fecha_fin_dt)
+            except ValueError:
+                pass
+        
+        # Ejecutar consulta con límite
+        resultados = query.order_by(EscaneoQR.fecha_escaneo.desc()).limit(limit).all()
+        
+        # Procesar resultados
+        escaneos = []
+        for escaneo, visita, visitante, guardia, nombre_guardia in resultados:
+            # Determinar tipo de escaneo
+            tipo_escaneo = "salida" if visita.fecha_salida and escaneo.fecha_escaneo >= visita.fecha_salida else "entrada"
+            
+            # Obtener información del residente
+            residente_info = {"nombre": "N/A", "unidad": "N/A"}
+            if visita.residente_id:
+                residente = db.query(Residente).join(Usuario).filter(Residente.id == visita.residente_id).first()
+                if residente:
+                    residente_info = {
+                        "nombre": residente.usuario.nombre,
+                        "unidad": residente.unidad_residencial
+                    }
+            
+            escaneos.append({
+                "id_escaneo": escaneo.id,
+                "fecha_escaneo": escaneo.fecha_escaneo,
+                "dispositivo": escaneo.dispositivo or "No especificado",
+                "guardia": {
+                    "id": guardia.id,
+                    "nombre": nombre_guardia,
+                    "usuario_id": guardia.usuario_id
+                },
+                "visitante": {
+                    "nombre": visitante.nombre_conductor,
+                    "dni": visitante.dni_conductor,
+                    "telefono": visitante.telefono,
+                    "vehiculo": f"{visitante.tipo_vehiculo} - {visitante.placa_vehiculo}",
+                    "motivo": visitante.motivo_visita
+                },
+                "residente": residente_info,
+                "visita": {
+                    "id": visita.id,
+                    "estado": visita.estado,
+                    "fecha_entrada": visita.fecha_entrada,
+                    "fecha_salida": visita.fecha_salida
+                },
+                "tipo_escaneo": tipo_escaneo
+            })
+        
+        return {
+            "escaneos": escaneos,
+            "total": len(escaneos),
+            "filtros_aplicados": {
+                "guardia_id": guardia_id,
+                "fecha_inicio": fecha_inicio,
+                "fecha_fin": fecha_fin,
+                "limit": limit
+            }
+        }
+        
+    except Exception as e:
+        print(f"Error al obtener escaneos de guardia: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al obtener escaneos: {str(e)}"
+        )

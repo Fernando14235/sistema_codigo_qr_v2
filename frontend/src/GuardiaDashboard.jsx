@@ -29,6 +29,8 @@ function MainMenuGuardia({ nombre, rol, onLogout, onSelectVista }) {
     { id: "escaneos", title: "Mis Escaneos del Día", icon: "🕒", description: "Ver historial de escaneos realizados hoy" }
   ];
 
+  // No agregar opciones adicionales - el guardia solo ve sus propios escaneos
+
   return (
     <div className="main-menu">
       <div className="main-menu-header">
@@ -77,7 +79,7 @@ function TablaEscaneosGuardia({ escaneos }) {
                 <th>Tipo</th>
                 <th>Visitante</th>
                 <th>Vehículo</th>
-                <th>Residente</th>
+                <th>Creado por</th>
                 <th>Unidad</th>
                 <th>Estado</th>
                 <th>Dispositivo</th>
@@ -86,14 +88,46 @@ function TablaEscaneosGuardia({ escaneos }) {
             <tbody>
               {escaneos.map(e => (
                 <tr key={e.id_escaneo}>
-                  <td>{new Date(e.fecha_escaneo).toLocaleString()}</td>
-                  <td>{e.tipo_escaneo}</td>
-                  <td>{e.nombre_visitante}</td>
-                  <td>{e.tipo_vehiculo} - {e.placa_vehiculo}</td>
-                  <td>{e.nombre_residente}</td>
-                  <td>{e.unidad_residencial}</td>
-                  <td>{e.estado_visita}</td>
-                  <td>{e.dispositivo}</td>
+                  <td style={{ fontSize: '14px', fontWeight: 'bold' }}>
+                    {new Date(e.fecha_escaneo).toLocaleString()}
+                  </td>
+                  <td style={{ fontSize: '14px' }}>
+                    <span className={`tipo-badge tipo-${e.tipo_escaneo}`}>
+                      {e.tipo_escaneo}
+                    </span>
+                    {e.entrada_anticipada && e.tipo_escaneo === 'entrada' && (
+                      <div style={{ 
+                        fontSize: '10px', 
+                        color: '#f57c00',
+                        fontWeight: 'bold',
+                        marginTop: '2px'
+                      }}>
+                        ⚠️ Anticipada
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ fontSize: '14px' }}>{e.nombre_visitante}</td>
+                  <td style={{ fontSize: '14px' }}>{e.tipo_vehiculo} - {e.placa_vehiculo}</td>
+                  <td style={{ fontSize: '14px' }}>
+                    {e.nombre_residente}
+                    {e.tipo_creador && (
+                      <span style={{ 
+                        fontSize: '12px', 
+                        color: e.tipo_creador === 'admin' ? '#1976d2' : '#4caf50',
+                        marginLeft: '5px',
+                        fontWeight: 'bold'
+                      }}>
+                        ({e.tipo_creador === 'admin' ? 'Admin' : 'Residente'})
+                      </span>
+                    )}
+                  </td>
+                  <td style={{ fontSize: '14px' }}>{e.unidad_residencial}</td>
+                  <td style={{ fontSize: '14px' }}>
+                    <span className={`estado-badge estado-${e.estado_visita}`}>
+                      {e.estado_visita}
+                    </span>
+                  </td>
+                  <td style={{ fontSize: '12px', color: '#666' }}>{e.dispositivo}</td>
                 </tr>
               ))}
             </tbody>
@@ -104,6 +138,8 @@ function TablaEscaneosGuardia({ escaneos }) {
   );
 }
 
+
+
 function GuardiaDashboard({ nombre, token, onLogout }) {
   const [vista, setVista] = useState("menu");
   const [escaneos, setEscaneos] = useState([]);
@@ -113,6 +149,7 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
   const [mostrarScanner, setMostrarScanner] = useState(false);
   const [modoScanner, setModoScanner] = useState(null);
   const [dataSource, setDataSource] = useState(null);
+
   
   // Hook para operaciones offline
   const { isOnline, registerEntry, registerExit, loadEscaneosGuardia } = useOfflineOperations(token, 'guardia');
@@ -122,6 +159,8 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
       headers: { Authorization: `Bearer ${token}` }
     }).then(res => setUsuario(res.data)).catch(() => {});
   }, [token]);
+
+
 
   const cargarEscaneos = async () => {
     setCargando(true);
@@ -195,6 +234,7 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
             {!cargando && <TablaEscaneosGuardia escaneos={escaneos} />}
           </section>
         )}
+
       </div>
     </div>
   );

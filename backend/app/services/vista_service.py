@@ -12,10 +12,11 @@ from app.schemas.vista_config_schema import VistaConfigItem, VistaResidencialCon
 from fastapi import HTTPException, status
 from typing import List, Optional
 from sqlalchemy import and_
-import traceback
 
 # Funciones para gestionar Vistas
+
 def crear_vista(db: Session, vista: VistaCreate) -> Vista:
+    """Crear una nueva vista"""
     db_vista = Vista(
         nombre=vista.nombre,
         descripcion=vista.descripcion
@@ -59,7 +60,10 @@ def eliminar_vista(db: Session, vista_id: int) -> bool:
     return True
 
 # Funciones para gestionar Vistas por Residencial
+
 def asignar_vista_residencial(db: Session, vista_residencial: VistaResidencialCreate) -> VistaResidencial:
+    """Asignar una vista a una residencial"""
+    # Verificar que la vista existe
     obtener_vista(db, vista_residencial.vista_id)
     
     # Verificar que la residencial existe
@@ -97,6 +101,7 @@ def asignar_vista_residencial(db: Session, vista_residencial: VistaResidencialCr
     return db_vista_residencial
 
 def actualizar_vista_residencial(db: Session, vista_residencial_id: int, vista_residencial: VistaResidencialUpdate) -> VistaResidencial:
+    """Actualizar la configuración de una vista para una residencial"""
     db_vista_residencial = db.query(VistaResidencial).filter(VistaResidencial.id == vista_residencial_id).first()
     if not db_vista_residencial:
         raise HTTPException(
@@ -113,6 +118,7 @@ def actualizar_vista_residencial(db: Session, vista_residencial_id: int, vista_r
     return db_vista_residencial
 
 def eliminar_vista_residencial(db: Session, vista_residencial_id: int) -> bool:
+    """Eliminar la asignación de una vista a una residencial"""
     db_vista_residencial = db.query(VistaResidencial).filter(VistaResidencial.id == vista_residencial_id).first()
     if not db_vista_residencial:
         raise HTTPException(
@@ -125,7 +131,10 @@ def eliminar_vista_residencial(db: Session, vista_residencial_id: int) -> bool:
     return True
 
 # Funciones para gestionar Vistas por Administrador
+
 def asignar_vista_admin(db: Session, vista_admin: VistaAdminCreate) -> VistaAdmin:
+    """Asignar una vista a un administrador"""
+    # Verificar que la vista existe
     obtener_vista(db, vista_admin.vista_id)
     
     # Verificar que el administrador existe
@@ -163,6 +172,7 @@ def asignar_vista_admin(db: Session, vista_admin: VistaAdminCreate) -> VistaAdmi
     return db_vista_admin
 
 def actualizar_vista_admin(db: Session, vista_admin_id: int, vista_admin: VistaAdminUpdate) -> VistaAdmin:
+    """Actualizar la configuración de una vista para un administrador"""
     db_vista_admin = db.query(VistaAdmin).filter(VistaAdmin.id == vista_admin_id).first()
     if not db_vista_admin:
         raise HTTPException(
@@ -179,6 +189,7 @@ def actualizar_vista_admin(db: Session, vista_admin_id: int, vista_admin: VistaA
     return db_vista_admin
 
 def eliminar_vista_admin(db: Session, vista_admin_id: int) -> bool:
+    """Eliminar la asignación de una vista a un administrador"""
     db_vista_admin = db.query(VistaAdmin).filter(VistaAdmin.id == vista_admin_id).first()
     if not db_vista_admin:
         raise HTTPException(
@@ -191,7 +202,9 @@ def eliminar_vista_admin(db: Session, vista_admin_id: int) -> bool:
     return True
 
 # Función para obtener la configuración de vistas para un administrador
+
 def obtener_configuracion_vistas(db: Session, admin_id: int) -> VistaConfigResponse:
+    """Obtener la configuración de vistas para un administrador, considerando la jerarquía"""
     try:
         # Obtener el administrador
         admin = db.query(Administrador).filter(Administrador.id == admin_id).first()
@@ -218,6 +231,7 @@ def obtener_configuracion_vistas(db: Session, admin_id: int) -> VistaConfigRespo
             vistas_residencial_db = db.query(VistaResidencial).filter(
                 VistaResidencial.residencial_id == admin.residencial_id
             ).all()
+            
             if vistas_residencial_db:
                 residencial = db.query(Residencial).filter(Residencial.id == admin.residencial_id).first()
                 
@@ -276,6 +290,8 @@ def obtener_configuracion_vistas(db: Session, admin_id: int) -> VistaConfigRespo
         )
         
     except Exception as e:
+        print(f"Error en obtener_configuracion_vistas: {str(e)}")
+        import traceback
         traceback.print_exc()
         # En caso de error, devolver configuración básica
         return VistaConfigResponse(
@@ -285,7 +301,17 @@ def obtener_configuracion_vistas(db: Session, admin_id: int) -> VistaConfigRespo
         )
 
 # Función para determinar qué vistas debe ver un administrador
+
 def determinar_vistas_admin(db: Session, admin_id: int) -> List[VistaConfigItem]:
+    """Determinar qué vistas debe ver un administrador según la jerarquía de configuración
+    
+    NUEVA JERARQUÍA DE PRIORIDAD:
+    1. Configuración de la residencial (PRIORIDAD ABSOLUTA)
+       - Si una vista está desactivada a nivel residencial, NO aparece para ningún admin
+    2. Configuración específica del administrador 
+       - Solo puede activar vistas que estén permitidas por la residencial
+    3. Configuración por defecto (todas las vistas activas)
+    """
     try:
         # Obtener toda la configuración
         config = obtener_configuracion_vistas(db, admin_id)
@@ -315,6 +341,7 @@ def determinar_vistas_admin(db: Session, admin_id: int) -> List[VistaConfigItem]
                         activa=vista.activa
                     )
         
+        # PASO 2: Aplicar configuración específica del administrador
         # PERO respetando las restricciones de la residencial
         if config.vistas_admin and config.vistas_admin.vistas:
             for vista in config.vistas_admin.vistas:
@@ -337,12 +364,16 @@ def determinar_vistas_admin(db: Session, admin_id: int) -> List[VistaConfigItem]
                             activa=vista.activa
                         )
         
+        # PASO 3: Filtrar solo las vistas activas
         vistas_activas = [vista for vista in vistas_resultado.values() if vista.activa]
+        
         # Ordenar por nombre para consistencia
         vistas_activas.sort(key=lambda x: x.nombre)
+        
         return vistas_activas
         
     except Exception as e:
+        print(f"Error en determinar_vistas_admin: {str(e)}")
         # En caso de error, intentar devolver todas las vistas de la base de datos
         try:
             todas_vistas = db.query(Vista).all()
@@ -423,8 +454,11 @@ def obtener_vistas_admin_con_restricciones(db: Session, admin_id: int) -> List[d
                 "estado_residencial": configuracion_residencial.get(vista.id, True),
                 "estado_admin": configuracion_admin.get(vista.id, True)
             })
+        
         return resultado
         
     except Exception as e:
+        print(f"Error en obtener_vistas_admin_con_restricciones: {str(e)}")
+        import traceback
         traceback.print_exc()
         return []

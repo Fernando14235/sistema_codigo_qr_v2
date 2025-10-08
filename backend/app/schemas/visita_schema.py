@@ -88,8 +88,21 @@ class AccionQR(str, Enum):
     rechazar = "rechazar"
 
 class ValidarQRRequest(BaseModel):
-    qr_code: str
-    accion: Optional[AccionQR] = None
+    qr_code: str = Field(..., min_length=1, description="Código QR escaneado")
+    accion: Optional[AccionQR] = Field(None, description="Acción a realizar (aceptar/rechazar)")
+    
+    @validator('qr_code', pre=True)
+    def validate_qr_code(cls, v):
+        if v is None:
+            raise ValueError('qr_code no puede ser None')
+        if not isinstance(v, str):
+            raise ValueError('qr_code debe ser una cadena de texto')
+        if not v.strip():
+            raise ValueError('qr_code no puede estar vacío')
+        return v.strip()
+    
+    class Config:
+        use_enum_values = True
 
 class HistorialVisitaItem(BaseModel):
     nombre_residente: str

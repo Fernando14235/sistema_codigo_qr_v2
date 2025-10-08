@@ -123,10 +123,17 @@ def enviar_notificacion_usuario_creado(usuario: Usuario, datos_creacion: Usuario
         """
 
         # Enviar el correo (sin imagen QR)
-        enviar_correo(usuario.email, asunto, mensaje_html)
+        exito = enviar_correo(usuario.email, asunto, mensaje_html)
+
+        if exito:
+            print(f"Notificación de bienvenida enviada exitosamente a {usuario.email}")
+        else:
+            print(f"Error al enviar notificación de bienvenida a {usuario.email}")
 
     except Exception as e:
+        print(f"Error al enviar notificación de usuario creado: {str(e)}")
         print(traceback.format_exc())
+
 
 def enviar_notificacion_residente(db: Session, visita, qr_img_b64: str, acompanantes=None):
     try:
@@ -215,6 +222,7 @@ def enviar_notificacion_residente(db: Session, visita, qr_img_b64: str, acompana
         db.commit()
     except Exception as e:
         db.rollback()
+        print(f"Error al enviar notificación: {str(e)}")
         print(traceback.format_exc())
 
 #Enviar notificación al guardia cuando se crea una visita        
@@ -286,6 +294,8 @@ def enviar_notificacion_guardia(db: Session, visita):
                 enviar_correo(guardia.usuario.email, asunto, mensaje_html)
     except Exception as e:
         db.rollback()
+        print(f"Error al enviar notificación: {str(e)}")
+        print(traceback.format_exc())
 
 def enviar_notificacion_escaneo(db: Session, visita, guardia_nombre: str, es_salida: bool = False):
     try:
@@ -338,6 +348,7 @@ def enviar_notificacion_escaneo(db: Session, visita, guardia_nombre: str, es_sal
         
     except Exception as e:
         db.rollback()
+        print(f"Error al enviar notificación de escaneo: {str(e)}")
         print(traceback.format_exc())
 
 def enviar_notificacion_visita_actualizada(db: Session, visita):
@@ -399,6 +410,7 @@ def enviar_notificacion_visita_actualizada(db: Session, visita):
         db.commit()
     except Exception as e:
         db.rollback()
+        print(f"Error al enviar notificación de visita actualizada: {str(e)}")
         print(traceback.format_exc())
 
 def enviar_notificacion_solicitud_visita(db: Session, visita, residente):
@@ -407,6 +419,7 @@ def enviar_notificacion_solicitud_visita(db: Session, visita, residente):
         admins = db.query(Administrador).filter(Administrador.residencial_id == residente.residencial_id).all()
         
         if not admins:
+            print("No hay administradores registrados para enviar notificación")
             return
 
         visitante = db.query(Visitante).filter(Visitante.id == visita.visitante_id).first()
@@ -500,6 +513,7 @@ def enviar_notificacion_solicitud_visita(db: Session, visita, residente):
                 
     except Exception as e:
         db.rollback()
+        print(f"Error al enviar notificación de solicitud de visita: {str(e)}")
         print(traceback.format_exc())
 
 def enviar_notificacion_solicitud_aprobada(db: Session, visita, qr_img_b64: str):
@@ -507,6 +521,7 @@ def enviar_notificacion_solicitud_aprobada(db: Session, visita, qr_img_b64: str)
         # Obtener el residente que creó la solicitud
         residente = db.query(Residente).filter(Residente.id == visita.residente_id).first()
         if not residente or not residente.usuario:
+            print("Residente no encontrado para enviar notificación de aprobación")
             return
 
         asunto = "✅ Tu solicitud de visita ha sido aprobada"
@@ -598,8 +613,14 @@ def enviar_notificacion_solicitud_aprobada(db: Session, visita, qr_img_b64: str)
         db.add(notificacion)
         db.commit()
         
+        if exito:
+            print(f"Notificación de aprobación enviada exitosamente a {residente.usuario.email}")
+        else:
+            print(f"Error al enviar notificación de aprobación a {residente.usuario.email}")
+            
     except Exception as e:
         db.rollback()
+        print(f"Error al enviar notificación de aprobación: {str(e)}")
         print(traceback.format_exc())
 
 def enviar_notificacion_nueva_publicacion(
@@ -667,7 +688,9 @@ def enviar_notificacion_nueva_publicacion(
                         if exito:
                             usuarios_notificados.append(residente.usuario.email)
 
+        print(f"Alertas de nueva publicación enviadas a: {usuarios_notificados}")
     except Exception as e:
+        print(f"Error al enviar alerta de nueva publicación: {str(e)}")
         print(traceback.format_exc())
 
 def notificar_admin_ticket_creado_email(db: Session, ticket: Ticket, residente_nombre: str):

@@ -115,12 +115,14 @@ def crear_usuario(db: Session, usuario: UsuarioCreate, usuario_actual=None) -> U
         raise e
     except IntegrityError as e:
         db.rollback()
+        print(f"Error de integridad: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Error de integridad en la base de datos"
         )
     except Exception as e:
         db.rollback()
+        print(f"Error al crear usuario: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=400,
@@ -177,6 +179,7 @@ def obtener_usuario(db: Session, id: int = None, nombre: str = None, rol: str = 
             usuarios_filtrados.append(usuario_data)
         return usuarios_filtrados
     except Exception as e:
+        print(f"Error al obtener usuarios: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=400,
@@ -238,6 +241,7 @@ def obtener_usuario_por_id(db: Session, user_id: int, usuario_actual=None):
     except HTTPException as e:
         raise e
     except Exception as e:
+        print(f"Error al obtener usuario: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=400,
@@ -341,6 +345,7 @@ def actualizar_usuario(db: Session, user_id: int, usuario, usuario_actual=None) 
         )
     except Exception as e:
         db.rollback()
+        print(f"Error al actualizar usuario: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=400,
@@ -389,6 +394,7 @@ def eliminar_usuario(db: Session, user_id: int, usuario_actual=None) -> bool:
         raise e
     except Exception as e:
         db.rollback()
+        print(f"Error al eliminar usuario: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=400,
@@ -447,6 +453,7 @@ def sincronizar_residencial_id(db: Session, usuario_actual=None) -> dict:
         raise e
     except Exception as e:
         db.rollback()
+        print(f"Error al sincronizar residencial_id: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
