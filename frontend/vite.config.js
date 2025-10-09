@@ -23,7 +23,8 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
+      injectRegister: 'inline',
       manifest: {
         name: 'Residencial Access',
         short_name: 'Residencial',
@@ -46,11 +47,15 @@ export default defineConfig({
           { src: 'screenshot2.png', sizes: '390x844', type: 'image/png' }
         ],
       },
+      devOptions: {
+        enabled: true,
+        type: 'module',
+      },
       workbox: {
         navigateFallback: 'index.html',
         globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
         cleanupOutdatedCaches: true,
-        skipWaiting: true,           
+        skipWaiting: false,
         clientsClaim: true, 
         additionalManifestEntries: [
           { url: '/sw.js', revision: '1' }

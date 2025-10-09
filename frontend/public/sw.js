@@ -1,5 +1,6 @@
 // Service Worker para Residencial Access PWA
-const CACHE_NAME = 'residencial-access-v1';
+const CACHE_VERSION = '2.0.0'; // Incrementar esto cuando haya cambios
+const CACHE_NAME = `residencial-access-v${CACHE_VERSION}`;
 const urlsToCache = [
   '/',
   '/index.html',
@@ -11,16 +12,19 @@ const urlsToCache = [
 
 // Instalación del Service Worker
 self.addEventListener('install', (event) => {
-  console.log('Service Worker: Instalando...');
+  console.log(`Service Worker v${CACHE_VERSION}: Instalando...`);
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('Service Worker: Cache abierto');
-        return cache.addAll(urlsToCache);
+        return cache.addAll(urlsToCache).catch((err) => {
+          console.warn('Error al cachear algunos archivos:', err);
+          return Promise.resolve();
+        });
       })
       .then(() => {
         console.log('Service Worker: Instalación completada');
-        return self.skipWaiting();
+        // No llamar a skipWaiting aquí, esperar a que el usuario confirme la actualización
       })
   );
 });
@@ -194,11 +198,17 @@ self.addEventListener('message', (event) => {
   console.log('Service Worker: Mensaje recibido del cliente:', event.data);
   
   if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('Service Worker: Ejecutando skipWaiting por solicitud del usuario');
     self.skipWaiting();
   }
   
   if (event.data && event.data.type === 'GET_VERSION') {
-    event.ports[0].postMessage({ version: CACHE_NAME });
+    event.ports[0].postMessage({ version: CACHE_VERSION });
+  }
+  
+  if (event.data && event.data.type === 'FORCE_UPDATE') {
+    console.log('Service Worker: Forzando actualización');
+    self.skipWaiting();
   }
 });
 
