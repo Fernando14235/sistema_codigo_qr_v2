@@ -299,17 +299,34 @@ def enviar_notificacion_guardia(db: Session, visita):
 
 def enviar_notificacion_escaneo(db: Session, visita, guardia_nombre: str, es_salida: bool = False):
     try:
-        residente = db.query(Residente).filter(Residente.id == visita.residente_id).first()
+        # Obtener visitante
         visitante = db.query(Visitante).filter(Visitante.id == visita.visitante_id).first()
-        
-        if not residente or not visitante:
+        if not visitante:
             return
+
+        # Determinar destinatario según tipo_creador
+        email_destinatario = None
+        nombre_destinatario = None
+        
+        if visita.tipo_creador == "admin":
+            admin = db.query(Administrador).filter(Administrador.id == visita.admin_id).first()
+            if not admin or not admin.usuario:
+                return
+            email_destinatario = admin.usuario.email
+            nombre_destinatario = admin.usuario.nombre
+        else:
+            residente = db.query(Residente).filter(Residente.id == visita.residente_id).first()
+            if not residente or not residente.usuario:
+                return
+            email_destinatario = residente.usuario.email
+            nombre_destinatario = residente.usuario.nombre
 
         if es_salida:
             asunto = "🚪 Visitante ha salido del residencial"
             mensaje_html = f"""
                 <html>
                     <body>
+                        <p>Hola <strong>{nombre_destinatario}</strong>,</p>
                         <p>El visitante <strong>{visitante.nombre_conductor}</strong> ha <strong>SALIDO</strong> de la residencial.</p>
                         <p>La salida fue registrada por el guardia <strong>{guardia_nombre}</strong> el <strong>{get_honduras_time().strftime('%Y-%m-%d %H:%M:%S')}</strong>.</p>
                         <p>La visita ha sido marcada como <strong>COMPLETADA</strong>.</p>
@@ -323,6 +340,7 @@ def enviar_notificacion_escaneo(db: Session, visita, guardia_nombre: str, es_sal
             mensaje_html = f"""
                 <html>
                     <body>
+                        <h2>¡Hola {nombre_destinatario}!</h2>
                         <h2>¡Actualización de tu visita {visitante.nombre_conductor}!</h2>
                         <p>El visitante <strong>{visitante.nombre_conductor}</strong> ha sido <strong>{visita.estado.upper()}</strong>.</p>
                         <p>El escaneo fue realizado por el guardia <strong>{guardia_nombre}</strong> el <strong>{get_honduras_time().strftime('%Y-%m-%d %H:%M:%S')}</strong>.</p>
@@ -332,7 +350,7 @@ def enviar_notificacion_escaneo(db: Session, visita, guardia_nombre: str, es_sal
             """
             mensaje_notificacion = f"Visita {visita.estado} por guardia {guardia_nombre}"
 
-        exito = enviar_correo(residente.usuario.email, asunto, mensaje_html)
+        exito = enviar_correo(email_destinatario, asunto, mensaje_html)
 
         estado = "enviado" if exito else "fallido"
         
