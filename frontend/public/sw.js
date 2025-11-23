@@ -1,6 +1,6 @@
 // Service Worker para Residencial Access PWA
 // Version: 1.0.1 - Update this version to trigger new SW installation
-const CACHE_NAME = 'residencial-access-v1.0.1';
+const CACHE_NAME = 'residencial-access-v1.0.2';
 const urlsToCache = [
   '/',
   '/index.html',
