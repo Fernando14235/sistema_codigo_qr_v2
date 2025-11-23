@@ -3,6 +3,7 @@ import axios from "axios";
 import { API_URL } from "./api";
 import UserMenu from "./components/UI/UserMenu";
 import PWADownloadButton from "./components/PWA/PWADownloadButton";
+import CustomPhoneInput from "./components/PhoneInput";
 import './css/SuperAdminDashboard.css';
 import './css/GestionarVistas.css';
 
@@ -56,10 +57,8 @@ function CrearAdmin({ token, onAdminCreado, onCancel, onNotification }) {
     }
   };
 
-  const handleTelefonoChange = (e) => {
-    // Solo permitir números y limitar a 8 dígitos
-    const value = e.target.value.replace(/\D/g, '').slice(0, 8);
-    setFormData({...formData, telefono: value});
+  const handleTelefonoChange = (phone) => {
+    setFormData({...formData, telefono: phone});
   };
 
   const handleSubmit = async (e) => {
@@ -71,7 +70,7 @@ function CrearAdmin({ token, onAdminCreado, onCancel, onNotification }) {
       const adminData = {
         nombre: formData.nombre,
         email: formData.email,
-        telefono: formData.telefono.trim() ? "+504" + formData.telefono : "",
+        telefono: formData.telefono.trim() && formData.telefono.length > 5 ? formData.telefono : "no agregado",
         password: formData.password,
         unidad_residencial: formData.unidad_residencial,
         rol: "admin"
@@ -136,17 +135,12 @@ function CrearAdmin({ token, onAdminCreado, onCancel, onNotification }) {
 
           <div className="form-group">
             <label>Teléfono:</label>
-            <input
-              type="text"
-              placeholder="xxxxxxxx"
+            <CustomPhoneInput
               value={formData.telefono}
               onChange={handleTelefonoChange}
-              maxLength="8"
-              required
+              placeholder="Número de teléfono"
+              required={true}
             />
-            <small style={{color: '#718096', fontSize: '0.8em', marginTop: '4px'}}>
-              Formato: 8 dígitos sin guiones (ej: 98897887)
-            </small>
           </div>
           
           <div className="form-group">
@@ -234,7 +228,7 @@ function ListarAdmins({ token, onCancel, onLogout }) {
   const handleEditarAdmin = (admin) => {
     setAdminEditando({
       ...admin,
-      telefono: admin.telefono ? admin.telefono.replace('+504', '') : ''
+      telefono: admin.telefono || ''
     });
   };
 
@@ -244,7 +238,7 @@ function ListarAdmins({ token, onCancel, onLogout }) {
       const adminData = {
         nombre: adminEditando.nombre,
         email: adminEditando.email,
-        telefono: adminEditando.telefono.trim() ? "+504" + adminEditando.telefono : "",
+        telefono: adminEditando.telefono.trim() && adminEditando.telefono.length > 5 ? adminEditando.telefono : "no agregado",
         unidad_residencial: adminEditando.unidad_residencial
       };
 
@@ -276,9 +270,8 @@ function ListarAdmins({ token, onCancel, onLogout }) {
     }
   };
 
-  const handleTelefonoChange = (e) => {
-    const value = e.target.value.replace(/\D/g, '').slice(0, 8);
-    setAdminEditando({...adminEditando, telefono: value});
+  const handleTelefonoChange = (phone) => {
+    setAdminEditando({...adminEditando, telefono: phone});
   };
 
   if (cargando) {
@@ -366,17 +359,12 @@ function ListarAdmins({ token, onCancel, onLogout }) {
               </div>
               <div className="form-group">
                 <label>Teléfono:</label>
-                <input
-                  type="text"
-                  placeholder="xxxxxxxx"
+                <CustomPhoneInput
                   value={adminEditando.telefono}
                   onChange={handleTelefonoChange}
-                  maxLength="8"
-                  required
+                  placeholder="Número de teléfono"
+                  required={true}
                 />
-                <small style={{color: '#718096', fontSize: '0.8em', marginTop: '4px'}}>
-                  Formato: 8 dígitos sin guiones (ej: 98897887)
-                </small>
               </div>
               <div className="form-group">
                 <label>Unidad residencial:</label>
@@ -868,7 +856,6 @@ function GestionarVistas({ token, onCancel, onLogout }) {
   const [cargando, setCargando] = useState(false);
   const [notification, setNotification] = useState({ message: "", type: "" });
 
-  // Cargar residenciales al montar el componente
   useEffect(() => {
     cargarResidenciales();
   }, []);
@@ -956,7 +943,6 @@ function GestionarVistas({ token, onCancel, onLogout }) {
       
       cargarVistasResidencial(residencialSeleccionada.id);
       
-      // Si hay un admin seleccionado, recargar sus vistas también
       if (adminSeleccionado) {
         cargarVistasAdmin(adminSeleccionado.id);
       }
@@ -966,7 +952,6 @@ function GestionarVistas({ token, onCancel, onLogout }) {
   };
 
   const toggleVistaAdmin = async (vistaId, activa) => {
-    // Verificar si la vista está bloqueada por residencial
     const vista = vistasAdmin.find(v => v.id === vistaId);
     if (vista && vista.bloqueada_por_residencial) {
       setNotification({ 
@@ -1006,7 +991,6 @@ function GestionarVistas({ token, onCancel, onLogout }) {
   return (
     <div className="gestionar-vistas-container">
       <Notification {...notification} onClose={() => setNotification({ message: "", type: "" })} />
-      
       <div className="gestionar-vistas-header">
         <button className="btn-regresar" onClick={onCancel}>← Regresar</button>
         <h2>👁️ Gestionar Vistas del Sistema</h2>
@@ -1016,7 +1000,6 @@ function GestionarVistas({ token, onCancel, onLogout }) {
       </div>
 
       <div className="gestionar-vistas-content">
-        {/* Lista de Residenciales */}
         <div className="residenciales-section">
           <h3>Seleccionar Residencial</h3>
           <div className="residenciales-grid">
@@ -1030,8 +1013,7 @@ function GestionarVistas({ token, onCancel, onLogout }) {
                 <div 
                   key={residencial.id} 
                   className={`residencial-card ${residencialSeleccionada?.id === residencial.id ? 'selected' : ''}`}
-                  onClick={() => seleccionarResidencial(residencial)}
-                >
+                  onClick={() => seleccionarResidencial(residencial)}>
                   <h4>{residencial.nombre}</h4>
                   <p>{residencial.direccion}</p>
                   <div className="residencial-stats">
@@ -1044,7 +1026,6 @@ function GestionarVistas({ token, onCancel, onLogout }) {
           </div>
         </div>
 
-        {/* Configuración de Vistas por Residencial */}
         {residencialSeleccionada && (
           <div className="vistas-residencial-section">
             <h3>Vistas para: {residencialSeleccionada.nombre}</h3>
@@ -1066,8 +1047,7 @@ function GestionarVistas({ token, onCancel, onLogout }) {
                         <input
                           type="checkbox"
                           checked={vista.activa}
-                          onChange={(e) => toggleVistaResidencial(vista.id, e.target.checked)}
-                        />
+                          onChange={(e) => toggleVistaResidencial(vista.id, e.target.checked)}/>
                         <span className="slider"></span>
                       </label>
                     </div>
@@ -1078,7 +1058,6 @@ function GestionarVistas({ token, onCancel, onLogout }) {
           </div>
         )}
 
-        {/* Lista de Administradores de la Residencial */}
         {residencialSeleccionada && adminsResidencial.length > 0 && (
           <div className="admins-section">
             <h3>Administradores de {residencialSeleccionada.nombre}</h3>
@@ -1087,8 +1066,7 @@ function GestionarVistas({ token, onCancel, onLogout }) {
                 <div 
                   key={admin.id} 
                   className={`admin-card ${adminSeleccionado?.id === admin.id ? 'selected' : ''}`}
-                  onClick={() => seleccionarAdmin(admin)}
-                >
+                  onClick={() => seleccionarAdmin(admin)}>
                   <h4>{admin.nombre}</h4>
                   <p>{admin.email}</p>
                   <span>{admin.telefono}</span>
@@ -1098,7 +1076,6 @@ function GestionarVistas({ token, onCancel, onLogout }) {
           </div>
         )}
 
-        {/* Configuración de Vistas por Administrador */}
         {adminSeleccionado && (
           <div className="vistas-admin-section">
             <h3>Vistas para: {adminSeleccionado.nombre}</h3>
@@ -1136,8 +1113,7 @@ function GestionarVistas({ token, onCancel, onLogout }) {
                           type="checkbox"
                           checked={vista.activa}
                           disabled={vista.bloqueada_por_residencial}
-                          onChange={(e) => toggleVistaAdmin(vista.id, e.target.checked)}
-                        />
+                          onChange={(e) => toggleVistaAdmin(vista.id, e.target.checked)}/>
                         <span className="slider"></span>
                       </label>
                     </div>

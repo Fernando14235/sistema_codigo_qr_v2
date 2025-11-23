@@ -94,23 +94,23 @@ def generar_imagen_qr_personalizada(
 
     # 2. Crear imagen base
     ancho, alto = qr_img.size
-    margen_superior = 120
-    margen_inferior = 200  # Aumenta para dirección
-    ancho_total = ancho + 60
+    margen_superior = 140  # Más espacio para texto más grande
+    margen_inferior = 220  # Más espacio para fechas más grandes
+    ancho_total = ancho + 80  # Más ancho para texto más grande
     alto_total = alto + margen_superior + margen_inferior
 
     img_final = Image.new("RGB", (ancho_total, alto_total), "white")
     draw = ImageDraw.Draw(img_final)
 
     # 3. Pegar QR en el centro
-    img_final.paste(qr_img, (30, margen_superior))
+    img_final.paste(qr_img, (40, margen_superior))
 
     # 4. Cargar fuentes (usa fuentes del sistema o default)
     try:
-        font_titulo = ImageFont.truetype("arialbd.ttf", 32)  # Aumentar tamaño del título
-        font_normal = ImageFont.truetype("arial.ttf", 26)   # Aumentar tamaño del texto normal
-        font_small = ImageFont.truetype("arial.ttf", 20)    # Aumentar tamaño del texto pequeño
-        font_fecha = ImageFont.truetype("arialbd.ttf", 28)  # Ajustar tamaño para fechas
+        font_titulo = ImageFont.truetype("arialbd.ttf", 40)  # Título más grande y legible
+        font_normal = ImageFont.truetype("arial.ttf", 32)   # Texto normal más grande
+        font_small = ImageFont.truetype("arial.ttf", 26)    # Texto pequeño más legible
+        font_fecha = ImageFont.truetype("arialbd.ttf", 34)  # Fechas más grandes y destacadas
     except:
         font_titulo = ImageFont.load_default()
         font_normal = ImageFont.load_default()
@@ -120,11 +120,11 @@ def generar_imagen_qr_personalizada(
     # 5. Escribir textos
     # Título superior - más grande y mejor centrado
     texto_superior = f"Hola {nombre_visitante}, {nombre_residente} te ha invitado a:"
-    draw.text((ancho_total//2, 25), texto_superior, font=font_normal, fill="black", anchor="mm")
-    draw.text((ancho_total//2, 65), nombre_residencial, font=font_titulo, fill="#2980b9", anchor="mm")
+    draw.text((ancho_total//2, 30), texto_superior, font=font_normal, fill="black", anchor="mm")
+    draw.text((ancho_total//2, 75), nombre_residencial, font=font_titulo, fill="#2980b9", anchor="mm")
 
     # Dirección (unidad residencial) - mejor centrado
-    draw.text((ancho_total//2, 95), unidad_residencial, font=font_normal, fill="black", anchor="mm")
+    draw.text((ancho_total//2, 110), unidad_residencial, font=font_normal, fill="black", anchor="mm")
 
     # Fechas - Perfectamente centrado
     fecha_creacion_str = fecha_creacion.strftime("%d-%b-%Y - %I:%M %p")

@@ -4,7 +4,7 @@ from typing import List, Optional
 from app.database import get_db
 from app.models import Usuario, EstadoTicket
 from app.schemas import TicketUpdate, TicketResponse, TicketListResponse
-from app.services.ticket_service import crear_ticket_service, listar_tickets_service, obtener_ticket_service, actualizar_ticket_service, listar_tickets_residente_service
+from app.services.ticket_service import crear_ticket_service, listar_tickets_service, obtener_ticket_service, actualizar_ticket_service, listar_tickets_residente_service, eliminar_ticket_service
 from app.utils.security import verify_role, get_current_residencial_id
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
@@ -54,3 +54,12 @@ def actualizar_ticket(
     usuario_actual: Usuario = Depends(verify_role(["admin"]))
 ):
     return actualizar_ticket_service(ticket_id, datos, db) 
+
+# 5. Eliminar ticket (super_admin, admin, residente)
+@router.delete("/eliminar_ticket/{ticket_id}", name="Eliminar ticket")
+def eliminar_ticket(
+    ticket_id: int,
+    db: Session = Depends(get_db),
+    usuario_actual: Usuario = Depends(verify_role(["super_admin", "admin", "residente"]))
+):
+    return eliminar_ticket_service(ticket_id, db, usuario_actual)

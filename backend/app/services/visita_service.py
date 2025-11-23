@@ -9,7 +9,7 @@ from app.models.residente import Residente
 from app.models.admin import Administrador
 from app.models.residencial import Residencial
 from sqlalchemy import literal
-from app.services.notificacion_service import enviar_notificacion_residente, enviar_notificacion_guardia, enviar_notificacion_visita_actualizada, enviar_notificacion_solicitud_visita, enviar_notificacion_solicitud_aprobada
+from app.services.notificacion_service import enviar_notificacion_residente, enviar_notificacion_guardia, enviar_notificacion_visita_actualizada, enviar_notificacion_solicitud_visita, enviar_notificacion_solicitud_aprobada, enviar_notificacion_escaneo
 from app.schemas.visita_schema import VisitaCreate, VisitaQRResponse, VisitaUpdate, SolicitudVisitaCreate
 from app.schemas.visitante_schema import VisitanteCreate, VisitanteResponse
 from app.utils.qr import validar_payload_qr, generar_payload_qr, generar_qr_completo, generar_imagen_qr_personalizada
@@ -216,17 +216,21 @@ def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str =
         visita = next((v for v in visitas if v.estado == "pendiente"), None)
         if not visita:
             # Verificar si hay visitas ya procesadas para dar un mensaje más específico
-            visita_procesada = next((v for v in visitas if v.estado in ["aprobado", "completado"]), None)
-            if visita_procesada:
-                return {"valido": False, "error": "Esta visita ya ha sido procesada anteriormente."}
+            visita_aprobada = next((v for v in visitas if v.estado == "aprobado"), None)
+            if visita_aprobada:
+                return {"valido": False, "error": "Este código QR ya fue escaneado y aprobado para entrada."}
+            
+            visita_rechazada = next((v for v in visitas if v.estado == "rechazado"), None)
+            if visita_rechazada:
+                return {"valido": False, "error": "Este código QR ya fue escaneado y rechazado anteriormente."}
+            
+            visita_completada = next((v for v in visitas if v.estado == "completado"), None)
+            if visita_completada:
+                return {"valido": False, "error": "Esta visita ya ha sido completada (entrada y salida registradas)."}
             
             visita_expirada = next((v for v in visitas if v.estado == "expirado"), None)
             if visita_expirada:
                 return {"valido": False, "error": "Esta visita ha expirado."}
-                
-            visita_rechazada = next((v for v in visitas if v.estado == "rechazado"), None)
-            if visita_rechazada:
-                return {"valido": False, "error": "Esta visita fue rechazada anteriormente."}
                 
             return {"valido": False, "error": "No hay visitantes pendientes para este QR."}
 
@@ -249,8 +253,7 @@ def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str =
         else:
             return {"valido": False, "error": "Visita sin creador válido."}
 
-        # DEBUG: Imprimir valores y tipos
-        print(f"DEBUG: guardia.residencial_id={guardia.residencial_id} ({type(guardia.residencial_id)}) | visita_residencial_id={visita_residencial_id} ({type(visita_residencial_id)})")
+        # Validar valores y tipos
 
         # Validar que ambos sean int y no None
         if guardia.residencial_id is None or visita_residencial_id is None:
@@ -285,10 +288,8 @@ def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str =
         # Aplicar acción si se especifica, o aprobar por defecto si no se especifica
         if accion == "aprobar" or accion is None:
             visita.estado = "aprobado"
-            print(f"DEBUG: Cambiando estado de visita {visita.id} a 'aprobado'")
         elif accion == "rechazar":
             visita.estado = "rechazado"
-            print(f"DEBUG: Cambiando estado de visita {visita.id} a 'rechazado'")
         else:
             raise HTTPException(status_code=400, detail="Acción inválida.")
         
@@ -304,7 +305,6 @@ def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str =
         
         # Verificar que el cambio se aplicó correctamente
         db.refresh(visita)
-        print(f"DEBUG: Estado final de visita {visita.id} después del commit: {visita.estado}")
         
         return {
             "valido": True,
@@ -342,7 +342,12 @@ def registrar_salida_visita(db: Session, qr_code: str, guardia_id: int) -> dict:
             raise HTTPException(status_code=404, detail="Código QR no encontrado")
         
         # Validar que la visita esté en estado "aprobado"
-        if visita.estado != "aprobado":
+        if visita.estado == "completado":
+            raise HTTPException(
+                status_code=400, 
+                detail="Este código QR ya fue escaneado para salida. La visita ya está completada."
+            )
+        elif visita.estado != "aprobado":
             raise HTTPException(
                 status_code=400, 
                 detail=f"No se puede registrar la salida. La visita está en estado '{visita.estado}'. Solo se permite registrar salida para visitas aprobadas."
@@ -376,18 +381,45 @@ def registrar_salida_visita(db: Session, qr_code: str, guardia_id: int) -> dict:
         
         # Registrar la fecha de salida en UTC
         now_utc = datetime.now(timezone.utc)
+        now_hn = get_honduras_time()
+        
+        # Verificar si la salida es tardía (después de la expiración del QR)
+        salida_tardia = False
+        if visita.qr_expiracion and now_hn > visita.qr_expiracion:
+            salida_tardia = True
+        
         visita.fecha_salida = now_utc
         visita.estado = "completado"
         
         # Obtener información del visitante para la respuesta
         visitante = db.query(Visitante).filter(Visitante.id == visita.visitante_id).first()
         
+        # Obtener información del guardia para las notificaciones
+        guardia_usuario = db.query(Usuario).filter(Usuario.id == guardia.usuario_id).first()
+        guardia_nombre = guardia_usuario.nombre if guardia_usuario else "Guardia"
+        
         db.commit()
         
+        # Enviar notificación de salida (con información de salida tardía si aplica)
+        try:
+            if salida_tardia:
+                # Enviar notificación especial para salida tardía
+                enviar_notificacion_salida_tardia(db, visita, guardia_nombre)
+            else:
+                # Enviar notificación normal de salida
+                enviar_notificacion_escaneo(db, visita, guardia_nombre, es_salida=True)
+        except Exception as e:
+            print(f"Error al enviar notificación de salida: {str(e)}")
+        
+        mensaje_respuesta = "Salida registrada exitosamente"
+        if salida_tardia:
+            mensaje_respuesta += " (SALIDA TARDÍA - QR expirado)"
+        
         return {
-            "mensaje": "Salida registrada exitosamente",
+            "mensaje": mensaje_respuesta,
             "fecha_salida": now_utc,
             "estado": visita.estado,
+            "salida_tardia": salida_tardia,
             "visitante": {
                 "nombre_conductor": visitante.nombre_conductor,
                 "dni_conductor": visitante.dni_conductor,
@@ -937,3 +969,75 @@ def obtener_solicitudes_pendientes_admin(db: Session) -> list:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al obtener solicitudes pendientes: {str(e)}"
         )
+
+def enviar_notificacion_salida_tardia(db: Session, visita, guardia_nombre: str):
+    """
+    Envía notificación especial cuando un visitante sale después de la expiración del QR
+    """
+    try:
+        from app.models.notificacion import Notificacion
+        from app.utils.notificaciones import enviar_correo
+        
+        residente = db.query(Residente).filter(Residente.id == visita.residente_id).first()
+        visitante = db.query(Visitante).filter(Visitante.id == visita.visitante_id).first()
+        
+        if not residente or not visitante:
+            return
+
+        asunto = "⚠️ Visitante salió con QR expirado"
+        
+        # Calcular cuánto tiempo después de la expiración salió
+        tiempo_extra = ""
+        if visita.qr_expiracion:
+            diferencia = get_honduras_time() - visita.qr_expiracion
+            horas = int(diferencia.total_seconds() // 3600)
+            minutos = int((diferencia.total_seconds() % 3600) // 60)
+            
+            if horas > 0:
+                tiempo_extra = f"{horas} horas y {minutos} minutos"
+            else:
+                tiempo_extra = f"{minutos} minutos"
+        
+        mensaje_html = f"""
+            <html>
+                <body>
+                    <h2 style="color: #ff9800;">⚠️ Salida Tardía Registrada</h2>
+                    <p>El visitante <strong>{visitante.nombre_conductor}</strong> ha <strong>SALIDO</strong> de la residencial con QR expirado.</p>
+                    
+                    <div style="background-color: #fff3e0; padding: 15px; border-left: 4px solid #ff9800; margin: 15px 0;">
+                        <h3 style="color: #e65100; margin-top: 0;">Información de la Salida Tardía:</h3>
+                        <p><strong>Visitante:</strong> {visitante.nombre_conductor}</p>
+                        <p><strong>QR expiró:</strong> {visita.qr_expiracion.strftime('%Y-%m-%d %H:%M:%S') if visita.qr_expiracion else 'N/A'}</p>
+                        <p><strong>Salida registrada:</strong> {get_honduras_time().strftime('%Y-%m-%d %H:%M:%S')}</p>
+                        <p><strong>Tiempo de retraso:</strong> {tiempo_extra}</p>
+                        <p><strong>Guardia que registró:</strong> {guardia_nombre}</p>
+                    </div>
+                    
+                    <p>La visita ha sido marcada como <strong>COMPLETADA</strong> a pesar de la expiración del QR.</p>
+                    <p><em>Nota: Se recomienda coordinar mejor los horarios de visita para evitar inconvenientes futuros.</em></p>
+                    
+                    <p>Gracias por usar nuestro sistema de control de acceso.</p>
+                </body>
+            </html>
+        """
+        
+        mensaje_notificacion = f"Salida tardía: {visitante.nombre_conductor} - QR expirado hace {tiempo_extra} - registrado por {guardia_nombre}"
+
+        exito = enviar_correo(residente.usuario.email, asunto, mensaje_html)
+
+        estado = "enviado" if exito else "fallido"
+        
+        notificacion = Notificacion(
+            visita_id=visita.id,
+            mensaje=mensaje_notificacion,
+            fecha_envio=get_honduras_time(),
+            estado=estado
+        )
+        
+        db.add(notificacion)
+        db.commit()
+        
+    except Exception as e:
+        db.rollback()
+        print(f"Error al enviar notificación de salida tardía: {str(e)}")
+        print(traceback.format_exc())

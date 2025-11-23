@@ -5,7 +5,7 @@ from app.models.guardia import Guardia
 from app.models.admin import Administrador
 from app.schemas.usuario_schema import UsuarioCreate
 from app.utils.security import get_password_hash
-from app.utils.validators import validar_email_unico, validar_email_creacion_actualizacion, validar_formato_telefono_honduras, validar_telefono_no_vacio, normalizar_telefono_honduras
+from app.utils.validators import validar_email_unico, validar_email_creacion_actualizacion, validar_formato_telefono_internacional, validar_telefono_no_vacio, normalizar_telefono_internacional
 from app.services.notificacion_service import enviar_notificacion_usuario_creado
 from app.utils.async_notifications import enviar_notificacion_usuario_creado_async
 from fastapi import HTTPException, status
@@ -43,8 +43,8 @@ def crear_usuario(db: Session, usuario: UsuarioCreate, usuario_actual=None) -> U
         # Validaciones de teléfono
         if usuario.rol in ["residente", "guardia", "admin"]:
             validar_telefono_no_vacio(usuario.telefono)
-            validar_formato_telefono_honduras(usuario.telefono)
-            telefono_normalizado = normalizar_telefono_honduras(usuario.telefono)
+            validar_formato_telefono_internacional(usuario.telefono)
+            telefono_normalizado = normalizar_telefono_internacional(usuario.telefono)
         else:
             telefono_normalizado = None
         # Validar email único
@@ -288,8 +288,8 @@ def actualizar_usuario(db: Session, user_id: int, usuario, usuario_actual=None) 
         telefono_normalizado = None
         if db_usuario.rol in ["residente", "guardia", "admin"] and usuario.telefono:
             validar_telefono_no_vacio(usuario.telefono)
-            validar_formato_telefono_honduras(usuario.telefono)
-            telefono_normalizado = normalizar_telefono_honduras(usuario.telefono)
+            validar_formato_telefono_internacional(usuario.telefono)
+            telefono_normalizado = normalizar_telefono_internacional(usuario.telefono)
         
         update_data = usuario.dict(exclude_unset=True)
         for field, value in update_data.items():

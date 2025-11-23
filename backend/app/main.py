@@ -133,7 +133,7 @@ def obtener_usuario_actual(usuario_actual: UsuarioModel = Depends(get_current_us
 
 # Obtener usuario por ID
 @app.get('/usuarios/admin/{id}', response_model=Usuario, tags=["Usuarios"])
-def obtener_usuario_por_id(id: int, usuario_actual=Depends(verify_role(["admin", "super_admin"])), db: Session = Depends(get_db)):
+def obtener_usuario_por_id_endpoint(id: int, usuario_actual=Depends(verify_role(["admin", "super_admin"])), db: Session = Depends(get_db)):
     try:
         # The obtener_usuario_por_id function already returns a dict with all the necessary data
         usuario_data = obtener_usuario_por_id(db, id, usuario_actual=usuario_actual)

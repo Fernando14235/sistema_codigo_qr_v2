@@ -39,7 +39,6 @@ const PWADownloadButton = () => {
 
     // Escuchar el evento beforeinstallprompt
     const handleBeforeInstallPrompt = (e) => {
-      console.log('beforeinstallprompt detectado');
       e.preventDefault();
       setDeferredPrompt(e);
       setShowButton(true);
@@ -56,11 +55,8 @@ const PWADownloadButton = () => {
     // Verificar compatibilidad y mostrar botón
     const checkCompatibilityAndShow = () => {
       const isCompatible = 'serviceWorker' in navigator;
-      console.log('Service Worker soportado:', isCompatible);
       
       if (isCompatible && !checkIfInstalled()) {
-        // Mostrar el botón si es compatible y no está instalada
-        console.log('Mostrando botón de instalación');
         setShowButton(true);
       }
     };
@@ -79,7 +75,6 @@ const PWADownloadButton = () => {
       const isEdge = /Edg/.test(navigator.userAgent);
       
       if (isCompatible && !isInstalled && (isMobile || isChrome || isEdge)) {
-        console.log('Mostrando botón de instalación (respaldo)');
         setShowButton(true);
       }
     }, 3000);
@@ -177,7 +172,6 @@ const PWADownloadButton = () => {
       setShowButton(false);
     } catch (error) {
       console.error('Error al instalar PWA:', error);
-      showManualInstallInstructions();
     }
   };
 
@@ -228,33 +222,20 @@ const PWADownloadButton = () => {
                     (isCompatible && !isInstalled) || 
                     (isChrome || isEdge || isFirefox || isMobile);
   
-  console.log('Estado del botón:', {
-    showButton,
-    isCompatible,
-    isInstalled,
-    isMobile,
-    isChrome,
-    isEdge,
-    isFirefox,
-    shouldShow
-  });
-  
+
   // Solo mostrar si:
   // 1. No está instalada
   // 2. Está en el dashboard principal
   // 3. No se ha hecho scroll
   if (isInstalled) {
-    console.log('No mostrando botón: app ya instalada');
     return null;
   }
 
   if (!isMainDashboard) {
-    console.log('No mostrando botón: no está en dashboard principal');
     return null;
   }
 
   if (!isVisible) {
-    console.log('No mostrando botón: se ha hecho scroll');
     return null;
   }
 

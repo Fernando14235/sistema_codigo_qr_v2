@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from app.services.user_service import obtener_usuario
@@ -38,4 +38,6 @@ def listar_residentes_full(
 @router.get("/usuario_nombre/{id}", dependencies=[Depends(verify_role(["admin", "residente"]))])
 def obtener_nombre_usuario(id: int, db: Session = Depends(get_db)):
     usuario = db.query(Usuario).filter(Usuario.id == id).first()
-    return {"nombre": usuario.nombre if usuario else None} 
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return {"nombre": usuario.nombre} 

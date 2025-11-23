@@ -64,6 +64,8 @@ class TicketResponse(TicketBase):
     id: int
     residente_id: int
     nombre_residente: Optional[str] = None
+    unidad_residencial: Optional[str] = None
+    telefono: Optional[str] = None
     estado: EstadoTicket
     respuesta_admin: Optional[str] = None
     fecha_creacion: datetime
@@ -76,6 +78,8 @@ class TicketListResponse(BaseModel):
     id: int
     nombre_residente: Optional[str] = None
     titulo: str
+    unidad_residencial: Optional[str] = None
+    telefono: Optional[str] = None
     estado: EstadoTicket
     fecha_creacion: datetime
     fecha_respuesta: Optional[datetime] = None

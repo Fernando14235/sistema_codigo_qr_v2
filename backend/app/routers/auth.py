@@ -31,6 +31,11 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         raise HTTPException(status_code=401, detail="Contraseña incorrecta")
 
     ult_conexion_anterior = user.ult_conexion
+    
+    # Actualizar la última conexión del usuario
+    honduras_tz = pytz.timezone('America/Tegucigalpa')
+    user.ult_conexion = datetime.now(honduras_tz)
+    db.commit()
 
     token_data = {"sub": user.email, 
                   "rol": user.rol,

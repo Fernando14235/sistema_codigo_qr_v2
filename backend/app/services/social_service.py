@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.models.social import Social, SocialImagen, SocialDestinatario, SocialOpcion, SocialVoto
-from app.schemas.social_schema import SocialCreate, SocialResponse, SocialImagenCreate, SocialDestinatarioCreate
+from app.schemas.social_schema import SocialCreate, SocialResponse, SocialImagenCreate, SocialDestinatarioCreate, SocialUpdate
 from app.models.usuario import Usuario
 from app.models.residente import Residente
 from fastapi import HTTPException
@@ -16,7 +16,7 @@ UPLOAD_DIR = os.path.abspath(UPLOAD_DIR)
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-def save_uploaded_images(imagenes: Optional[List[UploadFile]]) -> List[str]:
+async def save_uploaded_images(imagenes: List[UploadFile]) -> List[str]:
     urls = []
     if imagenes:
         for img in imagenes:
@@ -170,7 +170,7 @@ def can_user_access_social(db: Session, social: Social, user: Usuario) -> bool:
     # Otros roles no tienen acceso
     return False
 
-def update_social(db: Session, social_id: int, data: SocialCreate, imagenes: Optional[List[str]] = None):
+def update_social(db: Session, social_id: int, data: SocialUpdate, imagenes_nuevas: Optional[List[str]] = None):
     social = db.query(Social).filter(Social.id == social_id).first()
     if not social:
         return None
@@ -198,10 +198,43 @@ def update_social(db: Session, social_id: int, data: SocialCreate, imagenes: Opt
         social.para_todos = data.para_todos
         social.estado = "publicado"  # Resetear a publicado si se actualiza correctamente
 
-        # Actualizar imágenes
-        db.query(SocialImagen).filter(SocialImagen.social_id == social_id).delete()
-        if imagenes:
-            for url in imagenes:
+        # Gestión de imágenes existentes
+        imagenes_actuales = db.query(SocialImagen).filter(SocialImagen.social_id == social_id).all()
+        
+        # Procesar imágenes existentes según el flag eliminar
+        if data.imagenes_existentes:
+            for img_update in data.imagenes_existentes:
+                if img_update.eliminar and img_update.id:
+                    # Buscar y eliminar la imagen de la BD y del almacenamiento
+                    img_db = db.query(SocialImagen).filter(SocialImagen.id == img_update.id).first()
+                    if img_db:
+                        # Eliminar archivo físico
+                        img_path = img_db.imagen_url
+                        if img_path.startswith("/uploads/"):
+                            abs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../' + img_path.lstrip('/')))
+                            if os.path.exists(abs_path):
+                                try:
+                                    os.remove(abs_path)
+                                except Exception as e:
+                                    print(f"Error eliminando imagen {abs_path}: {e}")
+                        # Eliminar de la BD
+                        db.delete(img_db)
+        else:
+            # Si no se envió lista de imágenes existentes, eliminar todas las actuales
+            for img in imagenes_actuales:
+                img_path = img.imagen_url
+                if img_path.startswith("/uploads/"):
+                    abs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../' + img_path.lstrip('/')))
+                    if os.path.exists(abs_path):
+                        try:
+                            os.remove(abs_path)
+                        except Exception as e:
+                            print(f"Error eliminando imagen {abs_path}: {e}")
+                db.delete(img)
+        
+        # Agregar nuevas imágenes
+        if imagenes_nuevas:
+            for url in imagenes_nuevas:
                 db.add(SocialImagen(social_id=social_id, imagen_url=url))
 
         # Actualizar destinatarios - solo si no es para todos
@@ -262,9 +295,9 @@ def get_social_residente(db: Session, residente_id: int):
         .all()
     )
 
-def crear_publicacion_service(db: Session, social_data: SocialCreate, imagenes: Optional[List[UploadFile]], current_user: Usuario):
+async def crear_publicacion_service(db: Session, social_data: SocialCreate, imagenes: Optional[List[UploadFile]], current_user: Usuario):
     try:
-        imagen_urls = save_uploaded_images(imagenes)
+        imagen_urls = await save_uploaded_images(imagenes)
         social = create_social(db, social_data, imagenes=imagen_urls, current_user=current_user)
         
         # Determinar a quién notificar
@@ -312,9 +345,9 @@ def obtener_publicacion_service(db: Session, id: int, current_user: Usuario):
         raise HTTPException(status_code=403, detail="No tienes acceso a esta publicación")
     return social
 
-def actualizar_publicacion_service(db: Session, id: int, social_data: SocialCreate, imagenes: Optional[List[UploadFile]], current_user: Usuario):
-    imagen_urls = save_uploaded_images(imagenes)
-    social = update_social(db, id, social_data, imagenes=imagen_urls)
+async def actualizar_publicacion_service(db: Session, id: int, social_data: SocialUpdate, imagenes: Optional[List[UploadFile]], current_user: Usuario):
+    imagen_urls = await save_uploaded_images(imagenes) if imagenes else []
+    social = update_social(db, id, social_data, imagenes_nuevas=imagen_urls)
     if not social:
         raise HTTPException(status_code=404, detail="Publicación no encontrada")
     return social

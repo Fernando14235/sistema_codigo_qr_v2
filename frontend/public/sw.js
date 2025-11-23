@@ -1,5 +1,6 @@
 // Service Worker para Residencial Access PWA
-const CACHE_NAME = 'residencial-access-v1';
+// Version: 1.0.1 - Update this version to trigger new SW installation
+const CACHE_NAME = 'residencial-access-v1.0.1';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -47,8 +48,36 @@ self.addEventListener('activate', (event) => {
 
 // Interceptar peticiones de red
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  
+  // IMPORTANTE: No interceptar peticiones en desarrollo
+  // Detectar si estamos en desarrollo (localhost o puerto de desarrollo)
+  const isDevelopment = url.hostname === 'localhost' || 
+                        url.hostname === '127.0.0.1' || 
+                        url.port === '5173' || 
+                        url.port === '3000';
+  
+  // No interceptar en desarrollo
+  if (isDevelopment) {
+    return;
+  }
+  
   // No interceptar peticiones a la API
-  if (event.request.url.includes('/api/')) {
+  if (url.pathname.includes('/api/')) {
+    return;
+  }
+  
+  // No interceptar WebSocket (HMR de Vite)
+  if (event.request.url.includes('?token=') || 
+      event.request.url.includes('/@vite/') ||
+      event.request.url.includes('/node_modules/') ||
+      event.request.url.includes('/__vite')) {
+    return;
+  }
+  
+  // No interceptar peticiones de módulos en desarrollo
+  if (event.request.destination === 'script' && 
+      (url.pathname.includes('/src/') || url.pathname.includes('/@'))) {
     return;
   }
 
@@ -221,4 +250,4 @@ self.addEventListener('error', (event) => {
 
 self.addEventListener('unhandledrejection', (event) => {
   console.error('Service Worker: Promesa rechazada:', event.reason);
-}); 
+});

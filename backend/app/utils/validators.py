@@ -41,7 +41,11 @@ def validar_dni_visita_unico(db: Session, dni: str, fecha: datetime) -> None:
         )
 
 # VALIDACIONES CON EL NUMERO DE TELEFONO
-def validar_formato_telefono_honduras(telefono: str) -> None:
+def validar_formato_telefono_internacional(telefono: str) -> None:
+    """
+    Valida formato de teléfono internacional
+    Acepta números de cualquier país con formato +[código país][número]
+    """
     # Validar que no esté vacio
     if not telefono or not telefono.strip():
         raise HTTPException(
@@ -49,46 +53,56 @@ def validar_formato_telefono_honduras(telefono: str) -> None:
             detail="El teléfono no puede estar vacío"
         )
     
-    # Remover espacios y guiones para validación
-    telefono_limpio = re.sub(r'[\s\-]', '', telefono.strip())
+    # Remover espacios, guiones y paréntesis para validación
+    telefono_limpio = re.sub(r'[\s\-\(\)]', '', telefono.strip())
     
-    # Patrones válidos para Honduras (cualquier dígito, no solo 9)
-    patrones_validos = [
-        r'^\+504\d{8}$',  # +504XXXXXXXX
-        r'^\+504\s?\d{8}$',  # +504 XXXXXXXX o +504XXXXXXXX
-        r'^\d{8}$',  # XXXXXXXX
-    ]
+    # Patrón para teléfonos internacionales: +[código país][número]
+    # Código de país: 1-4 dígitos, número: 4-15 dígitos
+    patron = r'^\+[1-9]\d{0,3}\d{4,15}$'
     
-    # Verificar si coincide con algún patrón válido
-    formato_valido = any(re.match(patron, telefono_limpio) for patron in patrones_validos)
-    
-    if not formato_valido:
+    if not re.match(patron, telefono_limpio):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Formato de teléfono inválido para Honduras. Use el formato: +504XXXXXXXX o XXXXXXXX"
+            detail="Formato de teléfono inválido. Use el formato internacional: +[código país][número] (ej: +50412345678, +14155552671)"
+        )
+    
+    # Validar longitud total (mínimo 8, máximo 18 caracteres incluyendo el +)
+    if len(telefono_limpio) < 8 or len(telefono_limpio) > 18:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El número de teléfono debe tener entre 8 y 18 caracteres"
         )
 
-def normalizar_telefono_honduras(telefono: str) -> str:
+def normalizar_telefono_internacional(telefono: str) -> str:
+    """
+    Normaliza teléfono internacional removiendo espacios, guiones y paréntesis
+    Mantiene el formato +[código país][número]
+    """
     if not telefono or not telefono.strip():
         raise ValueError("El teléfono no puede estar vacío")
     
     # Remover espacios, guiones y paréntesis
     telefono_limpio = re.sub(r'[\s\-\(\)]', '', telefono.strip())
     
-    # Si ya tiene el código de país, solo verificar que tenga 8 dígitos
-    if telefono_limpio.startswith('+504'):
-        numero = telefono_limpio[4:]  # Remover +504
-        if len(numero) == 8 and numero.isdigit():
-            return f"+504{numero}"
-        else:
-            raise ValueError("Número inválido después del código de país")
+    # Verificar que empiece con +
+    if not telefono_limpio.startswith('+'):
+        raise ValueError("El teléfono debe incluir el código de país con el signo +")
     
-    # Si no tiene codigo de pais, agregarlo junto con el numero
-    elif len(telefono_limpio) == 8 and telefono_limpio.isdigit():
-        return f"+504{telefono_limpio}"
+    # Validar formato internacional
+    patron = r'^\+[1-9]\d{0,3}\d{4,15}$'
+    if not re.match(patron, telefono_limpio):
+        raise ValueError("Formato de teléfono internacional inválido")
     
-    else:
-        raise ValueError("Formato de teléfono inválido")
+    return telefono_limpio
+
+# Mantener funciones legacy para compatibilidad
+def validar_formato_telefono_honduras(telefono: str) -> None:
+    """Función legacy - ahora usa validación internacional"""
+    validar_formato_telefono_internacional(telefono)
+
+def normalizar_telefono_honduras(telefono: str) -> str:
+    """Función legacy - ahora usa normalización internacional"""
+    return normalizar_telefono_internacional(telefono)
 
 def validar_telefono_no_vacio(telefono: str) -> None:
     if not telefono or not telefono.strip():
@@ -97,7 +111,7 @@ def validar_telefono_no_vacio(telefono: str) -> None:
             detail="El teléfono es obligatorio y no puede estar vacío"
         )
 
-def validar_formato_telefono_internacional(telefono: str) -> bool:
+def validar_formato_telefono_internacional_bool(telefono: str) -> bool:
     """
     Valida formato de teléfono internacional genérico
     Retorna True si es válido, False si no
@@ -109,8 +123,8 @@ def validar_formato_telefono_internacional(telefono: str) -> bool:
     telefono_limpio = re.sub(r'[\s\-\(\)]', '', telefono.strip())
     
     # Patrón para teléfonos internacionales: +[código país][número]
-    patron = r'^\+[1-9]\d{9,14}$'
-    return bool(re.match(patron, telefono_limpio))
+    patron = r'^\+[1-9]\d{0,3}\d{4,15}$'
+    return bool(re.match(patron, telefono_limpio)) and len(telefono_limpio) >= 8 and len(telefono_limpio) <= 18
 
 def validar_formato_telefono_honduras_bool(telefono: str) -> bool:
     """

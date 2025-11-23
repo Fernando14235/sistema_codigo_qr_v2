@@ -8,6 +8,7 @@ import SocialDashboard from "./SocialDashboard";
 import UserMenu from "./components/UI/UserMenu";
 import PerfilUsuario from "./PerfilUsuario";
 import ConfiguracionUsuario from "./ConfiguracionUsuario";
+import CustomPhoneInput from "./components/PhoneInput";
 import { useRef } from "react";
 
 // Tarjeta de notificación reutilizable
@@ -260,7 +261,7 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
         visitantes: [{
           nombre_conductor,
           dni_conductor,
-          telefono: telefono.trim() ? "+504" + telefono : "",
+          telefono: telefono.trim() && telefono.length > 5 ? telefono : "no agregado",
           tipo_vehiculo,
           marca_vehiculo: tipo_vehiculo === "Bus" ? "No aplica" : marca_vehiculo,
           color_vehiculo,
@@ -290,9 +291,8 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
     setBloqueado(false);
   };
 
-  const handleTelefonoChange = (e) => {
-    const value = e.target.value.replace(/\D/g, "").slice(0, 8);
-    setTelefono(value);
+  const handleTelefonoChange = (phone) => {
+    setTelefono(phone);
   };
 
   const handleDownloadQR = async () => {
@@ -326,17 +326,25 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
         <label>Nombre del visitante:</label>
         <input type="text" value={nombre_conductor} onChange={e => setNombreConductor(e.target.value)} required disabled={bloqueado || !!qrUrl} />
       </div>
+
       <div className="form-row">
         <label>DNI del visitante: <span style={{color: '#666', fontSize: '0.9em', fontWeight: 'normal'}}>(Opcional)</span></label>
         <input type="text" value={dni_conductor} onChange={e => setDNIConductor(e.target.value)} disabled={bloqueado || !!qrUrl} />
       </div>
+
       <div className="form-row">
-        <label>Teléfono:</label>
-        <span className="input-prefix">+504</span>
-        <input placeholder="XXXXXXXX" value={telefono} onChange={handleTelefonoChange} maxLength={8} disabled={bloqueado || !!qrUrl} />
+        <label>Teléfono: <span style={{color: '#666', fontSize: '0.9em', fontWeight: 'normal'}}>(Opcional)</span></label>
+        <CustomPhoneInput
+          value={telefono}
+          onChange={handleTelefonoChange}
+          placeholder="Número de teléfono"
+          disabled={bloqueado || !!qrUrl}
+          required={false}
+        />
       </div>
+
       <div className="form-row">
-        <label>Tipo de vehículo:</label>
+        <label>Tipo de vehículo: <span style={{color: '#666', fontSize: '0.9em', fontWeight: 'normal'}}>(Opcional)</span></label>
         <select value={tipo_vehiculo} onChange={e => setTipoVehiculo(e.target.value)} disabled={bloqueado || !!qrUrl}>
           <option value="">Selecciona un tipo</option>
           {tiposVehiculo.map(tipo => (
@@ -344,8 +352,9 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
           ))}
         </select>
       </div>
+
       <div className="form-row">
-        <label>Marca del vehículo:</label>
+        <label>Marca del vehículo: <span style={{color: '#666', fontSize: '0.9em', fontWeight: 'normal'}}>(Opcional)</span></label>
         <select value={marca_vehiculo} onChange={e => setMarcaVehiculo(e.target.value)} disabled={bloqueado || !!qrUrl}>
           <option value="">Selecciona una marca</option>
           {(marcasPorTipo[tipo_vehiculo] || []).map(marca => (
@@ -353,8 +362,9 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
           ))}
         </select>
       </div>
+
       <div className="form-row">
-        <label>Color del vehículo:</label>
+        <label>Color del vehículo: <span style={{color: '#666', fontSize: '0.9em', fontWeight: 'normal'}}>(Opcional)</span></label>
         <select value={color_vehiculo} onChange={e => setColorVehiculo(e.target.value)} disabled={bloqueado || !!qrUrl}>
           <option value="">Selecciona un color</option>
           {coloresVehiculo.map(color => (
@@ -362,10 +372,12 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
           ))}
         </select>
       </div>
+
       <div className="form-row">
         <label>Placa del vehículo: <span style={{color: '#666', fontSize: '0.9em', fontWeight: 'normal'}}>(Opcional)</span></label>
         <input type="text" value={placa_vehiculo} onChange={e => setPlacaVehiculo(e.target.value)} disabled={bloqueado || !!qrUrl} />
       </div>
+
       <div className="form-row">
         <label>Motivo de la visita:</label>
         <select value={motivo} onChange={e => setMotivo(e.target.value)} required disabled={bloqueado || !!qrUrl}>
@@ -375,14 +387,17 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
           ))}
         </select>
       </div>
+
       <div className="form-row">
         <label>Fecha y hora de entrada:</label>
         <input type="datetime-local" value={fecha_entrada} onChange={e => setFechaEntrada(e.target.value)} required disabled={bloqueado || !!qrUrl} />
       </div>
+
       <div className="form-row">
         <label>Cantidad de acompañantes: <span style={{color: '#666', fontSize: '0.9em', fontWeight: 'normal'}}>(Opcional)</span></label>
         <input type="number" min="0" max="10" value={cantidadAcompanantes} onChange={e => setCantidadAcompanantes(e.target.value)} disabled={bloqueado || !!qrUrl} />
       </div>
+
       {acompanantes.map((a, idx) => (
         <div className="form-row" key={idx}>
           <label>Nombre del acompañante #{idx + 1}:</label>
@@ -408,7 +423,7 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
             }}
           />
           <br/>
-          <div style={{ textAlign: 'center', marginTop: 8 }}>
+          <div style={{ textAlign: 'center', marginTop: 8, display: 'flex', justifyContent: 'center' }}>
             <button type ="button" onClick={handleDownloadQR} className="btn-primary">Descargar QR</button>
           </div>
           <div style={{ color: '#1976d2', marginTop: 6, fontSize: '0.98em' }}>
@@ -423,7 +438,7 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
 function FormEditarVisitaResidente({ token, visita, onSuccess, onCancel, setVista }) {
   const [nombre_conductor, setNombreConductor] = useState(visita.visitante?.nombre_conductor || visita.nombre_conductor || "");
   const [dni_conductor, setDNIConductor] = useState(visita.visitante?.dni_conductor || visita.dni_conductor || "");
-  const [telefono, setTelefono] = useState((visita.visitante?.telefono || visita.telefono || '').replace('+504', ''));
+  const [telefono, setTelefono] = useState(visita.visitante?.telefono || visita.telefono || '');
   const [marca_vehiculo, setMarcaVehiculo] = useState(visita.visitante?.marca_vehiculo || visita.marca_vehiculo || "");
   const [placa_vehiculo, setPlacaVehiculo] = useState(visita.visitante?.placa_vehiculo || visita.placa_vehiculo || "");
   const [tipo_vehiculo, setTipoVehiculo] = useState(visita.visitante?.tipo_vehiculo || visita.tipo_vehiculo || "");
@@ -465,7 +480,7 @@ function FormEditarVisitaResidente({ token, visita, onSuccess, onCancel, setVist
         visitante: {
           nombre_conductor,
           dni_conductor,
-          telefono: telefono.trim() ? "+504" + telefono : "",
+          telefono: telefono.trim() && telefono.length > 5 ? telefono : "no agregado",
           tipo_vehiculo,
           marca_vehiculo: tipo_vehiculo === "Bus" ? "No aplica" : marca_vehiculo,
           color_vehiculo,
@@ -488,9 +503,8 @@ function FormEditarVisitaResidente({ token, visita, onSuccess, onCancel, setVist
     setBloqueadoEditar(false);
   };
 
-  const handleTelefonoChange = (e) => {
-    const value = e.target.value.replace(/\D/g, "").slice(0, 8);
-    setTelefono(value);
+  const handleTelefonoChange = (phone) => {
+    setTelefono(phone);
   };
 
   return (
@@ -506,8 +520,13 @@ function FormEditarVisitaResidente({ token, visita, onSuccess, onCancel, setVist
       </div>
       <div className="form-row">
         <label>Teléfono:</label>
-        <span className="input-prefix">+504</span>
-        <input placeholder="XXXXXXXX" value={telefono} onChange={handleTelefonoChange} maxLength={8} disabled={cargando || bloqueadoEditar} />
+        <CustomPhoneInput
+          value={telefono}
+          onChange={handleTelefonoChange}
+          placeholder="Número de teléfono"
+          disabled={cargando || bloqueadoEditar}
+          required={false}
+        />
       </div>
       <div className="form-row">
         <label>Tipo de vehículo:</label>
@@ -613,7 +632,7 @@ const FormSolicitarVisita = ({ token, onSuccess, onCancel, setVista }) => {
       const data = {
         nombre_visitante: nombreVisitante,
         dni_visitante: dniVisitante || undefined,
-        telefono_visitante: telefonoVisitante || undefined,
+        telefono_visitante: telefonoVisitante.trim() && telefonoVisitante.length > 5 ? telefonoVisitante : "no agregado",
         fecha_entrada: fechaEntrada || null,
         motivo_visita: motivo,
         tipo_vehiculo: tipoVehiculo,
@@ -635,9 +654,8 @@ const FormSolicitarVisita = ({ token, onSuccess, onCancel, setVista }) => {
     setCargando(false);
   };
 
-  const handleTelefonoChange = (e) => {
-    const value = e.target.value.replace(/\D/g, "").slice(0, 8);
-    setTelefonoVisitante(value);
+  const handleTelefonoChange = (phone) => {
+    setTelefonoVisitante(phone);
   };
 
   return (
@@ -653,8 +671,13 @@ const FormSolicitarVisita = ({ token, onSuccess, onCancel, setVista }) => {
       </div>
       <div className="form-row">
         <label>Teléfono:</label>
-        <span className="input-prefix">+504</span>
-        <input placeholder="XXXXXXXX" value={telefonoVisitante} onChange={handleTelefonoChange} maxLength={8} disabled={cargando} />
+        <CustomPhoneInput
+          value={telefonoVisitante}
+          onChange={handleTelefonoChange}
+          placeholder="Número de teléfono"
+          disabled={cargando}
+          required={false}
+        />
       </div>
       <div className="form-row">
         <label>Tipo de vehículo:</label>
@@ -714,7 +737,7 @@ const FormSolicitarVisita = ({ token, onSuccess, onCancel, setVista }) => {
 };
 
 // Componente para listar tickets del residente
-function TablaTicketsResidente({ tickets, onVerDetalle }) {
+function TablaTicketsResidente({ tickets, onVerDetalle, onEliminar }) {
   // Detectar si la pantalla es pequeña
   const isMobile = window.innerWidth < 700;
 
@@ -961,7 +984,7 @@ function FormCrearTicketResidente({ token, onSuccess, onCancel }) {
 }
 
 // Tarjetas responsivas para tickets del residente
-function TicketsCardsMobileResidente({ tickets, onVerDetalle }) {
+function TicketsCardsMobileResidente({ tickets, onVerDetalle, onEliminar }) {
   return (
     <div className="tickets-cards-mobile">
       {tickets.map(ticket => (
@@ -1234,9 +1257,9 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
                   <div style={{ textAlign: 'center', padding: '20px' }}>Cargando tickets...</div>
                 ) : (
                   window.innerWidth < 750 ? (
-                    <TicketsCardsMobileResidente tickets={tickets} onVerDetalle={verTicketDetalle} />
+                    <TicketsCardsMobileResidente tickets={tickets} onVerDetalle={verTicketDetalle} onEliminar={eliminarTicket} />
                   ) : (
-                    <TablaTicketsResidente tickets={tickets} onVerDetalle={verTicketDetalle} />
+                    <TablaTicketsResidente tickets={tickets} onVerDetalle={verTicketDetalle} onEliminar={eliminarTicket} />
                   )
                 )}
               </>

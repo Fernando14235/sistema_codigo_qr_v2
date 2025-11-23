@@ -13,6 +13,7 @@ frontend/dist/
 
 # Ignorar archivos de configuración de IDEs
 backend/app/alembic.ini
+backend/alembic
 
 # Ignorar archivos de caché de Python
 **/__pycache__/
@@ -261,3 +262,6 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+rules.md
+userinput.py

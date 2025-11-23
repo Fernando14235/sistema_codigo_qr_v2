@@ -56,8 +56,8 @@ function SocialDashboard({ token, rol }) {
   const [detalleMensaje, setDetalleMensaje] = useState("");
   const [adminNombre, setAdminNombre] = useState("");
   const [bloqueado, setBloqueado] = useState(false);
-  // Estado para controlar si se elimina la imagen existente
-  const [eliminarImagen, setEliminarImagen] = useState(false);
+  // Estado para gestión de imágenes en edición
+  const [imagenesExistentes, setImagenesExistentes] = useState([]);
 
   const isAdmin = rol === "admin";
 
@@ -154,7 +154,16 @@ function SocialDashboard({ token, rol }) {
       const opciones = formData.tipo_publicacion === "encuesta" ? 
         opcionesEncuesta.filter(op => op.trim() !== "").map(op => ({ texto: op.trim() })) : [];
       
-      const socialData = {
+      const socialData = editId ? {
+        titulo: formData.titulo,
+        contenido: formData.contenido,
+        tipo_publicacion: formData.tipo_publicacion,
+        requiere_respuesta,
+        para_todos: formData.para_todos,
+        destinatarios: destinatariosFormateados.length > 0 ? destinatariosFormateados : undefined,
+        opciones: opciones.length > 0 ? opciones : undefined,
+        imagenes_existentes: imagenesExistentes  // Enviar estado de imágenes existentes
+      } : {
         titulo: formData.titulo,
         contenido: formData.contenido,
         tipo_publicacion: formData.tipo_publicacion,
@@ -165,7 +174,8 @@ function SocialDashboard({ token, rol }) {
       };
       const data = new FormData();
       data.append("social_data", JSON.stringify(socialData));
-      fileList.forEach(f => data.append("imagenes", f));
+      fileList.forEach(fileObj => data.append("imagenes", fileObj.file));
+
       if (editId) {
         await axios.put(`${API_URL}/social/actualizar_social/admin/${editId}`, data, {
           headers: { Authorization: `Bearer ${token}` }
@@ -176,22 +186,26 @@ function SocialDashboard({ token, rol }) {
           headers: { Authorization: `Bearer ${token}` }
         });
         setMensaje("¡Publicación creada!");
-        setShowForm(false);
-        setEditId(null);
-        setFormData({
-          titulo: "",
-          contenido: "",
-          tipo_publicacion: "comunicado",
-          requiere_respuesta: false,
-          para_todos: true,
-          imagenes: [],
-          destinatarios: []
-        });
-        setFileList([]);
-        setOpcionesEncuesta([""]);
       }
-      cargarPublicaciones();
-      // Redirigir a la sección principal de Social
+      
+      // Cerrar formulario y limpiar estados tanto para crear como para actualizar
+      setShowForm(false);
+      setEditId(null);
+      setFormData({
+        titulo: "",
+        contenido: "",
+        tipo_publicacion: "comunicado",
+        requiere_respuesta: false,
+        para_todos: true,
+        imagenes: [],
+        destinatarios: []
+      });
+      setFileList([]);
+      setImagenesExistentes([]);
+      setOpcionesEncuesta([""]);
+      
+      // Recargar publicaciones y redirigir a la sección principal
+      await cargarPublicaciones();
       window.scrollTo(0, 0);
     } catch (err) {
       if (err.response && err.response.data && err.response.data.detail) {
@@ -215,8 +229,19 @@ function SocialDashboard({ token, rol }) {
       imagenes: [],
       destinatarios: pub.destinatarios || []
     });
+    // Cargar imágenes existentes con su estado
+    setImagenesExistentes((pub.imagenes || []).map(img => ({
+      id: img.id,
+      imagen_url: img.imagen_url,
+      eliminar: false
+    })));
+    // Cargar opciones de encuesta si es encuesta
+    if (pub.tipo_publicacion === "encuesta" && pub.opciones && pub.opciones.length > 0) {
+      setOpcionesEncuesta(pub.opciones.map(op => op.texto));
+    } else {
+      setOpcionesEncuesta([""]);
+    }
     setFileList([]);
-    setEliminarImagen(false);
     setShowForm(true);
   };
 
@@ -252,7 +277,6 @@ function SocialDashboard({ token, rol }) {
         <option value="publicado">Publicado</option>
         <option value="fallido">Fallido</option>
       </select>
-      <input type="date" value={filtros.fecha} onChange={e => setFiltros(f => ({ ...f, fecha: e.target.value }))} placeholder="Fecha de publicación" style={{minWidth:120}} />
       {isAdmin && (
         <button style={{marginLeft:8}} onClick={e=>{e.preventDefault(); setShowForm(true); setEditId(null);}}>+ Nueva Publicación</button>
       )}
@@ -276,7 +300,7 @@ function SocialDashboard({ token, rol }) {
       if (isAdmin && !showForm) {
         return (
           <div style={{ textAlign: 'left', marginTop: 24 }}>
-            <button style={{marginLeft:0}} onClick={e=>{e.preventDefault(); setShowForm(true); setEditId(null);}} className="btn-primary">+ Nueva Publicación</button>
+            {renderFiltros()}
             <p style={{ textAlign: 'center', color: '#888', fontWeight: 'bold', fontSize: '1.1em', marginTop: 32 }}>No hay publicaciones</p>
           </div>
         );
@@ -286,7 +310,6 @@ function SocialDashboard({ token, rol }) {
     }
     return (
       <div>
-        {/* Mostrar filtros y botón de nueva publicación siempre para admin */}
         {isAdmin && !showForm && renderFiltros()}
         {isMobile ? (
           <div className="social-cards-mobile">
@@ -296,7 +319,8 @@ function SocialDashboard({ token, rol }) {
                   <div><b>Título:</b> {pub.titulo}</div>
                   <div><b>Tipo:</b> {pub.tipo_publicacion}</div>
                   <div><b>Estado:</b> <span style={{ color: pub.estado === "fallido" ? "#d32f2f" : pub.estado === "publicado" ? "#2e7d32" : "#f57c00", fontWeight: "bold" }}>{pub.estado}</span></div>
-                  <div><b>Fecha:</b> {new Date(pub.fecha_creacion).toLocaleString()}</div>
+                  <div><b>Fecha Creación:</b> {new Date(pub.fecha_creacion).toLocaleDateString()}</div>
+                  <div><b>Hora Creación:</b> {new Date(pub.fecha_creacion).toLocaleTimeString()}</div>
                 </div>
                 <div className="social-card-mobile-actions" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', gap: 8 }}>
                   <span onClick={() => setDetalle(pub)}><IconVer /></span>
@@ -318,6 +342,7 @@ function SocialDashboard({ token, rol }) {
                 <th>Tipo</th>
                 <th>Estado</th>
                 <th>Fecha</th>
+                <th>Hora</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -335,7 +360,8 @@ function SocialDashboard({ token, rol }) {
                       {pub.estado}
                     </span>
                   </td>
-                  <td>{new Date(pub.fecha_creacion).toLocaleString()}</td>
+                  <td>{new Date(pub.fecha_creacion).toLocaleDateString()}</td>
+                  <td>{new Date(pub.fecha_creacion).toLocaleTimeString()}</td>
                   <td className={styles["social-table-actions"]} style={{display:'flex',gap:4}}>
                     <span onClick={() => setDetalle(pub)}><IconVer /></span>
                     {isAdmin && (
@@ -425,7 +451,10 @@ function SocialDashboard({ token, rol }) {
   };
 
   // Renderizado de detalle
+  
+  const [modalImagen, setModalImagen] = useState(false);
   const renderDetalle = () => (
+    
     <div className={styles["social-detail-card"]}>
       <h3>{detalle.titulo}</h3>
       <div className={styles["social-detail-row"]}>
@@ -492,11 +521,194 @@ function SocialDashboard({ token, rol }) {
       <div className={styles["social-detail-row"]}>
         <b>Imágenes:</b>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {detalle.imagenes && detalle.imagenes.length > 0 && detalle.imagenes[0].imagen_url ? (
-            <img src={API_URL + detalle.imagenes[0].imagen_url} alt="img" style={{width:180,height:180,objectFit:'cover',borderRadius:10,border:'1.5px solid #ccc'}} />
-          ) : <span style={{color:'#888',marginLeft:8}}>Sin imágenes</span>}
+          {detalle.imagenes && detalle.imagenes.length > 0 ? (
+            detalle.imagenes.map((imagen, index) => (
+              <div key={imagen.id || index} className="imagen-container">
+                <img 
+                  src={API_URL + imagen.imagen_url} 
+                  alt={`Imagen ${index + 1}`} 
+                  style={{
+                    width: 180,
+                    height: 180,
+                    objectFit: 'cover',
+                    borderRadius: 10,
+                    border: '1.5px solid #ccc',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(25, 118, 210, 0.2)',
+                    display: 'block'
+                  }}
+                  onClick={() => setModalImagen({
+                    isOpen: true,
+                    currentIndex: index,
+                    images: detalle.imagenes
+                  })}
+                  title="Haz clic para ver en grande"
+                />
+              </div>
+            ))
+          ) : (
+            <span style={{color:'#888',marginLeft:8}}>Sin imágenes</span>
+          )}
+          
+          {/* Modal para mostrar imagen ampliada */}
+          {modalImagen.isOpen && (
+            <div
+              className="modal-imagen"
+              style={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                width: "100vw",
+                height: "100vh",
+                background: "rgba(0,0,0,0.9)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 9999,
+              }}
+              onClick={() => setModalImagen({ isOpen: false, currentIndex: 0, images: [] })}
+            >
+              {/* Imagen actual */}
+              <img
+                src={API_URL + modalImagen.images[modalImagen.currentIndex].imagen_url}
+                alt={`Imagen ${modalImagen.currentIndex + 1}`}
+                style={{
+                  maxWidth: "90vw",
+                  maxHeight: "90vh",
+                  borderRadius: 16,
+                  boxShadow: "0 4px 32px rgba(0,0,0,0.5)",
+                  background: "#fff",
+                  display: "block",
+                  objectFit: "contain"
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+              
+              {/* Botones de navegación si hay más de una imagen */}
+              {modalImagen.images.length > 1 && (
+                <>
+                  {/* Botón anterior */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setModalImagen(prev => ({
+                        ...prev,
+                        currentIndex: prev.currentIndex > 0 ? prev.currentIndex - 1 : prev.images.length - 1
+                      }));
+                    }}
+                    style={{
+                      position: "fixed",
+                      left: 20,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      fontSize: 32,
+                      color: "#fff",
+                      background: "rgba(0,0,0,0.5)",
+                      border: "none",
+                      cursor: "pointer",
+                      zIndex: 10000,
+                      width: 50,
+                      height: 50,
+                      borderRadius: "50%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      transition: "background 0.3s"
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = "rgba(255,255,255,0.2)"}
+                    onMouseLeave={(e) => e.target.style.background = "rgba(0,0,0,0.5)"}
+                    title="Imagen anterior"
+                  >
+                    ‹
+                  </button>
+
+                  {/* Botón siguiente */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setModalImagen(prev => ({
+                        ...prev,
+                        currentIndex: prev.currentIndex < prev.images.length - 1 ? prev.currentIndex + 1 : 0
+                      }));
+                    }}
+                    style={{
+                      position: "fixed",
+                      right: 20,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      fontSize: 32,
+                      color: "#fff",
+                      background: "rgba(0,0,0,0.5)",
+                      border: "none",
+                      cursor: "pointer",
+                      zIndex: 10000,
+                      width: 50,
+                      height: 50,
+                      borderRadius: "50%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      transition: "background 0.3s"
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = "rgba(255,255,255,0.2)"}
+                    onMouseLeave={(e) => e.target.style.background = "rgba(0,0,0,0.5)"}
+                    title="Imagen siguiente"
+                  >
+                    ›
+                  </button>
+
+                  {/* Indicador de posición */}
+                  <div
+                    style={{
+                      position: "fixed",
+                      bottom: 20,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      color: "#fff",
+                      background: "rgba(0,0,0,0.7)",
+                      padding: "8px 16px",
+                      borderRadius: 20,
+                      fontSize: 14,
+                      zIndex: 10000
+                    }}
+                  >
+                    {modalImagen.currentIndex + 1} / {modalImagen.images.length}
+                  </div>
+                </>
+              )}
+              
+              {/* Botón cerrar */}
+              <button
+                onClick={() => setModalImagen({ isOpen: false, currentIndex: 0, images: [] })}
+                style={{
+                  position: "fixed",
+                  top: 30,
+                  right: 40,
+                  fontSize: 32,
+                  color: "#fff",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  zIndex: 10000,
+                  width: 50,
+                  height: 50,
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "background 0.3s"
+                }}
+                onMouseEnter={(e) => e.target.style.background = "rgba(255,255,255,0.1)"}
+                onMouseLeave={(e) => e.target.style.background = "transparent"}
+                title="Cerrar"
+              >
+                ×
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
       {/* Opciones de encuesta y votación */}
       {detalle.tipo_publicacion === "encuesta" && (
         <div className={styles["social-detail-row"]}>
@@ -675,21 +887,149 @@ function SocialDashboard({ token, rol }) {
           )}
         </div>
       )}
-      {editId && detalle && detalle.imagenes && detalle.imagenes.length > 0 && !eliminarImagen && (
-        <div style={{marginBottom:8}}>
-          <label>Imagen actual:</label>
-          <div style={{display:'flex',alignItems:'center',gap:12}}>
-            <img src={API_URL + detalle.imagenes[0].imagen_url} alt="img" style={{width:80,height:80,objectFit:'cover',borderRadius:8,border:'1px solid #ccc'}} />
-            <button type="button" style={{background:'#e53935',color:'#fff',border:'none',borderRadius:4,padding:'4px 12px',cursor:'pointer'}} onClick={()=>setEliminarImagen(true)}>Eliminar imagen</button>
+      {/* Mostrar imágenes existentes en modo edición */}
+      {editId && imagenesExistentes.length > 0 && (
+        <div style={{marginBottom:12}}>
+          <label style={{fontWeight:'bold',marginBottom:8,display:'block'}}>Imágenes actuales:</label>
+          <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+            {imagenesExistentes.map((img, index) => (
+              <div key={img.id} style={{position:'relative',display:'inline-block'}}>
+                <img 
+                  src={API_URL + img.imagen_url} 
+                  alt={`Imagen ${index + 1}`}
+                  style={{
+                    width:100,
+                    height:100,
+                    objectFit:'cover',
+                    borderRadius:8,
+                    border: img.eliminar ? '3px solid #e53935' : '1px solid #ccc',
+                    opacity: img.eliminar ? 0.5 : 1,
+                    transition:'all 0.3s'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImagenesExistentes(prev => prev.map((item, i) => 
+                      i === index ? {...item, eliminar: !item.eliminar} : item
+                    ));
+                  }}
+                  style={{
+                    position:'absolute',
+                    top:-8,
+                    right:-8,
+                    background: img.eliminar ? '#43a047' : '#e53935',
+                    color:'white',
+                    border:'none',
+                    borderRadius:'50%',
+                    width:28,
+                    height:28,
+                    cursor:'pointer',
+                    fontSize:16,
+                    display:'flex',
+                    alignItems:'center',
+                    justifyContent:'center',
+                    fontWeight:'bold',
+                    boxShadow:'0 2px 4px rgba(0,0,0,0.2)'
+                  }}
+                  title={img.eliminar ? "Restaurar imagen" : "Marcar para eliminar"}
+                >
+                  {img.eliminar ? '↺' : '×'}
+                </button>
+                {img.eliminar && (
+                  <div style={{
+                    position:'absolute',
+                    bottom:0,
+                    left:0,
+                    right:0,
+                    background:'rgba(229,57,53,0.9)',
+                    color:'white',
+                    fontSize:10,
+                    padding:'2px 4px',
+                    textAlign:'center',
+                    borderRadius:'0 0 8px 8px',
+                    fontWeight:'bold'
+                  }}>
+                    Se eliminará
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}
-      <label>Nueva imagen (opcional):</label>
-      <input type="file" accept="image/*" onChange={e => setFileList(e.target.files.length > 0 ? [e.target.files[0]] : [])} disabled={bloqueado} />
-      {renderPreviewImgs()}
+      <label>{editId ? 'Agregar nuevas imágenes (opcional):' : 'Imágenes (opcional):'}</label>
+      <input 
+        type="file" 
+        multiple
+        accept="image/*" 
+        onChange={e => {
+          const files = Array.from(e.target.files || []);
+          // Agregar nuevas imágenes a la lista existente
+          setFileList(prev => [...prev, ...files.map(file => ({
+            file,
+            id: Math.random().toString(36).substr(2, 9), // ID único para cada imagen
+            preview: URL.createObjectURL(file) // Crear URL para previsualización
+          }))]);
+        }} 
+        disabled={bloqueado} 
+      />
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+        {fileList.map((fileObj, index) => (
+          <div key={fileObj.id} style={{ position: 'relative', display: 'inline-block' }}>
+            <img 
+              src={fileObj.preview} 
+              alt={`Preview ${index + 1}`}
+              style={{
+                width: 100,
+                height: 100,
+                objectFit: 'cover',
+                borderRadius: 8,
+                border: '1px solid #ccc'
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                // Eliminar la imagen específica de la lista
+                setFileList(prev => prev.filter((_, i) => i !== index));
+                // Liberar la URL de objeto para evitar fugas de memoria
+                URL.revokeObjectURL(fileObj.preview);
+              }}
+              style={{
+                position: 'absolute',
+                top: -10,
+                right: -10,
+                background: 'red',
+                color: 'white',
+                border: 'none',
+                borderRadius: '80%',
+                width: 10,
+                height: 20,
+                cursor: '',
+                fontSize: 12,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              title="Eliminar imagen">
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+
       <div className={styles["social-form-btns"]}>
         <button type="submit" disabled={bloqueado}>{editId ? "Actualizar" : "Crear"}</button>
-        <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} disabled={bloqueado}>Cancelar</button>
+        <button type="button" onClick={() => { 
+          setShowForm(false); 
+          setEditId(null); 
+          // Limpiar las URLs de objeto al cancelar
+          fileList.forEach(fileObj => URL.revokeObjectURL(fileObj.preview));
+          setFileList([]);
+          setImagenesExistentes([]);
+        }} disabled={bloqueado}>Cancelar</button>
       </div>
       <div className={styles["mensaje"]}>{mensaje}</div>
     </form>

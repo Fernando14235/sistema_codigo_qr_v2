@@ -23,7 +23,7 @@ def obtener_historial_visitas_admin(
     nombre_residente: Optional[str] = Query(None, description="Filtrar por nombre del residente"),
     unidad_residencial: Optional[str] = Query(None, description="Filtrar por unidad residencial"),
     nombre_visitante: Optional[str] = Query(None, description="Filtrar por nombre del visitante"),
-    estado: Optional[str] = Query(None, description="Filtrar por nombre del visitante")
+    estado: Optional[str] = Query(None, description="Filtrar por estado de la visita")
 ):
 
     # Construir consulta con joins y filtro por residencial_id

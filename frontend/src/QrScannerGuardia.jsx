@@ -270,7 +270,13 @@ function QrScannerGuardia({ modo, token, onClose, autoAprobar = true }) {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       console.log("Respuesta de salida:", res.data);
-      setMensaje("¡Escaneo de salida exitoso!");
+      
+      let mensajeSalida = "¡Escaneo de salida exitoso!";
+      if (res.data.salida_tardia) {
+        mensajeSalida += "\n\n⚠️ SALIDA TARDÍA\nEl QR había expirado. Se ha notificado al residente.";
+      }
+      
+      setMensaje(mensajeSalida);
     } catch (err) {
       console.error("Error al registrar salida:", err);
       setError(err.response?.data?.detail || "Error al registrar salida");
@@ -341,7 +347,14 @@ function QrScannerGuardia({ modo, token, onClose, autoAprobar = true }) {
             />
           )}
           {!camaraDisponible && (
-            <div style={{ color: "#fff", textAlign: "center", padding: 20 }}>
+            <div style={{ 
+              color: "#ffffff", 
+              textAlign: "center", 
+              padding: 20,
+              background: "rgba(0, 0, 0, 0.8)",
+              borderRadius: "12px",
+              border: "2px solid #667eea"
+            }}>
               <b>No se pudo acceder a la cámara.<br />Verifica los permisos o prueba en otro navegador/dispositivo.</b>
               <br /><br />
               <button 
@@ -358,8 +371,16 @@ function QrScannerGuardia({ modo, token, onClose, autoAprobar = true }) {
         </div>
         <div className="qr-scanner-guardia-content">
           {cargando && (
-            <div style={{ textAlign: 'center', padding: 10 }}>
-              <b>Procesando...</b>
+            <div style={{ 
+              textAlign: 'center', 
+              padding: 15,
+              color: '#ffffff',
+              background: 'rgba(0, 0, 0, 0.8)',
+              borderRadius: '12px',
+              border: '2px solid #667eea',
+              fontWeight: 'bold'
+            }}>
+              Procesando...
             </div>
           )}
           {error && (
@@ -393,9 +414,9 @@ function QrScannerGuardia({ modo, token, onClose, autoAprobar = true }) {
                 textAlign: 'center',
                 fontSize: '18px',
                 fontWeight: 'bold',
-                color: entradaAnticipada ? '#f57c00' : '#2e7d32',
-                backgroundColor: entradaAnticipada ? '#fff3e0' : '#e8f5e8',
-                border: entradaAnticipada ? '2px solid #ff9800' : 'none',
+                color: (entradaAnticipada || mensaje.includes('SALIDA TARDÍA')) ? '#f57c00' : '#2e7d32',
+                backgroundColor: (entradaAnticipada || mensaje.includes('SALIDA TARDÍA')) ? '#fff3e0' : '#e8f5e8',
+                border: (entradaAnticipada || mensaje.includes('SALIDA TARDÍA')) ? '2px solid #ff9800' : 'none',
                 padding: '15px',
                 borderRadius: '8px',
                 margin: '10px 0'

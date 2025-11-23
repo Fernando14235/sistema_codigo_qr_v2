@@ -126,3 +126,55 @@ def actualizar_ticket_service(ticket_id: int, datos: TicketUpdate, db: Session) 
         notificar_residente_ticket_actualizado_email(db, ticket)
 
     return ticket
+def eliminar_ticket_service(ticket_id: int, db: Session, usuario_actual: Usuario) -> dict:
+    """
+    Elimina un ticket. 
+    - Super admin: puede eliminar cualquier ticket
+    - Admin: puede eliminar tickets de su residencial
+    - Residente: puede eliminar solo sus propios tickets
+    """
+    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket no encontrado")
+    
+    # Obtener el residente asociado al ticket
+    residente = db.query(Residente).filter(Residente.id == ticket.residente_id).first()
+    if not residente:
+        raise HTTPException(status_code=404, detail="Residente asociado al ticket no encontrado")
+    
+    # Validar permisos según el rol
+    if usuario_actual.rol == "residente":
+        # El residente solo puede eliminar sus propios tickets
+        residente_usuario = db.query(Residente).filter(Residente.usuario_id == usuario_actual.id).first()
+        if not residente_usuario or ticket.residente_id != residente_usuario.id:
+            raise HTTPException(status_code=403, detail="No tienes permiso para eliminar este ticket")
+    
+    elif usuario_actual.rol == "admin":
+        # El admin solo puede eliminar tickets de su residencial
+        if residente.residencial_id != usuario_actual.residencial_id:
+            raise HTTPException(status_code=403, detail="No tienes permiso para eliminar este ticket")
+    
+    elif usuario_actual.rol == "super_admin":
+        # Super admin puede eliminar cualquier ticket
+        pass
+    
+    else:
+        raise HTTPException(status_code=403, detail="No tienes permiso para eliminar tickets")
+    
+    # Eliminar archivo de imagen si existe
+    if ticket.imagen_url:
+        try:
+            # Extraer el nombre del archivo de la URL
+            filename = ticket.imagen_url.split('/')[-1]
+            file_path = os.path.join(UPLOAD_DIR, filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except Exception as e:
+            # Log error pero continuar con la eliminación del ticket
+            print(f"Error al eliminar imagen del ticket: {e}")
+    
+    # Eliminar el ticket
+    db.delete(ticket)
+    db.commit()
+    
+    return {"message": "Ticket eliminado exitosamente", "ticket_id": ticket_id}

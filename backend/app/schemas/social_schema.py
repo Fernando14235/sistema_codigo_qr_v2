@@ -13,6 +13,11 @@ class SocialImagenResponse(SocialImagenBase):
     class Config:
         from_attributes = True
 
+class SocialImagenUpdate(BaseModel):
+    id: Optional[int] = None  # Si tiene ID, es una imagen existente
+    imagen_url: Optional[str] = None  # URL de la imagen existente
+    eliminar: bool = False  # Flag para marcar si se debe eliminar
+
 class SocialDestinatarioBase(BaseModel):
     residente_id: int = Field(..., example=1)
 
@@ -40,6 +45,11 @@ class SocialOpcionCreate(SocialOpcionBase):
 
 class SocialCreate(SocialBase):
     imagenes: Optional[List[SocialImagenCreate]] = []
+    destinatarios: Optional[List[SocialDestinatarioCreate]] = None
+    opciones: Optional[List[SocialOpcionCreate]] = None
+
+class SocialUpdate(SocialBase):
+    imagenes_existentes: Optional[List[SocialImagenUpdate]] = []  # Imágenes existentes con estado
     destinatarios: Optional[List[SocialDestinatarioCreate]] = None
     opciones: Optional[List[SocialOpcionCreate]] = None
 

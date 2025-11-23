@@ -155,7 +155,8 @@ def listar_usuarios_residencial(
         Residente.residencial_id == residencial_id
     )
     if nombre:
-        residentes_query = residentes_query.filter(Residente.nombre.ilike(f"%{nombre}%"))
+        # Join with Usuario to filter by nombre since Residente doesn't have nombre field
+        residentes_query = residentes_query.join(UsuarioModel, Residente.usuario_id == UsuarioModel.id).filter(UsuarioModel.nombre.ilike(f"%{nombre}%"))
     
     residentes = residentes_query.all()
     for residente in residentes:
@@ -176,7 +177,8 @@ def listar_usuarios_residencial(
         Guardia.residencial_id == residencial_id
     )
     if nombre:
-        guardias_query = guardias_query.filter(Guardia.nombre.ilike(f"%{nombre}%"))
+        # Join with Usuario to filter by nombre since Guardia doesn't have nombre field
+        guardias_query = guardias_query.join(UsuarioModel, Guardia.usuario_id == UsuarioModel.id).filter(UsuarioModel.nombre.ilike(f"%{nombre}%"))
     
     guardias = guardias_query.all()
     for guardia in guardias:
