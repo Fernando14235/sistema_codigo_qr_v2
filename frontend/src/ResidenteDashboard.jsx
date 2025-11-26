@@ -928,9 +928,45 @@ function FormCrearTicketResidente({ token, onSuccess, onCancel }) {
   const [titulo, setTitulo] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [imagen, setImagen] = useState(null);
+  const [imagenPreview, setImagenPreview] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
   const fileInputRef = useRef();
+
+  const handleImagenChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validar que sea una imagen
+      if (!file.type.startsWith('image/')) {
+        setError("Por favor selecciona un archivo de imagen válido");
+        return;
+      }
+      
+      // Validar tamaño (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError("La imagen no debe superar los 5MB");
+        return;
+      }
+      
+      setImagen(file);
+      setError("");
+      
+      // Crear preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagenPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImagen(null);
+    setImagenPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -947,6 +983,7 @@ function FormCrearTicketResidente({ token, onSuccess, onCancel }) {
       setTitulo("");
       setDescripcion("");
       setImagen(null);
+      setImagenPreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       onSuccess && onSuccess();
     } catch (err) {
@@ -967,8 +1004,111 @@ function FormCrearTicketResidente({ token, onSuccess, onCancel }) {
         <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} required rows={4} disabled={cargando} style={{resize:'vertical'}} />
       </div>
       <div className="form-row">
-        <label>Imagen (opcional):</label>
-        <input type="file" accept="image/*" ref={fileInputRef} onChange={e => setImagen(e.target.files[0])} disabled={cargando} />
+        <label>Imagen (opcional - máximo 1):</label>
+        {!imagenPreview ? (
+          <div style={{position:'relative'}}>
+            <input 
+              type="file" 
+              accept="image/*" 
+              ref={fileInputRef} 
+              onChange={handleImagenChange} 
+              disabled={cargando}
+              style={{
+                padding: '10px',
+                border: '2px dashed #1976d2',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                width: '100%'
+              }}
+            />
+            <p style={{fontSize:'12px',color:'#666',marginTop:'5px'}}>
+              Formatos: JPG, PNG. Tamaño máximo: 5MB
+            </p>
+          </div>
+        ) : (
+          <div style={{
+            position: 'relative',
+            display: 'inline-block',
+            marginTop: '10px'
+          }}>
+            <img 
+              src={imagenPreview} 
+              alt="Vista previa" 
+              style={{
+                width: '100%',
+                maxWidth: '300px',
+                height: 'auto',
+                maxHeight: '300px',
+                objectFit: 'contain',
+                borderRadius: '12px',
+                border: '2px solid #e3eafc',
+                boxShadow: '0 4px 12px rgba(25, 118, 210, 0.2)',
+                display: 'block'
+              }}
+            />
+            <button
+              type="button"
+              onClick={handleRemoveImage}
+              disabled={cargando}
+              style={{
+                position: 'absolute',
+                top: '-10px',
+                right: '-10px',
+                background: '#f44336',
+                color: 'white',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                cursor: 'pointer',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = '#d32f2f';
+                e.target.style.transform = 'scale(1.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = '#f44336';
+                e.target.style.transform = 'scale(1)';
+              }}
+              title="Eliminar imagen"
+            >
+              ×
+            </button>
+            <p style={{fontSize:'12px',color:'#666',marginTop:'8px',textAlign:'center'}}>
+              {imagen?.name}
+            </p>
+            <button
+              type="button"
+              onClick={handleRemoveImage}
+              disabled={cargando}
+              style={{
+                marginTop: '8px',
+                padding: '6px 12px',
+                background: '#ff9800',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: '600',
+                width: '100%',
+                maxWidth: '300px',
+                transition: 'background 0.3s ease'
+              }}
+              onMouseEnter={(e) => e.target.style.background = '#f57c00'}
+              onMouseLeave={(e) => e.target.style.background = '#ff9800'}
+            >
+              🔄 Cambiar imagen
+            </button>
+          </div>
+        )}
       </div>
       {error && <div className="qr-error">{error}</div>}
       <div className="form-actions">
@@ -1068,6 +1208,24 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
     } catch (err) {
       setNotification({ 
         message: err.response?.data?.detail || "Error al eliminar la visita", 
+        type: "error" 
+      });
+    }
+  };
+
+  // Eliminar ticket
+  const eliminarTicket = async (ticketId) => {
+    if (!window.confirm("¿Seguro que deseas eliminar este ticket?")) return;
+    
+    try {
+      await axios.delete(`${API_URL}/tickets/eliminar_ticket/${ticketId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotification({ message: "Ticket eliminado correctamente", type: "success" });
+      cargarTickets(); // Recargar la lista
+    } catch (err) {
+      setNotification({ 
+        message: err.response?.data?.detail || "Error al eliminar el ticket", 
         type: "error" 
       });
     }

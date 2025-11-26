@@ -2859,26 +2859,7 @@ function AdminDashboard({ token, nombre, onLogout }) {
     setCargandoTickets(true);
     try {
       const params = {};
-  const eliminarTicket = async (ticketId) => {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar este ticket?')) {
-      return;
-    }
 
-    try {
-      await axios.delete(`${API_URL}/tickets/eliminar_ticket/${ticketId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-      
-      setNotification({ message: 'Ticket eliminado exitosamente', type: 'success' });
-      cargarTickets(); // Recargar la lista
-    } catch (error) {
-      console.error('Error al eliminar ticket:', error);
-      setNotification({ 
-        message: error.response?.data?.detail || 'Error al eliminar el ticket', 
-        type: 'error' 
-      });
-    }
-  };
 
       if (filtroTicketEstado) params.estado = filtroTicketEstado;
       if (busquedaTicket) params.titulo = busquedaTicket;
@@ -2892,6 +2873,28 @@ function AdminDashboard({ token, nombre, onLogout }) {
       setNotification({ message: "Error al cargar tickets", type: "error" });
     }
     setCargandoTickets(false);
+  };
+
+  // Eliminar ticket
+  const eliminarTicket = async (ticketId) => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar este ticket?')) {
+      return;
+    }
+
+    try {
+      await axios.delete(`${API_URL}/tickets/eliminar_ticket/${ticketId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setNotification({ message: 'Ticket eliminado exitosamente', type: 'success' });
+      cargarTickets(); // Recargar la lista
+    } catch (error) {
+      console.error('Error al eliminar ticket:', error);
+      setNotification({ 
+        message: error.response?.data?.detail || 'Error al eliminar el ticket', 
+        type: 'error' 
+      });
+    }
   };
 
   // Ver detalle de ticket
