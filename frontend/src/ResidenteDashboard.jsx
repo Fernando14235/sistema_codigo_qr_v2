@@ -27,10 +27,10 @@ function MainMenuResidente({ nombre, rol, onLogout, onSelectVista }) {
   const menuItems = [
     { id: "visitas", title: "Mis Visitas", icon: "📋", description: "Ver y gestionar tus visitas registradas" },
     { id: "crear", title: "Crear Visita", icon: "➕", description: "Crear una nueva visita con QR automático" },
-    { id: "solicitar", title: "Solicitar Visita", icon: "📝", description: "Solicitar aprobación al administrador" },
+    //{ id: "solicitar", title: "Solicitar Visita", icon: "📝", description: "Solicitar aprobación al administrador" },
     { id: "tickets", title: "Tickets de Soporte", icon: "🎫", description: "Crear y gestionar tickets de soporte" },
     { id: "social", title: "Social", icon: "💬", description: "Comunicaciones y contenido social" },
-    { id: "notificaciones", title: "Notificaciones", icon: "🔔", description: "Ver tus notificaciones del sistema" }
+    //{ id: "notificaciones", title: "Notificaciones", icon: "🔔", description: "Ver tus notificaciones del sistema" }
   ];
 
   return (

@@ -958,7 +958,7 @@ function SocialDashboard({ token, rol }) {
           </div>
         </div>
       )}
-      <label>{editId ? 'Agregar nuevas imágenes (opcional):' : 'Imágenes (opcional):'}</label>
+      <label>{editId ? 'Agregar nuevas imágenes (opcional):' : 'Imágenes (opcional - maximo 10):'}</label>
       <input 
         type="file" 
         multiple
