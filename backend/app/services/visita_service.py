@@ -400,16 +400,16 @@ def registrar_salida_visita(db: Session, qr_code: str, guardia_id: int) -> dict:
         
         db.commit()
         
-        # Enviar notificación de salida (con información de salida tardía si aplica)
-        try:
-            if salida_tardia:
-                # Enviar notificación especial para salida tardía
-                enviar_notificacion_salida_tardia(db, visita, guardia_nombre)
-            else:
-                # Enviar notificación normal de salida
-                enviar_notificacion_escaneo(db, visita, guardia_nombre, es_salida=True)
-        except Exception as e:
-            print(f"Error al enviar notificación de salida: {str(e)}")
+        # REMOVED: Email notifications for exit scans to reduce email consumption
+        # Users will only receive emails when visits are created
+        # try:
+        #     if salida_tardia:
+        #         enviar_notificacion_salida_tardia(db, visita, guardia_nombre)
+        #     else:
+        #         enviar_notificacion_escaneo(db, visita, guardia_nombre, es_salida=True)
+        # except Exception as e:
+        #     print(f"Error al enviar notificación de salida: {str(e)}")
+        
         
         mensaje_respuesta = "Salida registrada exitosamente"
         if salida_tardia:
@@ -723,7 +723,8 @@ def editar_visita_residente(db: Session, visita_id: int, usuario_id: int, visita
                     setattr(visitante, field, value)
         db.commit()
         db.refresh(visita)
-        enviar_notificacion_visita_actualizada(db, visita)
+        # REMOVED: Email notification for visit updates to reduce email consumption
+        # enviar_notificacion_visita_actualizada(db, visita)
         return visita
     except HTTPException as e:
         db.rollback()
@@ -896,8 +897,9 @@ def aprobar_solicitud_visita_admin(db: Session, visita_id: int, admin_id: int) -
 
         # Enviar notificaciones
         try:
-            # Notificar al residente que su solicitud fue aprobada
-            enviar_notificacion_solicitud_aprobada(db, visita, qr_img_personalizado)
+            # REMOVED: Email to residente when solicitud is approved to reduce email consumption
+            # enviar_notificacion_solicitud_aprobada(db, visita, qr_img_personalizado)
+            
             # Notificar a los guardias sobre la nueva visita
             enviar_notificacion_guardia(db, visita)
         except Exception as e:

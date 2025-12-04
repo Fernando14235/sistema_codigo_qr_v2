@@ -712,7 +712,21 @@ def enviar_notificacion_nueva_publicacion(
         print(traceback.format_exc())
 
 def notificar_admin_ticket_creado_email(db: Session, ticket: Ticket, residente_nombre: str):
-    admins = db.query(Usuario).filter(Usuario.rol == "admin").all()
+    # Obtener el residente que creó el ticket para filtrar por residencial
+    residente = db.query(Residente).filter(Residente.id == ticket.residente_id).first()
+    if not residente:
+        print(f"Error: Residente no encontrado para ticket {ticket.id}")
+        return
+    
+    # Obtener solo los administradores de la misma residencial
+    admins = db.query(Administrador).filter(
+        Administrador.residencial_id == residente.residencial_id
+    ).all()
+    
+    if not admins:
+        print(f"No hay administradores en la residencial {residente.residencial_id} para notificar")
+        return
+    
     asunto = "Nuevo ticket de soporte creado"
     mensaje_html = f"""
         <h2>Nuevo ticket creado</h2>
@@ -724,8 +738,8 @@ def notificar_admin_ticket_creado_email(db: Session, ticket: Ticket, residente_n
         </ul>
     """
     for admin in admins:
-        if admin.email:
-            enviar_correo(admin.email, asunto, mensaje_html)
+        if admin.usuario and admin.usuario.email:
+            enviar_correo(admin.usuario.email, asunto, mensaje_html)
 
 def notificar_residente_ticket_actualizado_email(db: Session, ticket: Ticket):
     residente = db.query(Residente).filter(Residente.id == ticket.residente_id).first()

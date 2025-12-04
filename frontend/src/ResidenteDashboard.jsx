@@ -932,6 +932,14 @@ function FormCrearTicketResidente({ token, onSuccess, onCancel }) {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
   const fileInputRef = useRef();
+  const isMountedRef = useRef(true);
+
+  // Cleanup para evitar memory leaks
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const handleImagenChange = (e) => {
     const file = e.target.files[0];
@@ -954,7 +962,9 @@ function FormCrearTicketResidente({ token, onSuccess, onCancel }) {
       // Crear preview
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImagenPreview(reader.result);
+        if (isMountedRef.current) {
+          setImagenPreview(reader.result);
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -980,16 +990,26 @@ function FormCrearTicketResidente({ token, onSuccess, onCancel }) {
       await axios.post(`${API_URL}/tickets/crear_ticket/residente`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setTitulo("");
-      setDescripcion("");
-      setImagen(null);
-      setImagenPreview(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      
+      // Solo actualizar estado si el componente sigue montado
+      if (isMountedRef.current) {
+        setTitulo("");
+        setDescripcion("");
+        setImagen(null);
+        setImagenPreview(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+      
       onSuccess && onSuccess();
     } catch (err) {
-      setError(err.response?.data?.detail || "Error al crear el ticket");
+      if (isMountedRef.current) {
+        setError(err.response?.data?.detail || "Error al crear el ticket");
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setCargando(false);
+      }
     }
-    setCargando(false);
   };
 
   return (
