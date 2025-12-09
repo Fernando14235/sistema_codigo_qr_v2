@@ -1,49 +1,48 @@
 # Paquetes esenciales
-fastapi
-uvicorn
-python-dotenv
-resend
-sib_api_v3_sdk
+fastapi==0.117.1
+uvicorn==0.36.0
+python-dotenv==1.0.1
+resend==2.13.1
+sib_api_v3_sdk==7.6.0
 
 # Base de datos
-sqlalchemy
-psycopg2-binary
-alembic
+sqlalchemy==2.0.28
+psycopg2-binary==2.9.9  # Requerido para conexión PostgreSQL + SSL
+alembic==1.13.1
 
 # Autenticación y seguridad
-python-jose[cryptography]
-bcrypt
-passlib
-passlib[bcrypt]
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
 
-# Validación de datos  
-pydantic
-pydantic-settings
-email-validator
-pydantic_core
+# Validación de datos
+pydantic==2.6.4
+pydantic-settings==2.2.1
+email-validator==2.2.0
+pydantic_core==2.16.3
 
 # Generación de códigos QR
-qrcode[pil]
-pillow
+qrcode[pil]==7.4.2
+pillow==10.2.0
 
 # Criptografía
-cryptography
+cryptography==42.0.5
 
 # Programación de tareas
-apscheduler
+apscheduler==3.10.4
 
 # Detección de dispositivos
-user-agents 
+user-agents==2.2.0
 
 # Manejo de logs
-python-multipart
+python-multipart==0.0.9
 
 # CORS y ASGI
-starlette
+starlette==0.36.3
 
 # Timezone handling
-pytz
+pytz==2024.1
 
 # Push Notifications
-pywebpush
-py-vapid
+pywebpush==2.0.3
+py-vapid==1.9.0
