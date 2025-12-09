@@ -1,6 +1,5 @@
 // Service Worker para Residencial Access PWA
-// Version: 1.0.1 - Update this version to trigger new SW installation
-const CACHE_NAME = 'residencial-access-v1.0.5';
+const CACHE_NAME = 'residencial-access-v1.1.1';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -12,15 +11,12 @@ const urlsToCache = [
 
 // Instalación del Service Worker
 self.addEventListener('install', (event) => {
-  console.log('Service Worker: Instalando...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Service Worker: Cache abierto');
         return cache.addAll(urlsToCache);
       })
       .then(() => {
-        console.log('Service Worker: Instalación completada');
         return self.skipWaiting();
       })
   );
@@ -28,19 +24,16 @@ self.addEventListener('install', (event) => {
 
 // Activación del Service Worker
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker: Activando...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            console.log('Service Worker: Eliminando cache antiguo:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
     }).then(() => {
-      console.log('Service Worker: Activación completada');
       return self.clients.claim();
     })
   );
@@ -49,6 +42,19 @@ self.addEventListener('activate', (event) => {
 // Interceptar peticiones de red
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+  
+  // IMPORTANTE: No cachear esquemas no soportados
+  // Solo cachear http y https
+  if (!event.request.url.startsWith('http')) {
+    return;
+  }
+  
+  // No cachear extensiones de navegador
+  if (url.protocol === 'chrome-extension:' || 
+      url.protocol === 'moz-extension:' || 
+      url.protocol === 'safari-extension:') {
+    return;
+  }
   
   // IMPORTANTE: No interceptar peticiones en desarrollo
   // Detectar si estamos en desarrollo (localhost o puerto de desarrollo)
@@ -118,8 +124,6 @@ self.addEventListener('fetch', (event) => {
 
 // Manejar notificaciones push
 self.addEventListener('push', (event) => {
-  console.log('Service Worker: Notificación push recibida');
-  
   let notificationData = {
     title: '🔔 Residencial Access',
     body: 'Nueva notificación',
@@ -145,11 +149,9 @@ self.addEventListener('push', (event) => {
         }
       };
     } catch (error) {
-      console.error('Error procesando datos de push:', error);
     }
   }
 
-  // Mostrar la notificación
   event.waitUntil(
     Promise.all([
       self.registration.showNotification(notificationData.title, {
@@ -174,7 +176,6 @@ self.addEventListener('push', (event) => {
         tag: 'residencial-notification',
         renotify: true
       }),
-      // Enviar mensaje a todas las ventanas abiertas
       self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clients) {
         clients.forEach(function(client) {
           client.postMessage({ type: 'PUSH_NOTIFICATION', data: notificationData });
@@ -184,28 +185,22 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// Manejar clics en notificaciones
 self.addEventListener('notificationclick', (event) => {
-  console.log('Service Worker: Clic en notificación');
-  
   event.notification.close();
 
   if (event.action === 'close') {
     return;
   }
 
-  // Abrir la aplicación
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
-        // Si ya hay una ventana abierta, enfocarla
         for (const client of clientList) {
           if (client.url.includes(self.location.origin) && 'focus' in client) {
             return client.focus();
           }
         }
         
-        // Si no hay ventana abierta, abrir una nueva
         if (clients.openWindow) {
           return clients.openWindow('/');
         }
@@ -213,15 +208,9 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// Manejar cierre de notificaciones
 self.addEventListener('notificationclose', (event) => {
-  console.log('Service Worker: Notificación cerrada');
 });
-
-// Manejar mensajes del cliente
 self.addEventListener('message', (event) => {
-  console.log('Service Worker: Mensaje recibido del cliente:', event.data);
-  
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
@@ -231,23 +220,15 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// Background sync para acciones offline
 self.addEventListener('sync', (event) => {
-  console.log('Service Worker: Sincronización en segundo plano:', event.tag);
-  
   if (event.tag === 'residencial-sync') {
     event.waitUntil(
-      // Aquí se pueden procesar acciones pendientes
-      console.log('Procesando acciones pendientes...')
     );
   }
 });
 
-// Manejar errores
 self.addEventListener('error', (event) => {
-  console.error('Service Worker: Error:', event.error);
 });
 
 self.addEventListener('unhandledrejection', (event) => {
-  console.error('Service Worker: Promesa rechazada:', event.reason);
 });

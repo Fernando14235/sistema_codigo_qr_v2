@@ -390,11 +390,28 @@ function SocialDashboard({ token, rol }) {
       setDetalleResultados(null);
       if (rol === "admin") cargarResultadosEncuesta(detalle.id).then();
       if (rol === "residente" && detalle.votos && detalle.votos.length > 0) {
+        // Obtener usuario_id del token JWT
         try {
           const tokenData = JSON.parse(atob(token.split('.')[1]));
-          const miVoto = detalle.votos.find(v => v.residente_id === tokenData.user_id);
-          if (miVoto) setDetalleVotoRealizado(miVoto.opcion_id);
-        } catch {}
+          const usuarioId = tokenData.usuario_id;
+          
+          // Obtener residente_id usando el usuario_id
+          axios.get(`${API_URL}/usuarios/residentes/usuario/${usuarioId}`, {
+              headers: { Authorization: `Bearer ${token}` }
+            })
+            .then(resRes => {
+              const residente = resRes.data;
+              const miVoto = detalle.votos.find(v => v.residente_id === residente.id);
+              if (miVoto) {
+                setDetalleVotoRealizado(miVoto.opcion_id);
+              }
+          })
+          .catch(err => {
+            console.error("Error obteniendo residente:", err);
+          });
+        } catch (err) {
+          console.error("Error parseando token:", err);
+        }
       }
     } else {
       setDetalleEncuestaId(null);
@@ -428,10 +445,58 @@ function SocialDashboard({ token, rol }) {
       });
       setDetalleMensaje("¡Voto registrado!");
       setDetalleVotoRealizado(opcionId);
-      cargarPublicaciones();
+      // Recargar publicaciones para obtener los votos actualizados
+      await cargarPublicaciones();
+      // Recargar el detalle de la encuesta para obtener los votos
+      const res = await axios.get(`${API_URL}/social/obtener_social/residente`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const encuestaActualizada = res.data.find(p => p.id === socialId);
+      if (encuestaActualizada) {
+        setDetalle(encuestaActualizada);
+      }
     } catch (err) {
       if (err.response && err.response.data && err.response.data.detail) {
-        setDetalleMensaje("Error: " + err.response.data.detail);
+        const errorMsg = err.response.data.detail;
+        setDetalleMensaje("Error: " + errorMsg);
+        
+        // Si el error es "Ya has votado", recargar la encuesta para obtener el voto
+        if (errorMsg.includes("Ya has votado") || errorMsg.includes("ya votó")) {
+          try {
+            await cargarPublicaciones();
+            const res = await axios.get(`${API_URL}/social/obtener_social/residente`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            const encuestaActualizada = res.data.find(p => p.id === socialId);
+            if (encuestaActualizada) {
+              setDetalle(encuestaActualizada);
+              // Intentar encontrar el voto del usuario
+              if (encuestaActualizada.votos && encuestaActualizada.votos.length > 0) {
+                // Obtener usuario_id del token JWT
+                try {
+                  const tokenData = JSON.parse(atob(token.split('.')[1]));
+                  const usuarioId = tokenData.usuario_id;
+                  
+                  // Obtener residente_id usando el usuario_id
+                  axios.get(`${API_URL}/usuarios/residentes/usuario/${usuarioId}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                  })
+                  .then(resRes => {
+                    const residente = resRes.data;
+                    const miVoto = encuestaActualizada.votos.find(v => v.residente_id === residente.id);
+                    if (miVoto) {
+                      setDetalleVotoRealizado(miVoto.opcion_id);
+                      setDetalleMensaje(""); // Limpiar mensaje de error
+                    }
+                  })
+                  .catch(err => console.error("Error obteniendo residente:", err));
+                } catch (err) {
+                  console.error("Error parseando token:", err);
+                }
+              }
+            }
+          } catch {}
+        }
       } else {
         setDetalleMensaje("Error al votar");
       }
@@ -719,9 +784,76 @@ function SocialDashboard({ token, rol }) {
                 {rol === "residente" && (
                   <>
                     {detalleVotoRealizado ? (
-                      <div style={{color:'#1976d2',marginBottom:8}}>
-                        Ya votaste por: <b>{detalle.opciones.find(o => o.id === detalleVotoRealizado)?.texto || "-"}</b>
-                      </div>
+                      <>
+                        <div style={{color:'#1976d2',marginBottom:12, fontSize: '1.1em', fontWeight: 'bold'}}>
+                          ✓ Ya votaste en esta encuesta
+                        </div>
+                        <div className="encuesta-opciones-container">
+                          {detalle.opciones.map((op, index) => {
+                            const esVotoRealizado = op.id === detalleVotoRealizado;
+                            return (
+                              <button 
+                                key={op.id} 
+                                className="encuesta-opcion-btn"
+                                disabled={true}
+                                style={{
+                                  background: esVotoRealizado 
+                                    ? `linear-gradient(135deg, #1976d2, #1565c0)` 
+                                    : `linear-gradient(135deg, #e0e0e0, #bdbdbd)`,
+                                  color: esVotoRealizado ? 'white' : '#757575',
+                                  border: esVotoRealizado ? '3px solid #0d47a1' : '2px solid #9e9e9e',
+                                  borderRadius: '12px',
+                                  padding: '12px 20px',
+                                  margin: '8px 8px 8px 0',
+                                  fontSize: '1em',
+                                  fontWeight: esVotoRealizado ? 'bold' : 'normal',
+                                  cursor: 'not-allowed',
+                                  boxShadow: esVotoRealizado 
+                                    ? '0 6px 20px rgba(25, 118, 210, 0.4)' 
+                                    : '0 2px 8px rgba(0,0,0,0.1)',
+                                  minWidth: '120px',
+                                  textAlign: 'center',
+                                  position: 'relative',
+                                  opacity: esVotoRealizado ? 1 : 0.6
+                                }}
+                              >
+                                {esVotoRealizado && (
+                                  <span style={{
+                                    position: 'absolute',
+                                    top: '-8px',
+                                    right: '-8px',
+                                    background: '#4caf50',
+                                    color: 'white',
+                                    borderRadius: '50%',
+                                    width: '24px',
+                                    height: '24px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '14px',
+                                    fontWeight: 'bold',
+                                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                                  }}>
+                                    ✓
+                                  </span>
+                                )}
+                                {op.texto}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <div style={{
+                          marginTop: 12,
+                          padding: '8px 12px',
+                          background: '#e3f2fd',
+                          borderLeft: '4px solid #1976d2',
+                          borderRadius: '4px',
+                          color: '#0d47a1',
+                          fontSize: '0.95em'
+                        }}>
+                          <b>Tu voto:</b> {detalle.opciones.find(o => o.id === detalleVotoRealizado)?.texto || "-"}
+                        </div>
+                      </>
                     ) : (
                         <div className="encuesta-opciones-container">
                         {detalle.opciones.map((op, index) => (

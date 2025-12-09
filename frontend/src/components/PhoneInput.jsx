@@ -3,14 +3,14 @@ import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 
 const phonePlaceholders = {
-  hn: 'XXXX-XXXX',   // Honduras
-  gt: 'XXXX-XXXX',   // Guatemala
-  sv: 'XXXX-XXXX',   // El Salvador
-  ni: 'XXXX-XXXX',   // Nicaragua
-  cr: 'XXXX-XXXX',   // Costa Rica
-  pa: 'XXXX-XXXX',   // Panamá
-  mx: 'XX XXXX-XXXX', // México
-  us: '(XXX) XXX-XXXX' // Estados Unidos
+  hn: '99999999',   // Honduras - 8 dígitos
+  gt: '99999999',   // Guatemala - 8 dígitos
+  sv: '99999999',   // El Salvador - 8 dígitos
+  ni: '99999999',   // Nicaragua - 8 dígitos
+  cr: '99999999',   // Costa Rica - 8 dígitos
+  pa: '99999999',   // Panamá - 8 dígitos
+  mx: '9999999999', // México - 10 dígitos
+  us: '9999999999'  // Estados Unidos - 10 dígitos
 };
 
 const CustomPhoneInput = ({ 
@@ -45,9 +45,17 @@ const CustomPhoneInput = ({
       country={'hn'} // Honduras por defecto
       value={value}
       onChange={handleChange}
-      placeholder={placeholder}
+      onCountryChange={(countryCode) => {
+        // Actualizar placeholder cuando cambia el país
+        if (phonePlaceholders[countryCode]) {
+          setPlaceholder(phonePlaceholders[countryCode]);
+        }
+      }}
       disabled={disabled}
-      required={required}
+      inputProps={{
+        required: required,
+        placeholder: placeholder
+      }}
       inputStyle={{
         width: '100%',
         height: '40px',

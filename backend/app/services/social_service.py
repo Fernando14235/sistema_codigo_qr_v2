@@ -104,7 +104,14 @@ def get_social_list(
     estado: Optional[str] = None,
     fecha: Optional[str] = None
 ):
-    query = db.query(Social)
+    from sqlalchemy.orm import joinedload
+    
+    query = db.query(Social).options(
+        joinedload(Social.imagenes),
+        joinedload(Social.destinatarios),
+        joinedload(Social.opciones),
+        joinedload(Social.votos)  # Cargar votos explícitamente
+    )
     
     # Filtrar por residencial_id si se proporciona
     if residencial_id:
@@ -135,7 +142,14 @@ def get_social_list(
         )
 
 def get_social_by_id(db: Session, social_id: int):
-    return db.query(Social).filter(Social.id == social_id).first()
+    from sqlalchemy.orm import joinedload
+    
+    return db.query(Social).options(
+        joinedload(Social.imagenes),
+        joinedload(Social.destinatarios),
+        joinedload(Social.opciones),
+        joinedload(Social.votos)  # Cargar votos explícitamente
+    ).filter(Social.id == social_id).first()
 
 def can_user_access_social(db: Session, social: Social, user: Usuario) -> bool:
     if user.rol == "super_admin":

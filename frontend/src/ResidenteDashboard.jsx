@@ -301,22 +301,30 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
   
-      // Generar nombre único basado en fecha y hora
+      // Generar nombre descriptivo con nombre del visitante y fecha
       const now = new Date();
-      const timestamp = now.toISOString().replace(/[:.]/g, '-'); // evita caracteres inválidos
-      const fileName = `qr_visita_${timestamp}.png`;
+      const fechaFormato = now.toLocaleDateString('es-HN').replace(/\//g, '-');
+      const horaFormato = now.toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit' }).replace(/:/g, '-');
+      
+      // Limpiar nombre del visitante para usar en el archivo
+      const nombreLimpio = nombre_conductor.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+      const fileName = `QR_${nombreLimpio}_${fechaFormato}_${horaFormato}.png`;
       
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', fileName); // nombre con el que se descargará
+      link.download = fileName; // usar .download en lugar de setAttribute
+      link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
-      link.remove();
-  
-      // Liberar memoria
-      window.URL.revokeObjectURL(url);
+      
+      // Pequeño delay antes de limpiar
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
     } catch (error) {
       console.error('Error al descargar el QR:', error);
+      alert('Error al descargar el código QR. Por favor, intenta nuevamente.');
     }
   };
 

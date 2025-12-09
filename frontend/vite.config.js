@@ -27,4 +27,8 @@ export default defineConfig({
   plugins: [
     react()
   ],
+  // Eliminar console.* y debugger en producción
+  esbuild: {
+    drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
+  },
 });

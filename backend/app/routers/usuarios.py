@@ -40,4 +40,21 @@ def obtener_nombre_usuario(id: int, db: Session = Depends(get_db)):
     usuario = db.query(Usuario).filter(Usuario.id == id).first()
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    return {"nombre": usuario.nombre} 
+    return {"nombre": usuario.nombre}
+
+@router.get("/residentes/usuario/{usuario_id}", dependencies=[Depends(verify_role(["residente"]))])
+def obtener_residente_por_usuario(usuario_id: int, db: Session = Depends(get_db)):
+    """
+    Obtiene el residente asociado a un usuario_id.
+    Usado para obtener el residente_id necesario para verificar votos en encuestas.
+    """
+    residente = db.query(Residente).filter(Residente.usuario_id == usuario_id).first()
+    if not residente:
+        raise HTTPException(status_code=404, detail="Residente no encontrado")
+    return {
+        "id": residente.id,
+        "usuario_id": residente.usuario_id,
+        "unidad_residencial": residente.unidad_residencial,
+        "telefono": residente.telefono,
+        "residencial_id": residente.residencial_id
+    }
