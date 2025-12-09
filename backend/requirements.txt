@@ -37,9 +37,6 @@ user-agents==2.2.0
 # Manejo de logs
 python-multipart==0.0.9
 
-# CORS y ASGI
-starlette==0.36.3
-
 # Timezone handling
 pytz==2024.1
 
