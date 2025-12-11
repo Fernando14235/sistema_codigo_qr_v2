@@ -14,7 +14,7 @@ from app.core.config import settings  # ← Esto importa tu configuración
 from app.database import Base  # ← Asegúrate que Base viene de tu archivo `database.py`
 
 # Importa todos los modelos para que Alembic los detecte
-from app.models import usuario, residente, guardia, visita, visitante, notificacion
+from app.models import *
 
 
 # this is the Alembic Config object, which provides
@@ -50,12 +50,15 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
+    # Usar DATABASE_URL desde settings en lugar del .ini
+    url = settings.DATABASE_URL
     context.configure(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        compare_type=True,
+        compare_server_default=True
     )
 
     with context.begin_transaction():
@@ -69,12 +72,20 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    connectable = create_engine(settings.DATABASE_URL, poolclass=pool.NullPool)
+    # Usar DATABASE_URL desde settings con configuración optimizada
+    connectable = create_engine(
+        settings.DATABASE_URL, 
+        poolclass=pool.NullPool,
+        echo=False  # Cambiar a True para debug de SQL
+    )
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata,
-            compare_type=True  # Para detectar cambios en tipos de columna
+            connection=connection, 
+            target_metadata=target_metadata,
+            compare_type=True,  # Para detectar cambios en tipos de columna
+            compare_server_default=True,  # Para detectar cambios en valores por defecto
+            render_as_batch=True  # Para compatibilidad con SQLite si es necesario
         )
 
         with context.begin_transaction():

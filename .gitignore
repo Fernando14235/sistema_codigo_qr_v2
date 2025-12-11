@@ -12,8 +12,8 @@ backend/.env
 frontend/dist/
 
 # Ignorar archivos de configuración de IDEs
-backend/app/alembic.ini
-backend/alembic
+#backend/app/alembic.ini
+#backend/alembic
 
 # Ignorar archivos de caché de Python
 **/__pycache__/
@@ -42,7 +42,7 @@ application.log
 .DS_Store
 
 # Ignorar migraciones de Alembic (opcional)
-backend/alembic/versions/
+#backend/alembic/versions/
 
 # Ignorar carpetas de configuración de IDEs
 .vscode/

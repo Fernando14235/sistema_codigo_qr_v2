@@ -1,8 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Query
 from fastapi.responses import HTMLResponse
-
 from apscheduler.schedulers.background import BackgroundScheduler
-from app.database import SessionLocal
+from app.database import SessionLocal, get_db
 from typing import Optional, List
 from app.routers import auth, usuarios, visitas, notificaciones, historial_visitas, estadisticas, sociales, tickets, residenciales, super_admin, vistas
 from app.middleware import cleanup
@@ -10,7 +9,6 @@ from app.services.user_service import crear_usuario, eliminar_usuario, obtener_u
 from app.schemas.usuario_schema import Usuario, UsuarioCreate, UsuarioUpdate, UsuarioCreateSuperAdmin, UsuarioCreateAdmin
 from app.utils.security import get_current_user, verify_role
 from app.core.cors import add_cors
-from app.database import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from fastapi.staticfiles import StaticFiles

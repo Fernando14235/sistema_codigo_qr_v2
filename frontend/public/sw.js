@@ -1,5 +1,5 @@
 // Service Worker para Residencial Access PWA
-const CACHE_NAME = 'residencial-access-v2.2.0';
+const CACHE_NAME = 'residencial-access-v2.2.1';
 const urlsToCache = [
   '/',
   '/index.html',
