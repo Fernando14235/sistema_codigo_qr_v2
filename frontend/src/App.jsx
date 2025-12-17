@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import axios from "axios";
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import './css/App.css';
 import { API_URL } from "./api";
 import 'webrtc-adapter';
@@ -49,19 +49,24 @@ function Login({ onLogin, notification, setNotification }) {
     try {
       const res = await axios.post(`${API_URL}/auth/token`, 
         new URLSearchParams({ username: email, password }),
-        { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+        { 
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          withCredentials: true  // Importante para recibir cookies
+        }
       );
-      const token = res.data.access_token;
-      const userRes = await axios.get(`${API_URL}/auth/secure`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      
+      // Extraer datos de la respuesta (ya no incluye refresh_token porque va en cookie)
+      const { access_token, usuario, rol, residencial_id } = res.data;
+      
       if (isMounted.current) {
-        onLogin(token, userRes.data.usuario, userRes.data.rol);
-        setNotification({ message: `Bienvenido ${userRes.data.usuario}`, type: "success" });
+        // Solo pasar access_token, el refresh_token está en cookie HttpOnly
+        onLogin(access_token, null, usuario, rol, residencial_id);
+        setNotification({ message: `Bienvenido ${usuario}`, type: "success" });
       }
     } catch (err) {
       if (isMounted.current) {
-        setNotification({ message: "Error de login. Verifica tus datos.", type: "error" });
+        const errorMsg = err.response?.data?.detail || "Error de login. Verifica tus datos.";
+        setNotification({ message: errorMsg, type: "error" });
       }
     }
     if (isMounted.current) setCargando(false);
@@ -92,6 +97,109 @@ function Login({ onLogin, notification, setNotification }) {
   );
 }
 
+// Configurar interceptor de Axios para manejo automático de refresh tokens
+function setupAxiosInterceptors(setToken, setNotification, handleLogout) {
+  // Limpiar interceptores existentes para evitar duplicados
+  axios.interceptors.request.clear();
+  axios.interceptors.response.clear();
+
+  // Configurar axios para enviar cookies automáticamente
+  axios.defaults.withCredentials = true;
+
+  // Interceptor para requests - agregar token automáticamente
+  axios.interceptors.request.use(
+    (config) => {
+      const token = localStorage.getItem("token");
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+        console.log(`📤 Request a ${config.url} con token`);
+      }
+      return config;
+    },
+    (error) => Promise.reject(error)
+  );
+
+  // Interceptor para responses - manejar 401 y refresh automático
+  axios.interceptors.response.use(
+    (response) => {
+      console.log(`✅ Response exitoso de ${response.config.url}`);
+      return response;
+    },
+    async (error) => {
+      const originalRequest = error.config;
+      
+      console.log(`❌ Error ${error.response?.status} en ${originalRequest?.url}`);
+      
+      if (error.response && error.response.status === 401 && !originalRequest._retry) {
+        originalRequest._retry = true;
+        
+        try {
+          console.log("🔄 Token expirado, renovando automáticamente...");
+          
+          // Crear una nueva instancia de axios para evitar interceptores recursivos
+          // El refresh token se envía automáticamente en las cookies
+          const refreshResponse = await axios.create({
+            withCredentials: true
+          }).post(`${API_URL}/auth/refresh`);
+          
+          const newAccessToken = refreshResponse.data.access_token;
+          
+          // Actualizar token en localStorage y estado
+          localStorage.setItem("token", newAccessToken);
+          setToken(newAccessToken);
+          
+          // Actualizar header de la petición original
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          
+          console.log("✅ Token renovado exitosamente, reintentando petición original");
+          
+          // Reintentar la petición original
+          return axios(originalRequest);
+          
+        } catch (refreshError) {
+          console.error("❌ Error al renovar token:", refreshError);
+          
+          // Analizar el tipo de error antes de cerrar sesión
+          const isNetworkError = !refreshError.response;
+          const isCorsError = refreshError.response?.status === 0;
+          const isRefreshTokenExpired = refreshError.response?.status === 401;
+          
+          if (isNetworkError || isCorsError) {
+            // Error de red o CORS - NO cerrar sesión, solo mostrar error
+            console.log("🌐 Error de conectividad, manteniendo sesión");
+            setNotification({
+              message: "Error de conexión. Verifica tu red e intenta nuevamente.",
+              type: "error"
+            });
+            return Promise.reject(refreshError);
+          }
+          
+          if (isRefreshTokenExpired) {
+            // Refresh token realmente expirado - cerrar sesión
+            console.log("🔒 Refresh token expirado, cerrando sesión");
+            setNotification({
+              message: "Sesión expirada. Por favor, inicia sesión nuevamente.",
+              type: "warning"
+            });
+            handleLogout();
+          } else {
+            // Otro error del servidor - mantener sesión pero mostrar error
+            console.log("⚠️ Error del servidor, manteniendo sesión");
+            setNotification({
+              message: "Error del servidor. Intenta nuevamente.",
+              type: "error"
+            });
+          }
+          
+          return Promise.reject(refreshError);
+        }
+      }
+      
+      return Promise.reject(error);
+    }
+  );
+}
+
 function usePushNotificationToasts(setNotification) {
   useEffect(() => {
     if ('serviceWorker' in navigator) {
@@ -114,21 +222,33 @@ function App() {
   const [rol, setRol] = useState(localStorage.getItem("rol") || "");
   const [notification, setNotification] = useState({ message: "", type: "" });
 
-  const handleLogin = (token, nombre, rol) => {
-    setToken(token);
-    setNombre(nombre);
+  const handleLogin = (accessToken, refreshToken, usuario, rol, residencialId) => {
+    setToken(accessToken);
+    setNombre(usuario);
     setRol(rol);
-    localStorage.setItem("token", token);
-    localStorage.setItem("nombre", nombre);
+    
+    // Solo guardar access token y datos de usuario en localStorage
+    // El refresh token está en cookie HttpOnly (más seguro)
+    localStorage.setItem("token", accessToken);
+    localStorage.setItem("nombre", usuario);
     localStorage.setItem("rol", rol);
-    setNotification({ message: `Bienvenido ${nombre} (${rol})`, type: "success" });
+    if (residencialId) {
+      localStorage.setItem("residencial_id", residencialId.toString());
+    }
+    
+    console.log("✅ Login exitoso - Access token guardado, refresh token en cookie HttpOnly");
+    setNotification({ message: `Bienvenido ${usuario} (${rol})`, type: "success" });
   };
 
   const handleLogout = async () => {
     try {
-      await axios.post(`${API_URL}/auth/logout`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      // Intentar notificar al backend del logout (esto también limpiará la cookie)
+      if (token) {
+        await axios.post(`${API_URL}/auth/logout`, {}, {
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true  // Importante para enviar cookies
+        });
+      }
       setNotification({ message: "Sesión cerrada correctamente.", type: "info" });
     } catch (error) {
       console.error("Error al cerrar sesión en el backend:", error);
@@ -137,14 +257,28 @@ function App() {
         type: "warning",
       });
     } finally {
+      // Limpiar todos los datos de autenticación
       setToken(null);
       setNombre("");
       setRol("");
+      
+      // Limpiar localStorage (ya no incluye refresh_token porque está en cookie)
       localStorage.removeItem("token");
       localStorage.removeItem("nombre");
       localStorage.removeItem("rol");
+      localStorage.removeItem("residencial_id");
+      
+      console.log("🚪 Logout completado - Access token limpiado, refresh token revocado en servidor");
     }
   };
+
+  // Configurar interceptores de Axios al montar el componente
+  useEffect(() => {
+    setupAxiosInterceptors(setToken, setNotification, handleLogout);
+  }, []);
+
+  // Hook para notificaciones push
+  usePushNotificationToasts(setNotification);
 
   return (
     <Router>

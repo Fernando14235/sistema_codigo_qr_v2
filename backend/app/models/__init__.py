@@ -13,3 +13,4 @@ from .social            import Social, SocialImagen, SocialDestinatario, SocialV
 from .vista             import Vista
 from .vista_admin       import VistaAdmin
 from .vista_residencial import VistaResidencial
+from .refresh_token     import RefreshToken

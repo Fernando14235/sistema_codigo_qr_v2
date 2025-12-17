@@ -1,4 +1,6 @@
 from pydantic import BaseModel, EmailStr
+from datetime import datetime
+from typing import Optional
 
 class Token(BaseModel):
     access_token: str
@@ -15,9 +17,45 @@ class LoginRequest(BaseModel):
     password: str
 
 class LoginResponse(BaseModel):
-    access_token:   str
-    token_type:     str
-    usuario:        EmailStr
-    rol:            str
+    access_token: str
+    token_type: str
+    usuario: EmailStr
+    rol: str
     residencial_id: int | None = None
-    refresh_token:  str
+    ult_conexion: str | None = None
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+class RefreshResponse(BaseModel):
+    access_token: str
+    token_type: str
+
+# Schemas para RefreshToken
+class RefreshTokenBase(BaseModel):
+    usuario_id: int
+    device_info: Optional[str] = None
+
+class RefreshTokenCreate(RefreshTokenBase):
+    token_hash: str
+    expires_at: datetime
+
+class RefreshTokenInDB(RefreshTokenBase):
+    id: int
+    token_hash: str
+    created_at: datetime
+    expires_at: datetime
+    revoked: bool
+    
+    class Config:
+        from_attributes = True
+
+class RefreshTokenResponse(BaseModel):
+    id: int
+    created_at: datetime
+    expires_at: datetime
+    revoked: bool
+    device_info: Optional[str] = None
+    
+    class Config:
+        from_attributes = True

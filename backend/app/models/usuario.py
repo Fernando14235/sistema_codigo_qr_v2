@@ -31,3 +31,4 @@ class Usuario(Base):
     residente = relationship("Residente", back_populates="usuario", cascade="all, delete-orphan", uselist=False)
     admin = relationship("Administrador", back_populates="usuario", uselist=False, cascade="all, delete-orphan")
     super_admin = relationship("SuperAdmin", back_populates="usuario", uselist=False, cascade="all, delete-orphan")
+    refresh_tokens = relationship("RefreshToken", back_populates="usuario", cascade="all, delete-orphan")

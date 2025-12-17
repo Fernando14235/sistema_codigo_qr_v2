@@ -1,5 +1,5 @@
 // Service Worker para Residencial Access PWA
-const CACHE_NAME = 'residencial-access-v2.2.2';
+const CACHE_NAME = 'residencial-access-v2.3.1';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -68,8 +68,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
-  // No interceptar peticiones a la API
-  if (url.pathname.includes('/api/')) {
+  // No interceptar peticiones a la API o auth
+  if (url.pathname.includes('/api/') || 
+      url.pathname.includes('/auth/') ||
+      url.hostname !== self.location.hostname) {
     return;
   }
   

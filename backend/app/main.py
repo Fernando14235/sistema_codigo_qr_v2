@@ -18,6 +18,7 @@ from app.models.super_admin import SuperAdmin
 from app.models.residente import Residente
 from app.models.guardia import Guardia
 from app.models.admin import Administrador
+from app.models.refresh_token import RefreshToken
 
 app = FastAPI()
 add_cors(app)
