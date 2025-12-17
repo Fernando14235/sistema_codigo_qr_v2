@@ -4,14 +4,10 @@ from typing import Optional, List
 from app.models import Ticket, Usuario, Residente, EstadoTicket
 from app.schemas import TicketUpdate
 from datetime import datetime
-import shutil
-import os
 from app.utils.time import get_current_time
 from app.services.notificacion_service import notificar_admin_ticket_creado_email, notificar_residente_ticket_actualizado_email
+from app.utils.cloudinary_utils import upload_file_to_cloudinary, delete_from_cloudinary_by_url
 import uuid
-
-UPLOAD_DIR = "uploads/tickets"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 def crear_ticket_service(titulo: str, descripcion: str, imagen: Optional[UploadFile], db: Session, usuario_actual: Usuario) -> Ticket:
     # Obtener el residente asociado al usuario autenticado
@@ -21,12 +17,15 @@ def crear_ticket_service(titulo: str, descripcion: str, imagen: Optional[UploadF
 
     imagen_url = None
     if imagen:
-        ext = os.path.splitext(imagen.filename)[1]
-        unique_name = f"{uuid.uuid4().hex}{ext}"
-        file_path = os.path.join(UPLOAD_DIR, unique_name)
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(imagen.file, buffer)
-        imagen_url = f"/uploads/tickets/{unique_name}"
+        # Validar que sea una imagen
+        if not imagen.content_type or not imagen.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="El archivo debe ser una imagen")
+        
+        # Generar public_id único
+        public_id = f"ticket_{uuid.uuid4().hex}"
+        
+        # Subir a Cloudinary
+        imagen_url = upload_file_to_cloudinary(imagen, folder="tickets", public_id=public_id)
 
     ticket = Ticket(
         residente_id=residente.id,
@@ -81,12 +80,14 @@ def obtener_ticket_service(ticket_id: int, db: Session, usuario_actual: Usuario)
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket no encontrado")
+    
+    # Obtener el residente asociado al ticket
+    residente = db.query(Residente).filter(Residente.id == ticket.residente_id).first()
+    
+    # Verificar permisos si es residente
     if usuario_actual.rol == "residente":
-        residente = db.query(Residente).filter(Residente.id == ticket.residente_id).first()
         if not residente or residente.usuario_id != usuario_actual.id:
             raise HTTPException(status_code=403, detail="No tienes permiso para ver este ticket")
-    else:
-        residente = db.query(Residente).filter(Residente.id == ticket.residente_id).first()
 
     return {
         "id": ticket.id,
@@ -98,7 +99,9 @@ def obtener_ticket_service(ticket_id: int, db: Session, usuario_actual: Usuario)
         "fecha_respuesta": ticket.fecha_respuesta,
         "respuesta_admin": ticket.respuesta_admin,
         "residente_id": ticket.residente_id,
-        "nombre_residente": residente.usuario.nombre if residente and residente.usuario else None
+        "nombre_residente": residente.usuario.nombre if residente and residente.usuario else None,
+        "unidad_residencial": residente.unidad_residencial if residente else None,
+        "telefono": residente.telefono if residente else None
     }
 
 def actualizar_ticket_service(ticket_id: int, datos: TicketUpdate, db: Session) -> Ticket:
@@ -161,17 +164,15 @@ def eliminar_ticket_service(ticket_id: int, db: Session, usuario_actual: Usuario
     else:
         raise HTTPException(status_code=403, detail="No tienes permiso para eliminar tickets")
     
-    # Eliminar archivo de imagen si existe
+    # Eliminar archivo de imagen de Cloudinary si existe
     if ticket.imagen_url:
         try:
-            # Extraer el nombre del archivo de la URL
-            filename = ticket.imagen_url.split('/')[-1]
-            file_path = os.path.join(UPLOAD_DIR, filename)
-            if os.path.exists(file_path):
-                os.remove(file_path)
+            # Verificar si es una URL de Cloudinary
+            if "cloudinary.com" in ticket.imagen_url:
+                delete_from_cloudinary_by_url(ticket.imagen_url, folder="tickets")
         except Exception as e:
             # Log error pero continuar con la eliminación del ticket
-            print(f"Error al eliminar imagen del ticket: {e}")
+            print(f"Error al eliminar imagen del ticket de Cloudinary: {e}")
     
     # Eliminar el ticket
     db.delete(ticket)

@@ -10,6 +10,7 @@ import PerfilUsuario from "./PerfilUsuario";
 import ConfiguracionUsuario from "./ConfiguracionUsuario";
 import CustomPhoneInput from "./components/PhoneInput";
 import { useRef } from "react";
+import { getImageUrl } from "./utils/imageUtils";
 
 // Tarjeta de notificación reutilizable
 function Notification({ message, type, onClose }) {
@@ -277,7 +278,7 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
       });
       // Si la respuesta contiene el QR, mostrarlo
       if (res.data && res.data.length > 0 && res.data[0].qr_url) {
-        setQrUrl(`${API_URL}${res.data[0].qr_url}`);
+        setQrUrl(getImageUrl(res.data[0].qr_url));
       }
       //onSuccess && onSuccess();
       // if (typeof setVista === 'function') setVista('visitas');
@@ -841,6 +842,14 @@ function TicketDetalleResidente({ ticket, onRegresar }) {
           )}
         </div>
         <div className="ticket-section">
+          <h4>👤 Información del Residente</h4>
+          <div>
+            <div><b>Nombre:</b> {ticket.nombre_residente || "N/A"}</div>
+            <div><b>Unidad:</b> {ticket.unidad_residencial || "N/A"}</div>
+            <div><b>Teléfono:</b> {ticket.telefono || "N/A"}</div>
+          </div>
+        </div>
+        <div className="ticket-section">
           <h4>📝 Descripción</h4>
           <div className="ticket-description" style={{background:'#f5f8fe',padding:12,borderRadius:8,border:'1px solid #e0e0e0',marginBottom:10}}>{ticket.descripcion}</div>
         </div>
@@ -849,7 +858,7 @@ function TicketDetalleResidente({ ticket, onRegresar }) {
             <h4>📎 Imagen Adjunta</h4>
             <div className="ticket-imagen-container" style={{textAlign:'center'}}>
               <img 
-                src={`${API_URL}${ticket.imagen_url}`} 
+                src={getImageUrl(ticket.imagen_url)} 
                 alt="Imagen del ticket" 
                 style={{
                   width: 200,
@@ -883,7 +892,7 @@ function TicketDetalleResidente({ ticket, onRegresar }) {
                   onClick={() => setModalImagen(false)}
                 >
                   <img 
-                    src={`${API_URL}${ticket.imagen_url}`} 
+                    src={getImageUrl(ticket.imagen_url)} 
                     alt="Imagen del ticket" 
                     style={{
                       maxWidth: '90vw',
@@ -1055,95 +1064,100 @@ function FormCrearTicketResidente({ token, onSuccess, onCancel }) {
           </div>
         ) : (
           <div style={{
-            position: 'relative',
-            display: 'inline-block',
-            marginTop: '10px'
+            display: 'flex',
+            justifyContent: 'center',
+            marginTop: '10px',
+            marginBottom: '20px'
           }}>
-            <img 
-              src={imagenPreview} 
-              alt="Vista previa" 
-              style={{
-                width: '100%',
-                maxWidth: '300px',
-                height: 'auto',
-                maxHeight: '300px',
-                objectFit: 'contain',
-                borderRadius: '12px',
-                border: '2px solid #e3eafc',
-                boxShadow: '0 4px 12px rgba(25, 118, 210, 0.2)',
-                display: 'block'
-              }}
-            />
-            <button
-              type="button"
-              onClick={handleRemoveImage}
-              disabled={cargando}
-              style={{
-                position: 'absolute',
-                top: '-10px',
-                right: '-10px',
-                background: '#f44336',
-                color: 'white',
-                border: 'none',
-                borderRadius: '50%',
-                width: '32px',
-                height: '32px',
-                cursor: 'pointer',
-                fontSize: '18px',
-                fontWeight: 'bold',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.3s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = '#d32f2f';
-                e.target.style.transform = 'scale(1.1)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = '#f44336';
-                e.target.style.transform = 'scale(1)';
-              }}
-              title="Eliminar imagen"
-            >
-              ×
-            </button>
-            <p style={{fontSize:'12px',color:'#666',marginTop:'8px',textAlign:'center'}}>
-              {imagen?.name}
-            </p>
-            <button
-              type="button"
-              onClick={handleRemoveImage}
-              disabled={cargando}
-              style={{
-                marginTop: '8px',
-                padding: '6px 12px',
-                background: '#ff9800',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '13px',
-                fontWeight: '600',
-                width: '100%',
-                maxWidth: '300px',
-                transition: 'background 0.3s ease'
-              }}
-              onMouseEnter={(e) => e.target.style.background = '#f57c00'}
-              onMouseLeave={(e) => e.target.style.background = '#ff9800'}
-            >
-              🔄 Cambiar imagen
-            </button>
+            <div style={{
+              position: 'relative',
+              display: 'inline-block'
+            }}>
+              <img 
+                src={imagenPreview} 
+                alt="Vista previa" 
+                style={{
+                  width: '100%',
+                  maxWidth: '300px',
+                  height: 'auto',
+                  maxHeight: '300px',
+                  objectFit: 'contain',
+                  borderRadius: '12px',
+                  border: '2px solid #e3eafc',
+                  boxShadow: '0 4px 12px rgba(25, 118, 210, 0.2)',
+                  display: 'block'
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleRemoveImage}
+                disabled={cargando}
+                style={{
+                  position: 'absolute',
+                  top: '5px',
+                  right: '5px',
+                  background: '#f44336',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  cursor: 'pointer',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = '#d32f2f';
+                  e.target.style.transform = 'scale(1.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = '#f44336';
+                  e.target.style.transform = 'scale(1)';
+                }}
+                title="Eliminar imagen"
+              >
+                ×
+              </button>
+              <p style={{fontSize:'12px',color:'#666',marginTop:'8px',textAlign:'center'}}>
+                {imagen?.name}
+              </p>
+              <button
+                type="button"
+                onClick={handleRemoveImage}
+                disabled={cargando}
+                style={{
+                  marginTop: '8px',
+                  padding: '6px 12px',
+                  background: '#ff9800',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  width: '100%',
+                  transition: 'background 0.3s ease'
+                }}
+                onMouseEnter={(e) => e.target.style.background = '#f57c00'}
+                onMouseLeave={(e) => e.target.style.background = '#ff9800'}
+              >
+                🔄 Cambiar imagen
+              </button>
+            </div>
           </div>
         )}
       </div>
       {error && <div className="qr-error">{error}</div>}
-      <div className="form-actions">
+      <div className="create-ticket-actions" style={{ marginTop: imagenPreview ? '10px' : '20px', display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
         <button className="btn-primary" type="submit" disabled={cargando}>
-          {cargando ? "Enviando..." : "Crear Ticket"}
+          {cargando ? "Creando..." : "Crear Ticket"}
         </button>
-        <button className="btn-regresar" type="button" onClick={onCancel} style={{ marginLeft: 10 }} disabled={cargando}>
+        <button className="btn-regresar" type="button" onClick={onCancel} disabled={cargando}>
           Cancelar
         </button>
       </div>

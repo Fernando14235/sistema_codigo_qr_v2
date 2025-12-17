@@ -6,26 +6,26 @@ from app.models.usuario import Usuario
 from app.models.residente import Residente
 from fastapi import HTTPException
 from fastapi import UploadFile
-import os
-import shutil
 import uuid
 from app.services.notificacion_service import enviar_notificacion_nueva_publicacion
-
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), '../../uploads/social')
-UPLOAD_DIR = os.path.abspath(UPLOAD_DIR)
-
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+from app.utils.cloudinary_utils import upload_file_to_cloudinary, delete_from_cloudinary_by_url
 
 async def save_uploaded_images(imagenes: List[UploadFile]) -> List[str]:
+    """
+    Sube imágenes a Cloudinary y retorna las URLs.
+    """
     urls = []
     if imagenes:
         for img in imagenes:
-            ext = os.path.splitext(img.filename)[1]
-            unique_name = f"{uuid.uuid4().hex}{ext}"
-            file_path = os.path.join(UPLOAD_DIR, unique_name)
-            with open(file_path, "wb") as buffer:
-                shutil.copyfileobj(img.file, buffer)
-            url = f"/uploads/social/{unique_name}"
+            # Validar que sea una imagen
+            if not img.content_type or not img.content_type.startswith("image/"):
+                raise HTTPException(status_code=400, detail=f"El archivo {img.filename} no es una imagen válida")
+            
+            # Generar public_id único
+            public_id = f"social_{uuid.uuid4().hex}"
+            
+            # Subir a Cloudinary
+            url = upload_file_to_cloudinary(img, folder="social", public_id=public_id)
             urls.append(url)
     return urls
 
@@ -219,31 +219,27 @@ def update_social(db: Session, social_id: int, data: SocialUpdate, imagenes_nuev
         if data.imagenes_existentes:
             for img_update in data.imagenes_existentes:
                 if img_update.eliminar and img_update.id:
-                    # Buscar y eliminar la imagen de la BD y del almacenamiento
+                    # Buscar y eliminar la imagen de la BD y de Cloudinary
                     img_db = db.query(SocialImagen).filter(SocialImagen.id == img_update.id).first()
                     if img_db:
-                        # Eliminar archivo físico
+                        # Eliminar de Cloudinary
                         img_path = img_db.imagen_url
-                        if img_path.startswith("/uploads/"):
-                            abs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../' + img_path.lstrip('/')))
-                            if os.path.exists(abs_path):
-                                try:
-                                    os.remove(abs_path)
-                                except Exception as e:
-                                    print(f"Error eliminando imagen {abs_path}: {e}")
+                        if "cloudinary.com" in img_path:
+                            try:
+                                delete_from_cloudinary_by_url(img_path, folder="social")
+                            except Exception as e:
+                                print(f"Error eliminando imagen de Cloudinary {img_path}: {e}")
                         # Eliminar de la BD
                         db.delete(img_db)
         else:
             # Si no se envió lista de imágenes existentes, eliminar todas las actuales
             for img in imagenes_actuales:
                 img_path = img.imagen_url
-                if img_path.startswith("/uploads/"):
-                    abs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../' + img_path.lstrip('/')))
-                    if os.path.exists(abs_path):
-                        try:
-                            os.remove(abs_path)
-                        except Exception as e:
-                            print(f"Error eliminando imagen {abs_path}: {e}")
+                if "cloudinary.com" in img_path:
+                    try:
+                        delete_from_cloudinary_by_url(img_path, folder="social")
+                    except Exception as e:
+                        print(f"Error eliminando imagen de Cloudinary {img_path}: {e}")
                 db.delete(img)
         
         # Agregar nuevas imágenes
@@ -284,16 +280,14 @@ def delete_social(db: Session, social_id: int):
     social = db.query(Social).filter(Social.id == social_id).first()
     if not social:
         return False
-    # Eliminar imágenes físicas asociadas
+    # Eliminar imágenes de Cloudinary
     for img in social.imagenes:
         img_path = img.imagen_url
-        if img_path.startswith("/uploads/"):
-            abs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../' + img_path.lstrip('/')))
-            if os.path.exists(abs_path):
-                try:
-                    os.remove(abs_path)
-                except Exception as e:
-                    print(f"Error eliminando imagen {abs_path}: {e}")
+        if "cloudinary.com" in img_path:
+            try:
+                delete_from_cloudinary_by_url(img_path, folder="social")
+            except Exception as e:
+                print(f"Error eliminando imagen de Cloudinary {img_path}: {e}")
     db.delete(social)
     db.commit()
     return True

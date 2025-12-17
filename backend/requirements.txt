@@ -25,6 +25,9 @@ pydantic_core==2.16.3
 qrcode[pil]==7.4.2
 pillow==10.2.0
 
+# Subida de imagenes en Cloudinary
+cloudinary==1.44.1
+
 # Criptografía
 cryptography==42.0.5
 

@@ -35,8 +35,11 @@ const CustomPhoneInput = ({
       setPlaceholder(phonePlaceholders[countryData.countryCode]);
     }
 
+    // Remover todos los espacios del número de teléfono
+    const phoneWithoutSpaces = phone.replace(/\s/g, '');
+    
     // Asegurar que siempre tenga el signo +
-    const formattedPhone = phone.startsWith('+') ? phone : `+${phone}`;
+    const formattedPhone = phoneWithoutSpaces.startsWith('+') ? phoneWithoutSpaces : `+${phoneWithoutSpaces}`;
     onChange(formattedPhone);
   };
 
@@ -92,6 +95,18 @@ const CustomPhoneInput = ({
       enableLongNumbers={true}
       disableCountryCode={false}
       disableDropdown={false}
+      disableCountryGuess={true}
+      // ✅ MÁSCARAS PERSONALIZADAS SIN FORMATO (sin espacios ni guiones)
+      masks={{
+        hn: '........',  // Honduras - 8 dígitos sin formato
+        gt: '........',  // Guatemala - 8 dígitos sin formato
+        sv: '........',  // El Salvador - 8 dígitos sin formato
+        ni: '........',  // Nicaragua - 8 dígitos sin formato
+        cr: '........',  // Costa Rica - 8 dígitos sin formato
+        pa: '........',  // Panamá - 8 dígitos sin formato
+        mx: '..........',  // México - 10 dígitos sin formato
+        us: '..........'   // Estados Unidos - 10 dígitos sin formato
+      }}
       // Países más comunes en la región
       preferredCountries={['hn', 'gt', 'sv', 'ni', 'cr', 'pa', 'us', 'mx']}
     />

@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     EMAIL_USE_SSL: bool
     BREVO_API_KEY: str
     
+    #cloudinary
+    CLOUDINARY_CLOUD_NAME: str
+    CLOUDINARY_API_KEY: str
+    CLOUDINARY_API_SECRET: str
+    
     # cors
     FRONTEND_URL: str
     ALLOWED_ORIGINS: str

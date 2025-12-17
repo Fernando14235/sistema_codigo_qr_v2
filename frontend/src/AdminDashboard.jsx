@@ -17,6 +17,7 @@ import PerfilUsuario from "./PerfilUsuario";
 import ConfiguracionUsuario from "./ConfiguracionUsuario";
 import ResidenteDashboard from "./ResidenteDashboard";
 import CustomPhoneInput from "./components/PhoneInput";
+import { getImageUrl } from "./utils/imageUtils";
 Chart.register(
   ArcElement,
   Tooltip,
@@ -803,7 +804,7 @@ function FormCrearVisitaAdmin({
         }
       );
       if (res.data && res.data.length > 0 && res.data[0].qr_url) {
-        setQrUrl(`${API_URL}${res.data[0].qr_url}`);
+        setQrUrl(getImageUrl(res.data[0].qr_url));
       }
     } catch (err) {
       setError(
@@ -2250,7 +2251,7 @@ function FormActualizarTicket({ ticket, onSuccess, onCancel, token }) {
         >
           {ticket.imagen_url ? (
             <img
-              src={`${API_URL}${ticket.imagen_url}`}
+              src={getImageUrl(ticket.imagen_url)}
               alt="Imagen del ticket"
               style={{
                 width: 250,
@@ -2428,10 +2429,12 @@ function TicketDetalle({ ticket, onRegresar, onActualizar }) {
           <h3>👤 Información del Residente</h3>
           <div className="ticket-info-grid">
             <div>
-              <b>Nombre: </b> {ticket.nombre_residente || "N/A"} - {ticket.unidad_residencial || "N/A"}
-              <br/>
-              <b>Unidad: </b>  {ticket.unidad_residencial || "N/A"}
-              <br/>
+              <b>Nombre:</b> {ticket.nombre_residente || "N/A"}
+            </div>
+            <div>
+              <b>Unidad:</b> {ticket.unidad_residencial || "N/A"}
+            </div>
+            <div>
               <b>Teléfono:</b> {ticket.telefono || "N/A"}
             </div>
           </div>
@@ -2446,7 +2449,7 @@ function TicketDetalle({ ticket, onRegresar, onActualizar }) {
           <div className="ticket-section">
             <div className="ticket-imagen-container">
               <img
-                src={`${API_URL}${ticket.imagen_url}`}
+                src={getImageUrl(ticket.imagen_url)}
                 alt="Imagen del ticket"
                 style={{
                   width: 200,
@@ -2479,7 +2482,7 @@ function TicketDetalle({ ticket, onRegresar, onActualizar }) {
                   onClick={() => setModalImagen(false)}>
 
                   <img
-                    src={`${API_URL}${ticket.imagen_url}`}
+                    src={getImageUrl(ticket.imagen_url)}
                     alt="Imagen del ticket"
                     style={{
                       maxWidth: "90vw",

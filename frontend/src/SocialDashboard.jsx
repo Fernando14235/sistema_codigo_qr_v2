@@ -5,6 +5,7 @@ import styles from "./SocialDashboard.module.css";
 import Select from "react-select";
 import { Pie } from "react-chartjs-2";
 import { Chart, ArcElement, Tooltip, Legend } from "chart.js";
+import { getImageUrl } from './utils/imageUtils';
 Chart.register(ArcElement, Tooltip, Legend);
 
 function SocialDashboard({ token, rol }) {
@@ -590,14 +591,14 @@ function SocialDashboard({ token, rol }) {
             detalle.imagenes.map((imagen, index) => (
               <div key={imagen.id || index} className="imagen-container">
                 <img 
-                  src={API_URL + imagen.imagen_url} 
+                  src={getImageUrl(imagen.imagen_url)} 
                   alt={`Imagen ${index + 1}`} 
                   style={{
-                    width: 180,
-                    height: 180,
+                    width: 250,
+                    height: 250,
                     objectFit: 'cover',
                     borderRadius: 10,
-                    border: '1.5px solid #ccc',
+                    border: '2px solid #e0e0e0',
                     cursor: 'pointer',
                     boxShadow: '0 2px 8px rgba(25, 118, 210, 0.2)',
                     display: 'block'
@@ -625,7 +626,7 @@ function SocialDashboard({ token, rol }) {
                 left: 0,
                 width: "100vw",
                 height: "100vh",
-                background: "rgba(0,0,0,0.9)",
+                background: "rgba(0,0,0,0.8)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -635,13 +636,13 @@ function SocialDashboard({ token, rol }) {
             >
               {/* Imagen actual */}
               <img
-                src={API_URL + modalImagen.images[modalImagen.currentIndex].imagen_url}
+                src={getImageUrl(modalImagen.images[modalImagen.currentIndex].imagen_url)}
                 alt={`Imagen ${modalImagen.currentIndex + 1}`}
                 style={{
-                  maxWidth: "90vw",
-                  maxHeight: "90vh",
+                  maxWidth: "95vw",
+                  maxHeight: "95vh",
                   borderRadius: 16,
-                  boxShadow: "0 4px 32px rgba(0,0,0,0.5)",
+                  boxShadow: "0 4px 32px #0008",
                   background: "#fff",
                   display: "block",
                   objectFit: "contain"
@@ -1027,7 +1028,7 @@ function SocialDashboard({ token, rol }) {
             {imagenesExistentes.map((img, index) => (
               <div key={img.id} style={{position:'relative',display:'inline-block'}}>
                 <img 
-                  src={API_URL + img.imagen_url} 
+                  src={getImageUrl(img.imagen_url)} 
                   alt={`Imagen ${index + 1}`}
                   style={{
                     width:100,

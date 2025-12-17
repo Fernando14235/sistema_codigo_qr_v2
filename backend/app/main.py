@@ -11,8 +11,6 @@ from app.utils.security import get_current_user, verify_role
 from app.core.cors import add_cors
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from fastapi.staticfiles import StaticFiles
-import os
 from app.models.usuario import Usuario as UsuarioModel
 from app.models.super_admin import SuperAdmin
 from app.models.residente import Residente
@@ -202,8 +200,3 @@ def actualizar_usuario_endpoint(user_id: int, usuario_data: UsuarioUpdate, usuar
 @app.delete('/delete_usuarios/admin/{id}', tags=["Usuarios"])
 def eliminar_usuario_endpoint(id: int, usuario_actual=Depends(verify_role(["admin", "super_admin"])), db: Session = Depends(get_db)):
     return eliminar_usuario(db, id, usuario_actual=usuario_actual)
-
-
-# Ruta absoluta a la carpeta de uploads
-UPLOADS_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../uploads'))
-app.mount("/uploads", StaticFiles(directory=UPLOADS_PATH), name="uploads")

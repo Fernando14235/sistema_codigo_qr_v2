@@ -19,10 +19,8 @@ import traceback
 from app.utils.time import get_honduras_time
 import base64
 import os
-import io
-
-UPLOAD_QR_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../uploads/qr'))
-os.makedirs(UPLOAD_QR_DIR, exist_ok=True)
+from app.utils.cloudinary_utils import save_bytes_to_temp
+from app.services.cloudinary_service import upload_image
 
 def to_utc(dt: datetime) -> datetime:
     if dt is None:
@@ -146,13 +144,24 @@ def crear_visita_con_qr(db: Session, visita_data: VisitaCreate, admin_id: int = 
                 fecha_expiracion=expiracion
             )
 
-            # Guardar QR como archivo PNG y obtener la URL
+            # Guardar QR en Cloudinary
             qr_bytes = base64.b64decode(qr_img_personalizado)
-            qr_filename = f"qr_{visita.id}_{visitante.id}.png"
-            qr_path = os.path.join(UPLOAD_QR_DIR, qr_filename)
-            with open(qr_path, "wb") as f:
-                f.write(qr_bytes)
-            qr_url = f"/uploads/qr/{qr_filename}"
+            
+            # Guardar bytes en archivo temporal
+            temp_path = save_bytes_to_temp(qr_bytes, extension=".png")
+            
+            try:
+                # Subir a Cloudinary
+                public_id = f"qr_{visita.id}_{visitante.id}"
+                result = upload_image(temp_path, folder="qr", public_id=public_id)
+                qr_url = result["secure_url"]
+            finally:
+                # Limpiar archivo temporal
+                if os.path.exists(temp_path):
+                    try:
+                        os.remove(temp_path)
+                    except Exception as e:
+                        print(f"Error eliminando archivo temporal {temp_path}: {e}")
 
             visitas_respuestas.append(
                 VisitaQRResponse(

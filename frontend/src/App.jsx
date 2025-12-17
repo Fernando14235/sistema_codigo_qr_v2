@@ -136,6 +136,23 @@ function setupAxiosInterceptors(setToken, setNotification, handleLogout) {
         try {
           console.log("🔄 Token expirado, renovando automáticamente...");
           
+          // ✅ Validar que existe refresh token en cookies antes de intentar renovar
+          const hasRefreshToken = document.cookie.split(';').some(
+            cookie => cookie.trim().startsWith('refresh_token=')
+          );
+          
+          if (!hasRefreshToken) {
+            console.log("⚠️ No hay refresh token en cookies");
+            setNotification({
+              message: "Tu sesión ha expirado. Por favor inicia sesión nuevamente.",
+              type: "warning"
+            });
+            // Limpiar localStorage pero NO forzar logout
+            localStorage.removeItem("token");
+            setToken(null);
+            return Promise.reject(error);
+          }
+          
           // Crear una nueva instancia de axios para evitar interceptores recursivos
           // El refresh token se envía automáticamente en las cookies
           const refreshResponse = await axios.create({
@@ -162,7 +179,7 @@ function setupAxiosInterceptors(setToken, setNotification, handleLogout) {
           // Analizar el tipo de error antes de cerrar sesión
           const isNetworkError = !refreshError.response;
           const isCorsError = refreshError.response?.status === 0;
-          const isRefreshTokenExpired = refreshError.response?.status === 401;
+          const status = refreshError.response?.status;
           
           if (isNetworkError || isCorsError) {
             // Error de red o CORS - NO cerrar sesión, solo mostrar error
@@ -174,9 +191,19 @@ function setupAxiosInterceptors(setToken, setNotification, handleLogout) {
             return Promise.reject(refreshError);
           }
           
-          if (isRefreshTokenExpired) {
-            // Refresh token realmente expirado - cerrar sesión
-            console.log("🔒 Refresh token expirado, cerrando sesión");
+          if (status === 403) {
+            // Refresh token faltante (403 Forbidden)
+            console.log("🔒 Refresh token no encontrado en cookies");
+            setNotification({
+              message: "Tu sesión ha expirado. Por favor inicia sesión nuevamente.",
+              type: "warning"
+            });
+            // Limpiar localStorage pero NO forzar logout completo
+            localStorage.removeItem("token");
+            setToken(null);
+          } else if (status === 401) {
+            // Refresh token inválido/expirado (401 Unauthorized)
+            console.log("🔒 Refresh token expirado o inválido, cerrando sesión");
             setNotification({
               message: "Sesión expirada. Por favor, inicia sesión nuevamente.",
               type: "warning"

@@ -128,8 +128,8 @@ def refresh_token(request: Request, db: Session = Depends(get_db)):
     
     if not refresh_token:
         raise HTTPException(
-            status_code=401, 
-            detail="No se encontró refresh token en las cookies"
+            status_code=403,  # 403 Forbidden para token faltante
+            detail="Refresh token no encontrado en cookies. Por favor inicia sesión nuevamente."
         )
     
     # Validar refresh token en la base de datos
@@ -137,8 +137,8 @@ def refresh_token(request: Request, db: Session = Depends(get_db)):
     
     if not refresh_token_db:
         raise HTTPException(
-            status_code=401, 
-            detail="Refresh token inválido, expirado o revocado"
+            status_code=401,  # 401 Unauthorized para token inválido/expirado
+            detail="Refresh token inválido o expirado. Por favor inicia sesión nuevamente."
         )
     
     # Obtener usuario asociado
