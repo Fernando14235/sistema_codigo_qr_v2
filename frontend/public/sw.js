@@ -1,5 +1,5 @@
 // Service Worker para Residencial Access PWA
-const CACHE_NAME = 'residencial-access-v2.4.0';
+const CACHE_NAME = 'porto-pass-v3.0.0';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -127,7 +127,7 @@ self.addEventListener('fetch', (event) => {
 // Manejar notificaciones push
 self.addEventListener('push', (event) => {
   let notificationData = {
-    title: '🔔 Residencial Access',
+    title: '🔔 PortoPass',
     body: 'Nueva notificación',
     icon: '/resi192.png',
     badge: '/resi64.png',
