@@ -8,6 +8,7 @@ from app.utils.security import get_password_hash
 from app.utils.validators import validar_email_unico, validar_email_creacion_actualizacion, validar_formato_telefono_internacional, validar_telefono_no_vacio, normalizar_telefono_internacional
 from app.services.notificacion_service import enviar_notificacion_usuario_creado
 from app.utils.async_notifications import enviar_notificacion_usuario_creado_async
+from app.services.refresh_token_service import RefreshTokenService
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timezone
@@ -291,11 +292,17 @@ def actualizar_usuario(db: Session, user_id: int, usuario, usuario_actual=None) 
             validar_formato_telefono_internacional(usuario.telefono)
             telefono_normalizado = normalizar_telefono_internacional(usuario.telefono)
         
+        # Flag para detectar cambio de contraseña
+        password_changed = False
+        
         update_data = usuario.dict(exclude_unset=True)
         for field, value in update_data.items():
             if field == "password" and value:
-                value = get_password_hash(value)
-            if hasattr(db_usuario, field):
+                # Hashear la nueva contraseña y asignarla al campo correcto
+                hashed_password = get_password_hash(value)
+                setattr(db_usuario, "password_hash", hashed_password)
+                password_changed = True
+            elif hasattr(db_usuario, field):
                 setattr(db_usuario, field, value)
         
         # Actualizar registros relacionados según el rol
@@ -331,6 +338,15 @@ def actualizar_usuario(db: Session, user_id: int, usuario, usuario_actual=None) 
         db_usuario.fecha_actualizacion = get_honduras_time()
         db.commit()
         db.refresh(db_usuario)
+        
+        # Si se cambió la contraseña, invalidar todos los tokens del usuario por seguridad
+        if password_changed:
+            try:
+                revoked_count = RefreshTokenService.revoke_all_user_tokens(db, user_id)
+                print(f"Contraseña actualizada para usuario {user_id}. Se revocaron {revoked_count} tokens por seguridad.")
+            except Exception as e:
+                print(f"Error al revocar tokens después de cambio de contraseña: {str(e)}")
+                # No fallar la actualización por un error de revocación de tokens
         if db_usuario.rol == "residente":
             try:
                 enviar_notificacion_usuario_creado(db_usuario, usuario)

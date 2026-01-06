@@ -14,10 +14,16 @@ from app.utils.security import (
     verify_password,
     create_access_token,
     get_current_user,
-    verify_role
+    verify_role,
+    get_password_hash
 )
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
 
 def get_username(usuario):
     return usuario.nombre or usuario.email or f"ID {usuario.id}"
@@ -465,4 +471,97 @@ def admin_revoke_user_sessions(
         "mensaje": f"Se revocaron {revoked_count} sesiones del usuario {target_user.email}",
         "revoked_sessions": revoked_count,
         "target_user": target_user.email
+    }
+
+@router.post("/change-password")
+def change_password(
+    request: ChangePasswordRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+    usuario_actual: Usuario = Depends(get_current_user)
+):
+    """
+    Cambiar contraseña del usuario actual de forma segura
+    Requiere la contraseña actual para validación
+    """
+    # Verificar contraseña actual
+    if not verify_password(request.current_password, usuario_actual.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La contraseña actual es incorrecta"
+        )
+    
+    # Validar que la nueva contraseña sea diferente
+    if verify_password(request.new_password, usuario_actual.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La nueva contraseña debe ser diferente a la actual"
+        )
+    
+    try:
+        # Actualizar contraseña
+        usuario_actual.password_hash = get_password_hash(request.new_password)
+        usuario_actual.fecha_actualizacion = datetime.now(pytz.timezone('America/Tegucigalpa'))
+        db.commit()
+        
+        # Invalidar todos los tokens existentes por seguridad
+        revoked_count = RefreshTokenService.revoke_all_user_tokens(db, usuario_actual.id)
+        
+        # Limpiar cookie actual
+        response.delete_cookie(
+            key="refresh_token",
+            httponly=True,
+            secure=settings.ENVIRONMENT == "production",
+            samesite="strict" if settings.ENVIRONMENT == "production" else "lax",
+            path="/"
+        )
+        
+        return {
+            "mensaje": "Contraseña actualizada exitosamente. Por favor inicia sesión nuevamente.",
+            "revoked_sessions": revoked_count,
+            "require_login": True
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al actualizar contraseña: {str(e)}"
+        )
+
+@router.get("/debug/password-verification/{user_email}")
+def debug_password_verification(
+    user_email: str,
+    test_password: str,
+    db: Session = Depends(get_db),
+    usuario_actual: Usuario = Depends(verify_role(["super_admin"]))
+):
+    """
+    Endpoint de debug para verificar problemas de contraseña (solo super_admin)
+    """
+    user = db.query(Usuario).filter(Usuario.email == user_email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
+    return {
+        "user_info": {
+            "id": user.id,
+            "email": user.email,
+            "rol": user.rol
+        },
+        "password_hash_info": {
+            "hash_exists": bool(user.password_hash),
+            "hash_length": len(user.password_hash) if user.password_hash else 0,
+            "is_bcrypt_format": user.password_hash.startswith('$2b$') if user.password_hash else False,
+            "hash_preview": user.password_hash[:20] + "..." if user.password_hash else None
+        },
+        "verification_test": {
+            "password_matches": verify_password(test_password, user.password_hash) if user.password_hash else False,
+            "test_password_provided": bool(test_password)
+        },
+        "recommendations": [
+            "Si password_matches es False con la contraseña correcta, el hash está corrupto",
+            "Si is_bcrypt_format es False, el hash no es válido",
+            "Use el endpoint /auth/change-password para actualizar de forma segura"
+        ]
     }
