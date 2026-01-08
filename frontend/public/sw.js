@@ -1,12 +1,12 @@
 // Service Worker para Residencial Access PWA
-const CACHE_NAME = 'porto-pass-v3.0.2';
+const CACHE_NAME = 'porto-pass-v3.0.3';
 const urlsToCache = [
   '/',
   '/index.html',
   '/static/js/bundle.js',
   '/static/css/main.css',
-  '/resi192.png',
-  '/resi512.png'
+  './genfavicon-180-v3.png',
+  './genfavicon-512-v3.png'
 ];
 
 // Instalación del Service Worker

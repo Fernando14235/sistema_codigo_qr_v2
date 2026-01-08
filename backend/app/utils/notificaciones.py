@@ -16,7 +16,7 @@ def enviar_correo(destinatario: str, asunto: str, html: str, qr_img_b64: str = N
     Envía un correo electronico usando Brevo.
     Si se proporciona qr_img_b64, se incrusta como imagen inline en el cuerpo del correo.
     """
-    sender = {"name": "Tekhno App", "email": settings.EMAIL_ADDRESS}
+    sender = {"name": "Porto Pass", "email": settings.EMAIL_ADDRESS}
     to = [{"email": destinatario}]
 
     try:

@@ -18,6 +18,7 @@ def add_cors(app):
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://192.168.1.33:5173",
+        "http://192.168.1.35:5173",
     ]
     
     # Determinar orígenes según el ambiente
@@ -48,7 +49,7 @@ def add_cors(app):
     app.add_middleware(
         CORSMiddleware,
         allow_origins=allowed_origins,
-        allow_credentials=True,  # CRÍTICO: Necesario para cookies HttpOnly
+        allow_credentials=True,  # CRÍTICO: Necesario para cookies HttpOnly cross-origin
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
         allow_headers=[
             "Accept",
@@ -60,10 +61,13 @@ def add_cors(app):
             "Origin",
             "Access-Control-Request-Method",
             "Access-Control-Request-Headers",
+            "Cookie",
+            "Set-Cookie",
         ],
         expose_headers=[
             "Content-Length",
             "Content-Range",
             "Content-Type",
+            "Set-Cookie",
         ],
     )

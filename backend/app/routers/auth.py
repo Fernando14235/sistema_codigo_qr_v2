@@ -69,10 +69,10 @@ def login(
         key="refresh_token",
         value=refresh_token_plain,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  # En segundos
-        httponly=True,  # Protección contra XSS
-        secure=settings.ENVIRONMENT == "production",  # Solo HTTPS en producción
-        samesite="strict" if settings.ENVIRONMENT == "production" else "lax",  # Protección CSRF
-        path="/"  # Disponible para toda la aplicación
+        httponly=True,
+        secure=True, 
+        samesite="none",
+        path="/"
     )
 
     return LoginResponse(
@@ -112,8 +112,8 @@ def logout(
     response.delete_cookie(
         key="refresh_token",
         httponly=True,
-        secure=settings.ENVIRONMENT == "production",
-        samesite="strict" if settings.ENVIRONMENT == "production" else "lax",
+        secure=True, 
+        samesite="none", 
         path="/"
     )
     
@@ -306,8 +306,8 @@ def test_login_endpoint(
             value=refresh_token_plain,
             max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
             httponly=True,
-            secure=False,  # False para desarrollo
-            samesite="lax"
+            secure=True,  # SIEMPRE usar HTTPS
+            samesite="none"  # Permitir cross-origin
         )
         
         return {
@@ -425,8 +425,8 @@ def revoke_all_sessions(
     response.delete_cookie(
         key="refresh_token",
         httponly=True,
-        secure=settings.ENVIRONMENT == "production",
-        samesite="strict" if settings.ENVIRONMENT == "production" else "lax",
+        secure=True,  # SIEMPRE usar HTTPS
+        samesite="none",  # Consistente con set_cookie
         path="/"
     )
     
@@ -511,8 +511,8 @@ def change_password(
         response.delete_cookie(
             key="refresh_token",
             httponly=True,
-            secure=settings.ENVIRONMENT == "production",
-            samesite="strict" if settings.ENVIRONMENT == "production" else "lax",
+            secure=True,  # SIEMPRE usar HTTPS
+            samesite="none",  # Consistente con set_cookie
             path="/"
         )
         

@@ -33,7 +33,7 @@ def enviar_notificacion_usuario_creado_async(usuario: Usuario, datos_creacion: U
     Versión asíncrona de enviar_notificacion_usuario_creado
     """
     try:
-        asunto = "¡Bienvenido a Residencial Access!"
+        asunto = "¡Bienvenido a Porto Pass!"
         # Datos comunes
         mensaje_html = f"""
             <html>
@@ -41,13 +41,13 @@ def enviar_notificacion_usuario_creado_async(usuario: Usuario, datos_creacion: U
                     <div style="max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
                         <div style="background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
                             <h1 style="color: #2c3e50; text-align: center; margin-bottom: 30px;">
-                                🏠 ¡Bienvenido a Residencial Access!
+                                🏠 ¡Bienvenido a Porto Pass!
                             </h1>
                             <p style="font-size: 16px; margin-bottom: 20px;">
                                 Hola <strong>{usuario.nombre}</strong>,
                             </p>
                             <p style="font-size: 16px; margin-bottom: 20px;">
-                                Tu cuenta ha sido creada exitosamente y ya puedes utilizar la aplicación Residencial Access.
+                                Tu cuenta ha sido creada exitosamente y ya puedes utilizar la aplicación Porto Pass.
                             </p>
         """
 
@@ -129,7 +129,7 @@ def enviar_notificacion_usuario_creado_async(usuario: Usuario, datos_creacion: U
             </p>
             <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
             <p style="text-align: center; font-size: 12px; color: #999;">
-                Este es un mensaje automático del sistema Residencial Access.<br>
+                Este es un mensaje automático del sistema Porto Pass.<br>
                 <strong>No respondas a este correo.</strong>
             </p>
             </div>

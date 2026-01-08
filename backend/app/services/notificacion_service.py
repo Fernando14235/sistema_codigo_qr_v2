@@ -13,11 +13,27 @@ import traceback
 from app.models import Usuario, Residente, Ticket
 from typing import List
 
-def enviar_notificacion_usuario_creado(usuario: Usuario, datos_creacion: UsuarioCreate):
+def enviar_notificacion_usuario_creado(usuario: Usuario, datos_creacion: UsuarioCreate, db: Session = None):
     # DEPRECATED: Usar enviar_notificacion_usuario_creado_async para mejor rendimiento
     # Envia notificacion por correo cuando se crea un usuario con rol de residente
     try:
-        asunto = "¡Bienvenido a Residencial Access!"
+        # Obtener información de la entidad
+        from app.models.residencial import Residencial
+        entidad_nombre = "No asignada"
+        if usuario.residencial_id and db:
+            entidad = db.query(Residencial).filter(Residencial.id == usuario.residencial_id).first()
+            if entidad:
+                entidad_nombre = entidad.nombre
+        
+        # Mapear roles a términos más generales
+        rol_display = {
+            "residente": "Miembro",
+            "admin": "Administrador", 
+            "guardia": "Operador",
+            "super_admin": "Super Administrador"
+        }.get(usuario.rol, usuario.rol)
+        
+        asunto = "¡Bienvenido a Porto Pass!"
         # Datos comunes
         mensaje_html = f"""
             <html>
@@ -25,13 +41,17 @@ def enviar_notificacion_usuario_creado(usuario: Usuario, datos_creacion: Usuario
                     <div style="max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
                         <div style="background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
                             <h1 style="color: #2c3e50; text-align: center; margin-bottom: 30px;">
-                                🏠 ¡Bienvenido a Residencial Access!
+                                🏠 ¡Bienvenido a Porto Pass!
                             </h1>
+                            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #007bff;">
+                                <h3 style="color: #007bff; margin-top: 0; margin-bottom: 10px;">🏢 Información de la Entidad</h3>
+                                <p style="margin: 0; font-size: 16px;"><strong>Entidad:</strong> {entidad_nombre}</p>
+                            </div>
                             <p style="font-size: 16px; margin-bottom: 20px;">
                                 Hola <strong>{usuario.nombre}</strong>,
                             </p>
                             <p style="font-size: 16px; margin-bottom: 20px;">
-                                Tu cuenta ha sido creada exitosamente y ya puedes utilizar la aplicación Residencial Access.
+                                Tu cuenta ha sido creada exitosamente y ya puedes utilizar la aplicación Porto Pass.
                             </p>
         """
 
@@ -43,8 +63,8 @@ def enviar_notificacion_usuario_creado(usuario: Usuario, datos_creacion: Usuario
                     <ul style="list-style: none; padding: 0;">
                         <li style="margin-bottom: 10px;"><strong>ID: </strong> {usuario.id}</li>
                         <li style="margin-bottom: 10px;"><strong>Email: </strong> {usuario.email}</li>
-                        <li style="margin-bottom: 10px;"><strong>Rol: </strong> {usuario.rol}</li>
-                        <li style="margin-bottom: 10px;"><strong>Unidad Residencial: </strong> {datos_creacion.unidad_residencial}</li>
+                        <li style="margin-bottom: 10px;"><strong>Rol: </strong> {rol_display}</li>
+                        <li style="margin-bottom: 10px;"><strong>Unidad/Área: </strong> {datos_creacion.unidad_residencial}</li>
                         <li style="margin-bottom: 10px;"><strong>Teléfono: </strong> {datos_creacion.telefono}</li>
                     </ul>
                 </div>
@@ -52,9 +72,9 @@ def enviar_notificacion_usuario_creado(usuario: Usuario, datos_creacion: Usuario
                     <h3 style="color: #155724; margin-top: 0;">✅ ¿Qué puedes hacer ahora?</h3>
                     <ul style="margin-bottom: 0;">
                         <li>Iniciar sesión en la aplicación</li>
-                        <li>Crear visitas para tus invitados</li>
-                        <li>Recibir notificaciones de visitas</li>
-                        <li>Ver el historial de tus visitas</li>
+                        <li>Crear accesos para tus visitantes</li>
+                        <li>Recibir notificaciones de accesos</li>
+                        <li>Ver el historial de tus accesos</li>
                     </ul>
                 </div>
             """
@@ -65,7 +85,7 @@ def enviar_notificacion_usuario_creado(usuario: Usuario, datos_creacion: Usuario
                     <ul style="list-style: none; padding: 0;">
                         <li style="margin-bottom: 10px;"><strong>ID: </strong> {usuario.id}</li>
                         <li style="margin-bottom: 10px;"><strong>Email: </strong> {usuario.email}</li>
-                        <li style="margin-bottom: 10px;"><strong>Rol: </strong> {usuario.rol}</li>
+                        <li style="margin-bottom: 10px;"><strong>Rol: </strong> {rol_display}</li>
                         <li style="margin-bottom: 10px;"><strong>Teléfono: </strong> {getattr(datos_creacion, 'telefono', '-')}</li>
                     </ul>
                 </div>
@@ -73,7 +93,7 @@ def enviar_notificacion_usuario_creado(usuario: Usuario, datos_creacion: Usuario
                     <h3 style="color: #155724; margin-top: 0;">⚠️ Permisos de Administrador</h3>
                     <ul style="margin-bottom: 0;">
                         <li>Tienes acceso total al sistema</li>
-                        <li>Puedes crear y gestionar usuarios, visitas y notificaciones</li>
+                        <li>Puedes crear y gestionar usuarios, accesos y notificaciones</li>
                         <li>Por favor, usa tu cuenta con responsabilidad</li>
                     </ul>
                 </div>
@@ -85,14 +105,14 @@ def enviar_notificacion_usuario_creado(usuario: Usuario, datos_creacion: Usuario
                     <ul style="list-style: none; padding: 0;">
                         <li style="margin-bottom: 10px;"><strong>ID: </strong> {usuario.id}</li>
                         <li style="margin-bottom: 10px;"><strong>Email: </strong> {usuario.email}</li>
-                        <li style="margin-bottom: 10px;"><strong>Rol: </strong> {usuario.rol}</li>
+                        <li style="margin-bottom: 10px;"><strong>Rol: </strong> {rol_display}</li>
                         <li style="margin-bottom: 10px;"><strong>Teléfono: </strong> {getattr(datos_creacion, 'telefono', '-')}</li>
                     </ul>
                 </div>
                 <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                    <h3 style="color: #155724; margin-top: 0;">🚨 Permisos de Guardia</h3>
+                    <h3 style="color: #155724; margin-top: 0;">🚨 Permisos de Operador</h3>
                     <ul style="margin-bottom: 0;">
-                        <li>Puedes aceptar o rechazar la entrada de visitas</li>
+                        <li>Puedes aceptar o rechazar la entrada de visitantes</li>
                         <li>Puedes registrar la salida de los visitantes</li>
                         <li>Debes verificar la identidad de los visitantes</li>
                     </ul>
@@ -113,7 +133,7 @@ def enviar_notificacion_usuario_creado(usuario: Usuario, datos_creacion: Usuario
             </p>
             <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
             <p style="text-align: center; font-size: 12px; color: #999;">
-                Este es un mensaje automático del sistema Residencial Access.<br>
+                Este es un mensaje automático del sistema Porto Pass.<br>
                 <strong>No respondas a este correo.</strong>
             </p>
             </div>
@@ -160,7 +180,7 @@ def enviar_notificacion_residente(db: Session, visita, qr_img_b64: str, acompana
                     <div style="max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
                         <div style="background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
                             <h1 style="color: #2c3e50; text-align: center; margin-bottom: 30px;">
-                                📝 ¡Tu visita fue creada exitosamente!
+                                📝 ¡Tu acceso fue creado exitosamente!
                             </h1>
                             <p style="font-size: 16px; margin-bottom: 20px;">
                                 Hola <strong>{nombre_destinatario}</strong>,
@@ -178,7 +198,7 @@ def enviar_notificacion_residente(db: Session, visita, qr_img_b64: str, acompana
                                 </ul>
                             </div>
                             <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                                <h3 style="color: #155724; margin-top: 0;">📝 Detalles de la visita</h3>
+                                <h3 style="color: #155724; margin-top: 0;">📝 Detalles del acceso</h3>
                                 <ul style="list-style: none; padding: 0;">
                                     <li style="margin-bottom: 10px;"><strong>Motivo:</strong> {visita.notas}</li>
                                     <li style="margin-bottom: 10px;"><strong>Fecha de entrada:</strong> {(visita.fecha_entrada.astimezone(get_honduras_time().tzinfo) if visita.fecha_entrada.tzinfo else visita.fecha_entrada).strftime('%Y-%m-%d %H:%M:%S')}</li>
@@ -200,7 +220,7 @@ def enviar_notificacion_residente(db: Session, visita, qr_img_b64: str, acompana
                             </p>
                             <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
                             <p style="text-align: center; font-size: 12px; color: #999;">
-                                Este es un mensaje automático del sistema Residencial Access.<br>
+                                Este es un mensaje automático del sistema Porto Pass.<br>
                                 <strong>No respondas a este correo.</strong>
                             </p>
                         </div>
@@ -260,13 +280,13 @@ def enviar_notificacion_guardia(db: Session, visita):
                             <div style="max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
                                 <div style="background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
                                     <h1 style="color: #2c3e50; text-align: center; margin-bottom: 30px;">
-                                        🚨 ¡Notificación de nueva visita!
+                                        🚨 ¡Notificación de nuevo acceso!
                                     </h1>
                                     <p style="font-size: 16px; margin-bottom: 20px;">
                                         Hola <strong>{guardia.usuario.nombre}</strong>,
                                     </p>
                                     <p style="font-size: 16px; margin-bottom: 20px;">
-                                        Se ha creado una nueva visita para el usuario <strong>{nombre_creador}</strong>.
+                                        Se ha creado un nuevo acceso para el miembro <strong>{nombre_creador}</strong>.
                                     </p>
                                     <div style="background-color: #e8f4fd; padding: 20px; border-radius: 8px; margin: 20px 0;">
                                         <h3 style="color: #2980b9; margin-top: 0;">👤 Datos del visitante</h3>
@@ -283,7 +303,7 @@ def enviar_notificacion_guardia(db: Session, visita):
                                     </p>
                                     <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
                                     <p style="text-align: center; font-size: 12px; color: #999;">
-                                        Este es un mensaje automático del sistema Residencial Access.<br>
+                                        Este es un mensaje automático del sistema Porto Pass.<br>
                                         <strong>No respondas a este correo.</strong>
                                     </p>
                                 </div>
@@ -322,33 +342,33 @@ def enviar_notificacion_escaneo(db: Session, visita, guardia_nombre: str, es_sal
             nombre_destinatario = residente.usuario.nombre
 
         if es_salida:
-            asunto = "🚪 Visitante ha salido del residencial"
+            asunto = "🚪 Visitante ha salido de la entidad"
             mensaje_html = f"""
                 <html>
                     <body>
                         <p>Hola <strong>{nombre_destinatario}</strong>,</p>
-                        <p>El visitante <strong>{visitante.nombre_conductor}</strong> ha <strong>SALIDO</strong> de la residencial.</p>
-                        <p>La salida fue registrada por el guardia <strong>{guardia_nombre}</strong> el <strong>{get_honduras_time().strftime('%Y-%m-%d %H:%M:%S')}</strong>.</p>
-                        <p>La visita ha sido marcada como <strong>COMPLETADA</strong>.</p>
+                        <p>El visitante <strong>{visitante.nombre_conductor}</strong> ha <strong>SALIDO</strong> de la entidad.</p>
+                        <p>La salida fue registrada por el operador <strong>{guardia_nombre}</strong> el <strong>{get_honduras_time().strftime('%Y-%m-%d %H:%M:%S')}</strong>.</p>
+                        <p>El acceso ha sido marcado como <strong>COMPLETADO</strong>.</p>
                         <p>Gracias por usar nuestro sistema de control de acceso.</p>
                     </body>
                 </html>
             """
-            mensaje_notificacion = f"Visitante {visitante.nombre_conductor} ha salido - registrado por guardia {guardia_nombre}"
+            mensaje_notificacion = f"Visitante {visitante.nombre_conductor} ha salido - registrado por operador {guardia_nombre}"
         else:
-            asunto = "📍 Estado de visita actualizado"
+            asunto = "📍 Estado de acceso actualizado"
             mensaje_html = f"""
                 <html>
                     <body>
                         <h2>¡Hola {nombre_destinatario}!</h2>
-                        <h2>¡Actualización de tu visita {visitante.nombre_conductor}!</h2>
+                        <h2>¡Actualización de tu acceso {visitante.nombre_conductor}!</h2>
                         <p>El visitante <strong>{visitante.nombre_conductor}</strong> ha sido <strong>{visita.estado.upper()}</strong>.</p>
-                        <p>El escaneo fue realizado por el guardia <strong>{guardia_nombre}</strong> el <strong>{get_honduras_time().strftime('%Y-%m-%d %H:%M:%S')}</strong>.</p>
+                        <p>El escaneo fue realizado por el operador <strog>{guardia_nombre}</strogng> el <strong>{get_honduras_time().strftime('%Y-%m-%d %H:%M:%S')}</strong>.</p>
                         <p>Gracias por usar nuestro sistema de control de acceso.</p>
                     </body>
                 </html>
             """
-            mensaje_notificacion = f"Visita {visita.estado} por guardia {guardia_nombre}"
+            mensaje_notificacion = f"Acceso {visita.estado} por operador {guardia_nombre}"
 
         exito = enviar_correo(email_destinatario, asunto, mensaje_html)
 
@@ -508,7 +528,7 @@ def enviar_notificacion_solicitud_visita(db: Session, visita, residente):
                                     </p>
                                     <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
                                     <p style="text-align: center; font-size: 12px; color: #999;">
-                                        Este es un mensaje automático del sistema Residencial Access.<br>
+                                        Este es un mensaje automático del sistema Porto Pass.<br>
                                         <strong>No respondas a este correo.</strong>
                                     </p>
                                 </div>
@@ -609,7 +629,7 @@ def enviar_notificacion_solicitud_aprobada(db: Session, visita, qr_img_b64: str)
                             </p>
                             <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
                             <p style="text-align: center; font-size: 12px; color: #999;">
-                                Este es un mensaje automático del sistema Residencial Access.<br>
+                                Este es un mensaje automático del sistema Porto Pass.<br>
                                 <strong>No respondas a este correo.</strong>
                             </p>
                         </div>
@@ -662,7 +682,7 @@ def enviar_notificacion_nueva_publicacion(
                             <div style='color: #333;'>{contenido}</div>
                         </div>
                         <p>Puedes visualizar y comentar esta publicación en la sección <b>Social</b> de la plataforma.</p>
-                        <p style='margin-top: 24px; color: #888; font-size: 0.95em;'>Este es un mensaje automático del sistema Residencial Access.<br>No respondas a este correo.</p>
+                        <p style='margin-top: 24px; color: #888; font-size: 0.95em;'>Este es un mensaje automático del sistema Porto Pass.<br>No respondas a este correo.</p>
                     </div>
                 </body>
             </html>

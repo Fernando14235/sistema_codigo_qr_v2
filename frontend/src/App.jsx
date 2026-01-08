@@ -142,14 +142,18 @@ function setupAxiosInterceptors(setToken, setNotification, handleLogout) {
           );
           
           if (!hasRefreshToken) {
-            console.log("⚠️ No hay refresh token en cookies");
+            console.log("⚠️ No hay refresh token en cookies - redirigiendo a login");
             setNotification({
               message: "Tu sesión ha expirado. Por favor inicia sesión nuevamente.",
               type: "warning"
             });
-            // Limpiar localStorage pero NO forzar logout
+            // Limpiar localStorage y forzar logout para evitar bucle infinito
             localStorage.removeItem("token");
+            localStorage.removeItem("nombre");
+            localStorage.removeItem("rol");
+            localStorage.removeItem("residencial_id");
             setToken(null);
+            handleLogout();
             return Promise.reject(error);
           }
           
@@ -193,14 +197,13 @@ function setupAxiosInterceptors(setToken, setNotification, handleLogout) {
           
           if (status === 403) {
             // Refresh token faltante (403 Forbidden)
-            console.log("🔒 Refresh token no encontrado en cookies");
+            console.log("🔒 Refresh token no encontrado en cookies - forzando logout");
             setNotification({
               message: "Tu sesión ha expirado. Por favor inicia sesión nuevamente.",
               type: "warning"
             });
-            // Limpiar localStorage pero NO forzar logout completo
-            localStorage.removeItem("token");
-            setToken(null);
+            // Forzar logout completo para evitar bucle infinito
+            handleLogout();
           } else if (status === 401) {
             // Refresh token inválido/expirado (401 Unauthorized)
             console.log("🔒 Refresh token expirado o inválido, cerrando sesión");

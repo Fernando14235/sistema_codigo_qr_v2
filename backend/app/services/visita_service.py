@@ -898,7 +898,7 @@ def aprobar_solicitud_visita_admin(db: Session, visita_id: int, admin_id: int) -
             qr_data=qr_code,
             nombre_residente=visita.residente.usuario.nombre,
             nombre_visitante=visita.visitante.nombre_conductor,
-            nombre_residencial="Residencial Access",
+            nombre_residencial="Porto Pass",
             unidad_residencial=visita.residente.unidad_residencial,
             fecha_creacion=datetime.now(timezone.utc),
             fecha_expiracion=visita.qr_expiracion

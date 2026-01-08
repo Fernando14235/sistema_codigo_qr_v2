@@ -46,7 +46,7 @@ scheduler.start()
 @app.get('/', tags=["Inicio"])
 def home():
     return HTMLResponse('''
-                        <h1>Sistema de Control Residencial Version 2</h1>
+                        <h1>Porto Pass - Sistema de Control de Acceso</h1>
                         <style>width: 100%</style>
                         ''')
 
