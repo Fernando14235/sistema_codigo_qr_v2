@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
 import { useOffline } from './useOffline';
 import offlineStorage from '../../services/offline/offlineStorage'; 
-import axios from 'axios';
-import { API_URL } from '../../api';
+import api from '../../api'; // import { API_URL } from '../../api';
+import { API_URL } from '../../api'; // Keep API_URL in case it's used elsewhere
 
 export const useOfflineOperations = (token, rol) => {
   const { isOnline, addPendingAction } = useOffline();
@@ -14,7 +14,7 @@ export const useOfflineOperations = (token, rol) => {
     try {
       if (isOnline) {
         // Intentar cargar desde la API
-        const response = await axios.get(`${API_URL}${endpoint}`, {
+        const response = await api.get(endpoint, {
           headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -59,7 +59,7 @@ export const useOfflineOperations = (token, rol) => {
 
     if (isOnline) {
       try {
-        const response = await axios.post(`${API_URL}/visitas/guardia/registrar-entrada`, {
+        const response = await api.post(`/visitas/guardia/registrar-entrada`, {
           qr_data: qrData
         }, {
           headers: { Authorization: `Bearer ${token}` }
@@ -90,7 +90,7 @@ export const useOfflineOperations = (token, rol) => {
 
     if (isOnline) {
       try {
-        const response = await axios.post(`${API_URL}/visitas/guardia/registrar-salida`, {
+        const response = await api.post(`/visitas/guardia/registrar-salida`, {
           qr_data: qrData
         }, {
           headers: { Authorization: `Bearer ${token}` }
@@ -113,7 +113,7 @@ export const useOfflineOperations = (token, rol) => {
     }
 
     try {
-      const response = await axios.post(`${API_URL}/visitas/residente/crear`, visitData, {
+      const response = await api.post(`/visitas/residente/crear`, visitData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       return { success: true, data: response.data };
@@ -154,8 +154,8 @@ export const useOfflineOperations = (token, rol) => {
     registerEntry,
     registerExit,
     // Cargar escaneos del guardia
-    loadEscaneosGuardia: () => 
-      loadDataWithOfflineFallback('/visitas/guardia/escaneos-dia', 'offline_escaneos_guardia', {
+    loadEscaneosGuardia: (page=1, limit=15) => 
+      loadDataWithOfflineFallback(`/visitas/guardia/escaneos-dia?page=${page}&limit=${limit}`, `offline_escaneos_guardia_${page}`, {
         maxAgeHours: 24
       })
   };

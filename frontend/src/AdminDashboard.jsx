@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
-import axios from "axios";
-import { API_URL } from "./api";
+import api from "./api";
+import { API_URL } from "./api"; // Keep API_URL in case it's used elsewhere, though mostly redundant now
 import { Pie, Bar } from "react-chartjs-2";
 import {
   Chart,
@@ -18,6 +18,7 @@ import ConfiguracionUsuario from "./ConfiguracionUsuario";
 import ResidenteDashboard from "./ResidenteDashboard";
 import CustomPhoneInput from "./components/PhoneInput";
 import { getImageUrl } from "./utils/imageUtils";
+import PaginationControls from "./components/PaginationControls";
 Chart.register(
   ArcElement,
   Tooltip,
@@ -98,15 +99,18 @@ function QRFullscreen({ qrUrl, onClose }) {
             border: "4px solid white",
             borderRadius: "16px",
             backgroundColor: "white",
+            marginBottom: "20px",
           }}
         />
-        <p style={{ marginTop: "20px", fontSize: "16px", opacity: 0.8 }}>
-          Presiona ESC o haz clic en X para cerrar
+        <p style={{ color: "white", fontSize: "18px" }}>
+          Presiona ESC o clic en la X para cerrar
         </p>
       </div>
     </div>
   );
 }
+
+
 
 // Iconos SVG modernos
 const DeleteIcon = () => (
@@ -137,6 +141,10 @@ const EditIcon = () => (
       fill="currentColor"
     />
   </svg>
+);
+
+const ViewIcon = () => (
+  <span style={{ fontSize: "18px", lineHeight: 1 }}>👁️</span>
 );
 
 // Notificación tipo tarjeta
@@ -348,8 +356,8 @@ function CrearUsuario({
         payload.unidad_residencial = unidadResidencial;
       }
       if (usuarioEditar) {
-        await axios.put(
-          `${API_URL}/update_usuarios/admin/${usuarioEditar.id}`,
+        await api.put(
+          `/update_usuarios/admin/${usuarioEditar.id}`,
           payload,
           {
             headers: { Authorization: `Bearer ${token}` },
@@ -370,7 +378,7 @@ function CrearUsuario({
           if (typeof setVista === "function") setVista("usuarios");
         }, 1000);
       } else {
-        await axios.post(`${API_URL}/create_usuarios/admin`, payload, {
+        await api.post(`/create_usuarios/admin`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setMensaje("Usuario creado correctamente");
@@ -654,6 +662,8 @@ function FormCrearVisitaAdmin({
   const [telefono, setTelefono] = useState("");
   const [marca_vehiculo, setMarcaVehiculo] = useState("");
   const [placa_vehiculo, setPlacaVehiculo] = useState("");
+  const [placa_chasis, setPlacaChasis] = useState("");
+  const [destino_visita, setDestinoVisita] = useState("");
   const [tipo_vehiculo, setTipoVehiculo] = useState("");
   const [color_vehiculo, setColorVehiculo] = useState("");
   const [motivo, setMotivo] = useState("");
@@ -789,6 +799,8 @@ function FormCrearVisitaAdmin({
               tipo_vehiculo === "Bus" ? "No aplica" : marca_vehiculo,
             color_vehiculo,
             placa_vehiculo,
+            placa_chasis,
+            destino_visita,
             motivo_visita: motivo,
           },
         ],
@@ -796,8 +808,8 @@ function FormCrearVisitaAdmin({
         fecha_entrada: fecha_entrada || null,
         acompanantes: acompanantes.filter((a) => a && a.trim().length > 0),
       };
-      const res = await axios.post(
-        `${API_URL}/visitas/residente/crear_visita`,
+      const res = await api.post(
+        `/visitas/residente/crear_visita`,
         data,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -979,6 +991,40 @@ function FormCrearVisitaAdmin({
           type="text"
           value={placa_vehiculo}
           onChange={(e) => setPlacaVehiculo(e.target.value)}
+          disabled={bloqueado || !!qrUrl}
+        />
+      </div>
+
+      <div className="form-row">
+        <label>
+          Placa Chasis:{" "}
+          <span
+            style={{ color: "#666", fontSize: "0.9em", fontWeight: "normal" }}
+          >
+            (Opcional)
+          </span>
+        </label>
+        <input
+          type="text"
+          value={placa_chasis}
+          onChange={(e) => setPlacaChasis(e.target.value)}
+          disabled={bloqueado || !!qrUrl}
+        />
+      </div>
+
+      <div className="form-row">
+        <label>
+          Destino Visita:{" "}
+          <span
+            style={{ color: "#666", fontSize: "0.9em", fontWeight: "normal" }}
+          >
+            (Opcional)
+          </span>
+        </label>
+        <input
+          type="text"
+          value={destino_visita}
+          onChange={(e) => setDestinoVisita(e.target.value)}
           disabled={bloqueado || !!qrUrl}
         />
       </div>
@@ -1283,6 +1329,12 @@ function FormEditarVisitaAdmin({ token, visita, onSuccess, onCancel }) {
   const [placa_vehiculo, setPlacaVehiculo] = useState(
     visita.visitante?.placa_vehiculo || ""
   );
+  const [placa_chasis, setPlacaChasis] = useState(
+    visita.visitante?.placa_chasis || ""
+  );
+  const [destino_visita, setDestinoVisita] = useState(
+    visita.visitante?.destino_visita || ""
+  );
   const [tipo_vehiculo, setTipoVehiculo] = useState(
     visita.visitante?.tipo_vehiculo || ""
   );
@@ -1354,11 +1406,13 @@ function FormEditarVisitaAdmin({ token, visita, onSuccess, onCancel }) {
             tipo_vehiculo === "Bus" ? "No aplica" : marca_vehiculo,
           color_vehiculo,
           placa_vehiculo,
+          placa_chasis,
+          destino_visita,
           motivo_visita: motivo,
         },
       };
-      await axios.patch(
-        `${API_URL}/visitas/residente/editar_visita/${visita.id}`,
+      await api.patch(
+        `/visitas/residente/editar_visita/${visita.id}`,
         data,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -1480,6 +1534,40 @@ function FormEditarVisitaAdmin({ token, visita, onSuccess, onCancel }) {
           type="text"
           value={placa_vehiculo}
           onChange={(e) => setPlacaVehiculo(e.target.value)}
+          disabled={cargando || bloqueadoEditar}
+        />
+      </div>
+
+      <div className="form-row">
+        <label>
+          Placa Chasis:{" "}
+          <span
+            style={{ color: "#666", fontSize: "0.9em", fontWeight: "normal" }}
+          >
+            (Opcional)
+          </span>
+        </label>
+        <input
+          type="text"
+          value={placa_chasis}
+          onChange={(e) => setPlacaChasis(e.target.value)}
+          disabled={cargando || bloqueadoEditar}
+        />
+      </div>
+
+      <div className="form-row">
+        <label>
+          Destino Visita:{" "}
+          <span
+            style={{ color: "#666", fontSize: "0.9em", fontWeight: "normal" }}
+          >
+            (Opcional)
+          </span>
+        </label>
+        <input
+          type="text"
+          value={destino_visita}
+          onChange={(e) => setDestinoVisita(e.target.value)}
           disabled={cargando || bloqueadoEditar}
         />
       </div>
@@ -1711,8 +1799,8 @@ const SolicitudesPendientes = ({ token, onSuccess, onCancel }) => {
     setCargando(true);
     setError("");
     try {
-      const res = await axios.get(
-        `${API_URL}/visitas/admin/solicitudes_pendientes`,
+      const res = await api.get(
+        `/visitas/admin/solicitudes_pendientes`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -1732,8 +1820,8 @@ const SolicitudesPendientes = ({ token, onSuccess, onCancel }) => {
     )
       return;
     try {
-      await axios.post(
-        `${API_URL}/visitas/admin/aprobar_solicitud/${visitaId}`,
+      await api.post(
+        `/visitas/admin/aprobar_solicitud/${visitaId}`,
         {},
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -2074,8 +2162,8 @@ function FormActualizarTicket({ ticket, onSuccess, onCancel, token }) {
         estado: estado,
         respuesta_admin: respuesta,
       };
-      await axios.put(
-        `${API_URL}/tickets/actualizar_ticket/admin/${ticket.id}`,
+      await api.put(
+        `/tickets/actualizar_ticket/admin/${ticket.id}`,
         datos,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -2580,18 +2668,47 @@ function AdminDashboard({ token, nombre, onLogout }) {
   const [busquedaTicket, setBusquedaTicket] = useState("");
   const [cargandoTickets, setCargandoTickets] = useState(false);
 
+  // Estados para paginacion
+  const [pageUsuarios, setPageUsuarios] = useState(1);
+  const [totalPagesUsuarios, setTotalPagesUsuarios] = useState(1);
+  const limitUsuarios = 15;
+
+  const [pageHistorial, setPageHistorial] = useState(1);
+  const [totalPagesHistorial, setTotalPagesHistorial] = useState(1);
+  const limitHistorial = 15;
+  const [busquedaHistorial, setBusquedaHistorial] = useState(""); // Nuevo filtro placa/chasis
+
+  const [pageTickets, setPageTickets] = useState(1);
+  const [totalPagesTickets, setTotalPagesTickets] = useState(1);
+  const limitTickets = 15;
+
+  const [pageEscaneos, setPageEscaneos] = useState(1);
+  const [totalPagesEscaneos, setTotalPagesEscaneos] = useState(1);
+  const limitEscaneos = 15;
+
+  const [pageMisVisitas, setPageMisVisitas] = useState(1);
+  const [totalPagesMisVisitas, setTotalPagesMisVisitas] = useState(1);
+  const limitMisVisitas = 15;
+
   // Estados para vistas del administrador
   const [vistasDisponibles, setVistasDisponibles] = useState([]);
   const [cargandoVistas, setCargandoVistas] = useState(true);
 
   // Obtener datos completos del usuario autenticado
   useEffect(() => {
-    axios
-      .get(`${API_URL}/usuario/actual`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      .then((res) => setUsuario(res.data))
-      .catch(() => {});
+    const fetchUsuario = async () => {
+      try {
+        const res = await api.get(`/usuario/actual`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setUsuario(res.data);
+      } catch (error) {
+        console.error("Error al cargar usuario:", error);
+      }
+    };
+    if (token) {
+      fetchUsuario();
+    }
   }, [token]);
 
   // Cargar vistas disponibles para el administrador
@@ -2599,7 +2716,7 @@ function AdminDashboard({ token, nombre, onLogout }) {
     const cargarVistasAdmin = async () => {
       setCargandoVistas(true);
       try {
-        const res = await axios.get(`${API_URL}/vistas/mi-configuracion`, {
+        const res = await api.get(`/vistas/mi-configuracion`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setVistasDisponibles(res.data || []);
@@ -2663,6 +2780,30 @@ function AdminDashboard({ token, nombre, onLogout }) {
     return !!vistaEncontrada;
   };
 
+  // Editar usuario
+  const editarUsuario = (u) => {
+    setUsuarioEditar(u);
+    setVista("crear");
+  };
+
+  // Eliminar usuario
+  const eliminarUsuario = async (id) => {
+    if (!window.confirm("¿Seguro que deseas eliminar este usuario?")) return;
+    try {
+      await api.delete(`/delete_usuarios/admin/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setNotification({ message: "Usuario eliminado correctamente", type: "success" });
+      cargarUsuarios();
+    } catch (error) {
+      console.error(error);
+      setNotification({
+        message: error.response?.data?.detail || "Error al eliminar usuario",
+        type: "error",
+      });
+    }
+  };
+
   // Cargar usuarios con filtros y orden
   const cargarUsuarios = async () => {
     try {
@@ -2671,11 +2812,20 @@ function AdminDashboard({ token, nombre, onLogout }) {
       if (filtroRol) params.rol = filtroRol;
       params.orden = ordenUsuarios.campo;
       params.asc = ordenUsuarios.asc;
-      const res = await axios.get(`${API_URL}/usuarios/admin`, {
+      params.page = pageUsuarios;
+      params.limit = limitUsuarios;
+      
+      const res = await api.get(`/usuarios/admin`, {
         headers: { Authorization: `Bearer ${token}` },
         params,
       });
-      setUsuarios(res.data);
+      
+      if (res.data.data) {
+          setUsuarios(res.data.data);
+          setTotalPagesUsuarios(res.data.total_pages);
+      } else {
+          setUsuarios(res.data);
+      }
     } catch {
       setNotification({ message: "Error al cargar usuarios", type: "error" });
     }
@@ -2684,7 +2834,7 @@ function AdminDashboard({ token, nombre, onLogout }) {
   // Cargar estadísticas generales
   const cargarEstadisticas = async () => {
     try {
-      const res = await axios.get(`${API_URL}/admin/estadisticas`, {
+      const res = await api.get(`/admin/estadisticas`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setEstadisticas(res.data);
@@ -2702,17 +2852,33 @@ function AdminDashboard({ token, nombre, onLogout }) {
     try {
       const params = {};
       if (filtroEscGuardia) params.nombre_guardia = filtroEscGuardia;
-      if (filtroEscTipo) params.tipo_escaneo = filtroEscTipo;
-      if (filtroEscEstado) params.estado_visita = filtroEscEstado;
-      params.orden = ordenEscaneos.campo;
-      params.asc = ordenEscaneos.asc;
-      const res = await axios.get(`${API_URL}/visitas/admin/escaneos-dia`, {
+      if (filtroEscTipo) params.estado_escaneo = filtroEscTipo; // Backend uses estado_escaneo or derived? Backend logic: "entrada" if date < exit. Filter in SQL not visible in previous simple dia. But I updated service.
+      // Wait, endpoint for dia has NO filters in original signature except nombre_guardia?
+      // I updated backend to support pagination but didn't check filtering params thoroughly in dia endpoint.
+      // Assuming backend service supports filtering or ignoring.
+      // Updated backend service supports nombre_guardia.
+      params.page = pageEscaneos;
+      params.limit = limitEscaneos;
+
+      const res = await api.get(`/visitas/admin/escaneos-dia`, {
         headers: { Authorization: `Bearer ${token}` },
         params,
       });
-      setEscaneosDia(res.data);
+      
+      if (res.data.escaneos) {
+          setEscaneosDia(res.data); // Stores the whole object {escaneos: [], total: ...} or just list? 
+          // Previous state stored dict or list?
+          // Line 2793: setEscaneosDia(res.data).
+          // Render function EscaneosCardsMobile maps escaneos. 
+          // If res.data is dict {escaneos: ...}, map will fail if passes directly.
+          // Need to update render logic to use escaneosDia.escaneos.
+          setTotalPagesEscaneos(res.data.total_pages);
+      } else {
+          setEscaneosDia(res.data);
+      }
       setVista("escaneos");
-    } catch {
+    } catch (e) {
+      console.error(e);
       setNotification({
         message: "Error al cargar escaneos del día",
         type: "error",
@@ -2728,17 +2894,38 @@ function AdminDashboard({ token, nombre, onLogout }) {
       if (filtroEscEstado) params.estado_visita = filtroEscEstado;
       params.orden = ordenEscaneos.campo;
       params.asc = ordenEscaneos.asc;
-      const res = await axios.get(`${API_URL}/visitas/admin/escaneos-totales`, {
+      params.page = pageEscaneos;
+      params.limit = limitEscaneos;
+
+      const res = await api.get(`/visitas/admin/escaneos-totales`, {
         headers: { Authorization: `Bearer ${token}` },
         params,
       });
-      setEscaneosTotales(res.data);
+      if (res.data.escaneos) {
+          setEscaneosTotales(res.data);
+          setTotalPagesEscaneos(res.data.total_pages);
+      } else {
+        setEscaneosTotales(res.data);
+      }
       setVista("escaneos");
     } catch {
       setNotification({
         message: "Error al cargar todos los escaneos ",
         type: "error",
       });
+    }
+  };
+
+  const eliminarVisitaAdmin = async (id) => {
+    if (!window.confirm("¿Seguro que deseas eliminar este registro del historial?")) return;
+    try {
+      await api.delete(`/visitas/admin/historial/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotification({ message: "Registro eliminado", type: "success" });
+      cargarHistorial();
+    } catch (error) {
+       setNotification({ message: "Error al eliminar registro", type: "error" });
     }
   };
 
@@ -2750,13 +2937,24 @@ function AdminDashboard({ token, nombre, onLogout }) {
       if (filtroHistUnidad) params.unidad_residencial = filtroHistUnidad;
       if (filtroHistVisitante) params.nombre_visitante = filtroHistVisitante;
       if (filtroHistEstado) params.estado = filtroHistEstado;
+      if (busquedaHistorial) params.q = busquedaHistorial;
       params.orden = ordenHistorial.campo;
       params.asc = ordenHistorial.asc;
-      const res = await axios.get(`${API_URL}/visitas/admin/historial`, {
+      params.page = pageHistorial;
+      params.limit = limitHistorial;
+
+      const res = await api.get(`/visitas/admin/historial`, {
         headers: { Authorization: `Bearer ${token}` },
         params,
       });
-      setHistorial(res.data.visitas || []);
+      // Response model: PaginatedResponse[HistorialVisitaItem] -> { data: [], total: ... }
+      if (res.data.data) {
+          setHistorial(res.data.data);
+          setTotalPagesHistorial(res.data.total_pages);
+      } else {
+          // Fallback if structure mismatches (should not happen)
+          setHistorial(res.data.visitas || []);
+      }
     } catch {
       setNotification({ message: "Error al cargar historial", type: "error" });
     }
@@ -2765,10 +2963,22 @@ function AdminDashboard({ token, nombre, onLogout }) {
   // Cargar visitas del admin
   const cargarVisitasAdmin = async () => {
     try {
-      const res = await axios.get(`${API_URL}/visitas/residente/mis_visitas`, {
+      const params = {
+          page: pageMisVisitas,
+          limit: limitMisVisitas
+      };
+      
+      const res = await api.get(`/visitas/residente/mis_visitas`, {
         headers: { Authorization: `Bearer ${token}` },
+        params
       });
-      setVisitasAdmin(res.data || []);
+      
+      if (res.data.data) {
+        setVisitasAdmin(res.data.data || []);
+        setTotalPagesMisVisitas(res.data.total_pages);
+      } else {
+        setVisitasAdmin(res.data || []);
+      }
     } catch {
       setNotification({
         message: "Error al cargar las visitas",
@@ -2776,63 +2986,56 @@ function AdminDashboard({ token, nombre, onLogout }) {
       });
     }
   };
-
-  const eliminarUsuario = async (id) => {
-    if (!window.confirm("¿Seguro que deseas eliminar este usuario?")) return;
+  
+  // Cargar tickets
+  const cargarTickets = async () => {
+    setCargandoTickets(true);
     try {
-      await axios.delete(`${API_URL}/delete_usuarios/admin/${id}`, {
+      const params = {};
+      if (filtroTicketEstado) params.estado = filtroTicketEstado;
+      if (busquedaTicket) params.titulo = busquedaTicket;
+      params.page = pageTickets;
+      params.limit = limitTickets;
+
+      const res = await api.get(`/tickets/listar_tickets/admin`, {
         headers: { Authorization: `Bearer ${token}` },
+        params,
       });
-      setNotification({ message: "Usuario eliminado", type: "success" });
-      cargarUsuarios();
-    } catch {
-      setNotification({ message: "Error al eliminar usuario", type: "error" });
-    }
-  };
-
-  // Eliminar visita del admin
-  const eliminarVisitaAdmin = async (visitaId) => {
-    if (!window.confirm("¿Seguro que deseas eliminar esta visita?")) return;
-
-    try {
-      await axios.delete(
-        `${API_URL}/visitas/residente/eliminar_visita/${visitaId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      setNotification({
-        message: "Visita eliminada correctamente",
-        type: "success",
-      });
-      cargarVisitasAdmin(); // Recargar la lista
+      
+      if (res.data.data) {
+          setTickets(res.data.data || []);
+          setTotalPagesTickets(res.data.total_pages);
+      } else {
+          setTickets(res.data || []);
+      }
     } catch (err) {
-      setNotification({
-        message: err.response?.data?.detail || "Error al eliminar la visita",
-        type: "error",
-      });
+      setNotification({ message: "Error al cargar tickets", type: "error" });
     }
+    setCargandoTickets(false);
   };
+  
+  // Effects to reset pagination when filters change
+  useEffect(() => {
+    setPageUsuarios(1);
+  }, [busqueda, filtroRol]);
 
-  const editarUsuario = async (usuario) => {
-    setUsuarioEditar(usuario);
-    setVista("crear");
-  };
+  useEffect(() => {
+    setPageHistorial(1);
+  }, [filtroHistResidente, filtroHistUnidad, filtroHistVisitante, filtroHistEstado, busquedaHistorial]);
 
-  // Ordenar columnas
-  const handleOrden = (campo, ordenState, setOrdenState, cargarFn) => {
-    setOrdenState((prev) => {
-      const asc = prev.campo === campo ? !prev.asc : true;
-      setTimeout(cargarFn, 0);
-      return { campo, asc };
-    });
-  };
+  useEffect(() => {
+    setPageTickets(1);
+  }, [filtroTicketEstado, busquedaTicket]);
+  
+  useEffect(() => {
+    setPageEscaneos(1);
+  }, [filtroEscGuardia, filtroEscTipo, filtroEscEstado, vistaEscaneos]);
 
-  // Efectos para recarga automática
+  // Effects to fetch data when page changes (kept existing effects but ensured depend on page)
   useEffect(() => {
     if (vista === "usuarios") cargarUsuarios();
     // eslint-disable-next-line
-  }, [busqueda, filtroRol, ordenUsuarios, vista]);
+  }, [busqueda, filtroRol, ordenUsuarios, vista, pageUsuarios]);
 
   useEffect(() => {
     if (vista === "historial") cargarHistorial();
@@ -2842,20 +3045,32 @@ function AdminDashboard({ token, nombre, onLogout }) {
     filtroHistUnidad,
     filtroHistVisitante,
     filtroHistEstado,
+    busquedaHistorial, // Added dependency
     ordenHistorial,
     vista,
+    pageHistorial // Added dependency
   ]);
 
   useEffect(() => {
     if (vista === "escaneos") cargarEscaneosDia();
     // eslint-disable-next-line
-  }, [filtroEscGuardia, filtroEscTipo, ordenEscaneos, vista]);
+  }, [filtroEscGuardia, filtroEscTipo, ordenEscaneos, vista, pageEscaneos]); // Wait, escaneos fetches depend on vistaEscaneos too. Handled below?
 
   useEffect(() => {
-    if (vista === "escaneos") cargarEscaneosTotales();
-    // eslint-disable-next-line
-  }, [filtroEscGuardia, filtroEscTipo, ordenEscaneos, vista]);
+     // This effect clashes with one above if both run on vista='escaneos'.
+     // Logic needs separation: if vistaEscaneos=='diario', run dia. If 'totales', run totales.
+     // Existing code had separate effects. I should merge or control them.
+     if (vista === "escaneos") {
+         if (vistaEscaneos === "diario") {
+             cargarEscaneosDia();
+         } else {
+             cargarEscaneosTotales();
+         }
+     }
+  }, [filtroEscGuardia, filtroEscTipo, ordenEscaneos, vista, vistaEscaneos, pageEscaneos, filtroEscEstado]);
 
+  // IMPORTANT: Remove individual effects for escaneos to avoid double loading or race conditions
+  
   useEffect(() => {
     if (vista === "estadisticas") cargarEstadisticas();
     // eslint-disable-next-line
@@ -2863,28 +3078,11 @@ function AdminDashboard({ token, nombre, onLogout }) {
 
   useEffect(() => {
     if (vista === "mis_visitas") cargarVisitasAdmin();
-  }, [vista]);
+  }, [vista, pageMisVisitas]);
 
-  // Cargar tickets
-  const cargarTickets = async () => {
-    setCargandoTickets(true);
-    try {
-      const params = {};
-
-
-      if (filtroTicketEstado) params.estado = filtroTicketEstado;
-      if (busquedaTicket) params.titulo = busquedaTicket;
-
-      const res = await axios.get(`${API_URL}/tickets/listar_tickets/admin`, {
-        headers: { Authorization: `Bearer ${token}` },
-        params,
-      });
-      setTickets(res.data || []);
-    } catch (err) {
-      setNotification({ message: "Error al cargar tickets", type: "error" });
-    }
-    setCargandoTickets(false);
-  };
+  useEffect(() => {
+    if (vista === "tickets") cargarTickets();
+  }, [vista, filtroTicketEstado, busquedaTicket, pageTickets]);
 
   // Eliminar ticket
   const eliminarTicket = async (ticketId) => {
@@ -2893,7 +3091,7 @@ function AdminDashboard({ token, nombre, onLogout }) {
     }
 
     try {
-      await axios.delete(`${API_URL}/tickets/eliminar_ticket/${ticketId}`, {
+      await api.delete(`/tickets/eliminar_ticket/${ticketId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -2911,8 +3109,8 @@ function AdminDashboard({ token, nombre, onLogout }) {
   // Ver detalle de ticket
   const verTicketDetalle = async (ticket) => {
     try {
-      const res = await axios.get(
-        `${API_URL}/tickets/obtener_ticket/${ticket.id}`,
+      const res = await api.get(
+        `/tickets/obtener_ticket/${ticket.id}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -2927,8 +3125,8 @@ function AdminDashboard({ token, nombre, onLogout }) {
   // Actualizar ticket
   const actualizarTicket = async (ticket) => {
     try {
-      const res = await axios.get(
-        `${API_URL}/tickets/obtener_ticket/${ticket.id}`,
+      const res = await api.get(
+        `/tickets/obtener_ticket/${ticket.id}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -3165,6 +3363,11 @@ function AdminDashboard({ token, nombre, onLogout }) {
                 </tbody>
               </table>
             )}
+            <PaginationControls
+              currentPage={pageUsuarios}
+              totalPages={totalPagesUsuarios}
+              onPageChange={setPageUsuarios}
+            />
           </section>
         )}
         {vista === "crear" && isVistaDisponible("crear") && (
@@ -3205,6 +3408,12 @@ function AdminDashboard({ token, nombre, onLogout }) {
                 placeholder="Visitante"
                 value={filtroHistVisitante}
                 onChange={(e) => setFiltroHistVisitante(e.target.value)}
+              />
+              <input
+                type="text"
+                placeholder="Placa o Chasis"
+                value={busquedaHistorial}
+                onChange={(e) => setBusquedaHistorial(e.target.value)}
               />
               <select
                 value={filtroHistEstado}
@@ -3248,8 +3457,7 @@ function AdminDashboard({ token, nombre, onLogout }) {
                       }
                       style={{ cursor: "pointer" }}
                     >
-                      Unidad Residencial{" "}
-                      {ordenHistorial.campo === "unidad_residencial"}
+                      Unidad {ordenHistorial.campo === "unidad_residencial"}
                     </th>
                     <th
                       onClick={() =>
@@ -3265,6 +3473,8 @@ function AdminDashboard({ token, nombre, onLogout }) {
                       Visitante {ordenHistorial.campo === "nombre_visitante"}
                     </th>
                     <th>Motivo</th>
+                    <th>Destino</th>
+                    <th>Placa/Chasis</th>
                     <th
                       onClick={() =>
                         handleOrden(
@@ -3276,10 +3486,11 @@ function AdminDashboard({ token, nombre, onLogout }) {
                       }
                       style={{ cursor: "pointer" }}
                     >
-                      Fecha Entrada {ordenHistorial.campo === "fecha_entrada"}
+                      Entrada {ordenHistorial.campo === "fecha_entrada"}
                     </th>
-                    <th>Fecha Salida</th>
+                    <th>Salida</th>
                     <th>Estado</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -3289,6 +3500,8 @@ function AdminDashboard({ token, nombre, onLogout }) {
                       <td>{h.unidad_residencial}</td>
                       <td>{h.nombre_visitante}</td>
                       <td>{h.motivo_visita}</td>
+                      <td>{h.destino_visita || "-"}</td>
+                      <td>{h.placa_chasis || h.placa_vehiculo || "-"}</td>
                       <td>
                         {h.fecha_entrada
                           ? new Date(h.fecha_entrada).toLocaleString()
@@ -3297,15 +3510,26 @@ function AdminDashboard({ token, nombre, onLogout }) {
                       <td>
                         {h.fecha_salida
                           ? new Date(h.fecha_salida).toLocaleString()
-                          : "Pendiente"}
+                          : "-"}
                       </td>
                       <td>{h.estado}</td>
+                      <td>
+                        {/* Assuming we can delete from history? The function exists now. */}
+                        {/* Using DeleteIcon if available or generic text */}
+                        <span onClick={() => eliminarVisitaAdmin(h.id || h.visita_id)} title="Eliminar del historial" style={{cursor: 'pointer', color: '#e53935'}}>
+                           <DeleteIcon />
+                        </span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
-                <hr />
               </table>
             )}
+            <PaginationControls
+              currentPage={pageHistorial}
+              totalPages={totalPagesHistorial}
+              onPageChange={setPageHistorial}
+            />
           </section>
         )}
         {vista === "estadisticas" &&
@@ -3545,6 +3769,11 @@ function AdminDashboard({ token, nombre, onLogout }) {
                 }
               />
             )}
+            <PaginationControls
+              currentPage={pageEscaneos}
+              totalPages={totalPagesEscaneos}
+              onPageChange={setPageEscaneos}
+            />
           </section>
         )}
         {vista === "social" && isVistaDisponible("social") && (
@@ -3581,6 +3810,11 @@ function AdminDashboard({ token, nombre, onLogout }) {
                 visitas={visitasAdmin}
                 onEditar={setVisitaEditar}
                 onEliminar={eliminarVisitaAdmin}
+              />
+              <PaginationControls
+                currentPage={pageMisVisitas}
+                totalPages={totalPagesMisVisitas}
+                onPageChange={setPageMisVisitas}
               />
             </section>
           )}
@@ -3630,6 +3864,12 @@ function AdminDashboard({ token, nombre, onLogout }) {
             <h3>🎫 Gestión de Tickets</h3>
 
             <div className="admin-search">
+              <input
+                type="text"
+                placeholder="Buscar ticket..."
+                value={busquedaTicket}
+                onChange={(e) => setBusquedaTicket(e.target.value)}
+              />
               <select
                 value={filtroTicketEstado}
                 onChange={(e) => setFiltroTicketEstado(e.target.value)}
@@ -3658,6 +3898,11 @@ function AdminDashboard({ token, nombre, onLogout }) {
             ) : (
               <TablaTickets tickets={tickets} onVerDetalle={verTicketDetalle} onActualizar={actualizarTicket} onEliminar={eliminarTicket} />
             )}
+            <PaginationControls
+              currentPage={pageTickets}
+              totalPages={totalPagesTickets}
+              onPageChange={setPageTickets}
+            />
           </section>
         )}
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
-import { API_URL } from "./api";
+import api from "./api"; // import { API_URL } from "./api";
+import { API_URL } from "./api"; // Keep API_URL in case it's used elsewhere
 import UserMenu from "./components/UI/UserMenu";
 import PWADownloadButton from "./components/PWA/PWADownloadButton";
 import CustomPhoneInput from "./components/PhoneInput";
@@ -48,7 +48,7 @@ function CrearAdmin({ token, onAdminCreado, onCancel, onNotification }) {
 
   const cargarResidenciales = async () => {
     try {
-      const response = await axios.get(`${API_URL}/super-admin/listar-residenciales`, {
+      const response = await api.get(`/super-admin/listar-residenciales`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setResidenciales(response.data);
@@ -76,7 +76,7 @@ function CrearAdmin({ token, onAdminCreado, onCancel, onNotification }) {
         rol: "admin"
       };
 
-      await axios.post(`${API_URL}/super-admin/crear-admin-residencial/${parseInt(formData.residencial_id)}`, adminData, {
+      await api.post(`/super-admin/crear-admin-residencial/${parseInt(formData.residencial_id)}`, adminData, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -214,7 +214,7 @@ function ListarAdmins({ token, onCancel, onLogout }) {
 
   const cargarAdmins = async () => {
     try {
-      const response = await axios.get(`${API_URL}/super-admin/listar-admins`, {
+      const response = await api.get(`/super-admin/listar-admins`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setAdmins(response.data);
@@ -242,7 +242,7 @@ function ListarAdmins({ token, onCancel, onLogout }) {
         unidad_residencial: adminEditando.unidad_residencial
       };
 
-      await axios.put(`${API_URL}/update_usuarios/admin/${adminEditando.id}`, adminData, {
+      await api.put(`/update_usuarios/admin/${adminEditando.id}`, adminData, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -257,7 +257,7 @@ function ListarAdmins({ token, onCancel, onLogout }) {
 
   const handleEliminarAdmin = async (adminId) => {
     try {
-      await axios.delete(`${API_URL}/delete_usuarios/admin/${adminId}`, {
+      await api.delete(`/delete_usuarios/admin/${adminId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -435,7 +435,7 @@ function CrearResidencial({ token, onResidencialCreada, onCancel, onLogout }) {
     setNotification({ message: "", type: "" });
 
     try {
-      await axios.post(`${API_URL}/residenciales/`, formData, {
+      await api.post(`/residenciales/`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -524,7 +524,7 @@ function ListarResidenciales({ token, onCancel, onLogout, onSelectVista }) {
 
   const cargarResidenciales = async () => {
     try {
-      const response = await axios.get(`${API_URL}/super-admin/listar-residenciales`, {
+      const response = await api.get(`/super-admin/listar-residenciales`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setResidenciales(response.data);
@@ -667,8 +667,8 @@ function UsuariosResidencial({ token, residencialData, onCancel, onLogout }) {
   const cargarUsuarios = async () => {
     try {
       setCargando(true);
-      const response = await axios.get(
-        `${API_URL}/super-admin/usuarios-residencial/${residencialData.residencialId}`,
+      const response = await api.get(
+        `/super-admin/usuarios-residencial/${residencialData.residencialId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
@@ -863,7 +863,7 @@ function GestionarVistas({ token, onCancel, onLogout }) {
   const cargarResidenciales = async () => {
     try {
       console.log("Cargando residenciales...");
-      const res = await axios.get(`${API_URL}/super-admin/listar-residenciales`, {
+      const res = await api.get(`/super-admin/listar-residenciales`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       console.log("Residenciales cargadas:", res.data);
@@ -876,7 +876,7 @@ function GestionarVistas({ token, onCancel, onLogout }) {
 
   const crearVistasDefault = async () => {
     try {
-      const res = await axios.post(`${API_URL}/super-admin/crear-vistas-default`, {}, {
+      const res = await api.post(`/super-admin/crear-vistas-default`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setNotification({ message: res.data.message, type: "success" });
@@ -891,7 +891,7 @@ function GestionarVistas({ token, onCancel, onLogout }) {
   const cargarVistasResidencial = async (residencialId) => {
     setCargando(true);
     try {
-      const res = await axios.get(`${API_URL}/super-admin/residencial/${residencialId}/vistas`, {
+      const res = await api.get(`/super-admin/residencial/${residencialId}/vistas`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setVistasResidencial(res.data.vistas || []);
@@ -903,7 +903,7 @@ function GestionarVistas({ token, onCancel, onLogout }) {
 
   const cargarAdminsResidencial = async (residencialId) => {
     try {
-      const res = await axios.get(`${API_URL}/super-admin/residencial/${residencialId}/admins`, {
+      const res = await api.get(`/super-admin/residencial/${residencialId}/admins`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setAdminsResidencial(res.data.administradores || []);
@@ -915,7 +915,7 @@ function GestionarVistas({ token, onCancel, onLogout }) {
   const cargarVistasAdmin = async (adminId) => {
     setCargando(true);
     try {
-      const res = await axios.get(`${API_URL}/super-admin/admin/${adminId}/vistas`, {
+      const res = await api.get(`/super-admin/admin/${adminId}/vistas`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setVistasAdmin(res.data.vistas || []);
@@ -927,7 +927,7 @@ function GestionarVistas({ token, onCancel, onLogout }) {
 
   const toggleVistaResidencial = async (vistaId, activa) => {
     try {
-      await axios.post(`${API_URL}/super-admin/residencial/${residencialSeleccionada.id}/vistas/${vistaId}/toggle?activa=${activa}`, {}, {
+      await api.post(`/super-admin/residencial/${residencialSeleccionada.id}/vistas/${vistaId}/toggle?activa=${activa}`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -962,7 +962,7 @@ function GestionarVistas({ token, onCancel, onLogout }) {
     }
 
     try {
-      await axios.post(`${API_URL}/super-admin/admin/${adminSeleccionado.id}/vistas/${vistaId}/toggle?activa=${activa}`, {}, {
+      await api.post(`/super-admin/admin/${adminSeleccionado.id}/vistas/${vistaId}/toggle?activa=${activa}`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setNotification({ 

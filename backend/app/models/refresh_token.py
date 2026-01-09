@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.database import Base
-from app.utils.time import get_current_time
+from app.utils.time import get_current_time, get_honduras_time
 from datetime import datetime, timedelta
 import secrets
 import hashlib
@@ -35,7 +35,7 @@ class RefreshToken(Base):
         """Crear un nuevo refresh token"""
         token = cls.generate_token()
         token_hash = cls.hash_token(token)
-        expires_at = datetime.utcnow() + timedelta(days=expires_days)
+        expires_at = get_honduras_time() + timedelta(days=expires_days)
         
         return {
             "token": token,
@@ -47,7 +47,7 @@ class RefreshToken(Base):
     
     def is_valid(self) -> bool:
         """Verificar si el token es válido (no revocado y no expirado)"""
-        return not self.revoked and self.expires_at > datetime.utcnow()
+        return not self.revoked and self.expires_at > get_honduras_time()
     
     def revoke(self):
         """Revocar el token"""

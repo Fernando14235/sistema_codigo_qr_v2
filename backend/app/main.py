@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Query
+from fastapi import FastAPI, Depends, HTTPException, status, Query, Request
 from fastapi.responses import HTMLResponse
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.database import SessionLocal, get_db
@@ -17,6 +17,7 @@ from app.models.residente import Residente
 from app.models.guardia import Guardia
 from app.models.admin import Administrador
 from app.models.refresh_token import RefreshToken
+from app.core.config import settings
 
 app = FastAPI()
 add_cors(app)
@@ -49,6 +50,34 @@ def home():
                         <h1>Porto Pass - Sistema de Control de Acceso</h1>
                         <style>width: 100%</style>
                         ''')
+
+@app.get('/debug/cookies', tags=["Debug"])
+def debug_cookies(request: Request):
+    """Endpoint para debug de cookies en producción"""
+    from fastapi import Request
+    from app.core.config import settings
+    
+    is_production = settings.ENVIRONMENT == "production"
+    cookies = dict(request.cookies)
+    headers = dict(request.headers)
+    
+    # Debug adicional
+    print(f"🔍 DEBUG COOKIES - Todas las cookies: {cookies}")
+    print(f"🔍 DEBUG COOKIES - Origin: {headers.get('origin', 'None')}")
+    print(f"🔍 DEBUG COOKIES - Referer: {headers.get('referer', 'None')}")
+    
+    return {
+        "cookies_received": cookies,
+        "has_refresh_token": "refresh_token" in cookies,
+        "refresh_token_value": cookies.get("refresh_token", "NOT_FOUND")[:20] + "..." if cookies.get("refresh_token") else None,
+        "user_agent": headers.get("user-agent"),
+        "origin": headers.get("origin"),
+        "referer": headers.get("referer"),
+        "host": headers.get("host"),
+        "all_headers": {k: v for k, v in headers.items() if k.lower() in ['origin', 'host', 'cookie', 'user-agent', 'referer']},
+        "environment": settings.ENVIRONMENT,
+        "is_production": is_production
+    }
 
 @app.get('/health', tags=["Salud"])
 def health_check():

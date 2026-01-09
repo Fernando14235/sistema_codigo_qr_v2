@@ -1,12 +1,12 @@
 // Service Worker para Residencial Access PWA
-const CACHE_NAME = 'porto-pass-v3.0.3';
+const CACHE_NAME = 'porto-pass-v3.1.3';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/static/js/bundle.js',
-  '/static/css/main.css',
-  './genfavicon-180-v3.png',
-  './genfavicon-512-v3.png'
+  //'/static/js/bundle.js',
+  //'/static/css/main.css',
+  '/genfavicon-180-v3.png',
+  '/genfavicon-512-v3.png'
 ];
 
 // Instalación del Service Worker
@@ -44,7 +44,6 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   
   // IMPORTANTE: No cachear esquemas no soportados
-  // Solo cachear http y https
   if (!event.request.url.startsWith('http')) {
     return;
   }
@@ -129,8 +128,8 @@ self.addEventListener('push', (event) => {
   let notificationData = {
     title: '🔔 PortoPass',
     body: 'Nueva notificación',
-    icon: '/resi192.png',
-    badge: '/resi64.png',
+    icon: '/genfavicon-180-v3.png',
+    badge: '/genfavicon-64-v3.png',
     vibrate: [200, 100, 200],
     data: {
       url: '/',
@@ -167,12 +166,12 @@ self.addEventListener('push', (event) => {
           {
             action: 'view',
             title: 'Ver',
-            icon: '/resi32.png'
+            icon: '/genfavicon-32-v3.png'
           },
           {
             action: 'close',
             title: 'Cerrar',
-            icon: '/resi32.png'
+            icon: '/genfavicon-32-v3.png'
           }
         ],
         tag: 'residencial-notification',
@@ -210,8 +209,6 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-self.addEventListener('notificationclose', (event) => {
-});
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
@@ -220,17 +217,4 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'GET_VERSION') {
     event.ports[0].postMessage({ version: CACHE_NAME });
   }
-});
-
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'residencial-sync') {
-    event.waitUntil(
-    );
-  }
-});
-
-self.addEventListener('error', (event) => {
-});
-
-self.addEventListener('unhandledrejection', (event) => {
 });

@@ -7,13 +7,15 @@ export default defineConfig({
     host: true,
     port: process.env.PORT || 5173,
     allowedHosts: [
+      "localhost",
+      "127.0.0.1",
+      "192.168.1.35",
       "tsapp.tekhnosupport.com",
       "exquisite-healing-production.up.railway.app"      
     ],
     hmr: {
       clientPort: 5173,
       protocol: 'ws',
-      host: 'localhost'
     }
   },
   preview: {

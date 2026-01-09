@@ -1,18 +1,27 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Form, File, UploadFile, Query
 from sqlalchemy.orm import Session
-from app.schemas.visita_schema import VisitaCreate, VisitaQRResponse, ValidarQRRequest, AccionQR, RegistrarSalidaRequest, VisitaResponse, VisitaUpdate, SolicitudVisitaCreate
+from typing import List, Optional
+from app.schemas.visita_schema import VisitaCreate, VisitaQRResponse, ValidarQRRequest, AccionQR, RegistrarSalidaRequest, VisitaResponse, VisitaUpdate, SolicitudVisitaCreate, HistorialEscaneosDiaResponse, HistorialEscaneosTotalesResponse
 from app.models.guardia import Guardia
-from app.services.visita_service import crear_visita_con_qr, validar_qr_entrada, registrar_salida_visita, obtener_visitas_residente, editar_visita_residente, eliminar_visita_residente, crear_solicitud_visita_residente, aprobar_solicitud_visita_admin, obtener_solicitudes_pendientes_admin
-from app.services.notificacion_service import enviar_notificacion_escaneo, enviar_notificacion_guardia
-from app.database import get_db
+from app.models.residente import Residente
+from app.models.admin import Administrador
+from app.models.visitante import Visitante
 from app.models import Usuario
 from app.models.visita import Visita
 from app.models.escaneo_qr import EscaneoQR
+from app.services.visita_service import crear_visita_con_qr, validar_qr_entrada, registrar_salida_visita, obtener_visitas_residente, editar_visita_residente, eliminar_visita_residente, crear_solicitud_visita_residente, aprobar_solicitud_visita_admin, obtener_solicitudes_pendientes_admin
+from app.services.notificacion_service import enviar_notificacion_escaneo, enviar_notificacion_guardia
+from app.database import get_db
 from app.utils.security import get_current_user, verify_role
 from app.utils.time import extraer_modelo_dispositivo
 from app.schemas.auth_schema import TokenData
-from app.models.visitante import Visitante
+from datetime import datetime, timezone
 import logging
+from app.utils.cloudinary_utils import save_upload_to_temp
+from app.services.cloudinary_service import upload_image
+import os
+from app.schemas.pagination import PaginatedResponse
+import math
 
 router = APIRouter(prefix="/visitas", tags=["Visitas"])
 
@@ -44,21 +53,52 @@ def crear_visita(visita: VisitaCreate, db: Session = Depends(get_db), usuario: T
 @router.post("/guardia/validar_qr", dependencies=[Depends(verify_role(["admin", "guardia"]))])
 def validar_qr(
     raw_request: Request,
-    request: ValidarQRRequest,
+    qr_code: str = Form(..., description="Código QR escaneado"),
+    accion: Optional[str] = Form(None, description="Acción a realizar (aprobar/rechazar)"),
+    observacion: Optional[str] = Form(None, description="Observación opcional del guardia"),
+    imagenes: List[UploadFile] = File(None, description="Imágenes de evidencia (máximo 3)"),
     db: Session = Depends(get_db),
     usuario: TokenData = Depends(get_current_user)
 ):
     # Logging detallado para debugging
     logging.info(f"🔍 INICIO - Validando QR")
     logging.info(f"👤 Usuario: {usuario.id} ({usuario.rol})")
-    logging.info(f"📱 QR Code: {request.qr_code[:20]}..." if len(request.qr_code) > 20 else f"📱 QR Code: {request.qr_code}")
-    logging.info(f"⚡ Acción: {request.accion}")
+    logging.info(f"📱 QR Code: {qr_code[:20]}..." if len(qr_code) > 20 else f"📱 QR Code: {qr_code}")
+    logging.info(f"⚡ Acción: {accion}")
     
     # Validar que el QR no esté vacío
-    if not request.qr_code or not request.qr_code.strip():
+    if not qr_code or not qr_code.strip():
         logging.error("❌ QR Code vacío o inválido")
         return {"valido": False, "error": "Código QR vacío o inválido"}
     
+    # Validar enum de accion
+    if accion and accion not in ["aprobar", "rechazar"]:
+         raise HTTPException(status_code=400, detail="Acción inválida. Debe ser 'aprobar' o 'rechazar'.")
+
+    # Validar cantidad de imágenes
+    if imagenes and len(imagenes) > 3:
+        raise HTTPException(status_code=400, detail="Se permiten máximo 3 imágenes.")
+
+    # Subir imágenes a Cloudinary
+    imagenes_urls = []
+    if imagenes:
+        try:            
+            for img in imagenes:
+                # Validar tipo de archivo
+                if not img.content_type.startswith("image/"):
+                    continue
+                
+                temp_path = save_upload_to_temp(img)
+                try:
+                    result = upload_image(temp_path, folder="escaneo_guardia")
+                    imagenes_urls.append(result["secure_url"])
+                finally:
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
+        except Exception as e:
+            logging.error(f"Error subiendo imágenes: {str(e)}")
+            # No bloqueamos el flujo si fallan las imágenes, pero lo loggeamos
+
     # Obtener el guardia actual
     guardia = db.query(Guardia).filter(Guardia.usuario_id == usuario.id).first()
     if not guardia:
@@ -66,11 +106,7 @@ def validar_qr(
         return {"valido": False, "error": "Guardia no encontrado"}
 
     # Llamar al servicio para validar el QR
-    accion = request.accion.value if request.accion else None
-    logging.info(f"Acción procesada: {accion}")
-    
-    resultado = validar_qr_entrada(db, request.qr_code, guardia.id, accion)
-    logging.info(f"Resultado de validación: {resultado}")
+    resultado = validar_qr_entrada(db, qr_code, guardia.id, accion, observacion, imagenes_urls)
     
     if not resultado["valido"]:
         return resultado
@@ -89,7 +125,6 @@ def validar_qr(
 
     # Obtener el estado actualizado de la visita para confirmar el cambio
     visita_actualizada = db.query(Visita).filter(Visita.id == resultado["visita_id"]).first()
-    logging.info(f"Estado final de la visita {resultado['visita_id']}: {visita_actualizada.estado}")
 
     # Enviar notificación al residente después del escaneo
     try:
@@ -101,9 +136,11 @@ def validar_qr(
     return {
         "valido": True,
         "visitante": resultado["visitante"],
-        "estado": visita_actualizada.estado,  # Usar el estado actualizado de la BD
+        "estado": visita_actualizada.estado,
         "visita_id": resultado["visita_id"],
         "accion_aplicada": accion,
+        "observacion_entrada": getattr(visita_actualizada, "observacion_entrada", None),
+        "imagenes": imagenes_urls,
         "guardia": {
             "id": guardia.id,
             "nombre": guardia.usuario.nombre if guardia.usuario else f"Guardia {guardia.id}",
@@ -114,17 +151,41 @@ def validar_qr(
 @router.post("/guardia/registrar_salida", dependencies=[Depends(verify_role(["admin", "guardia"]))])
 def registrar_salida(
     raw_request: Request,
-    request: RegistrarSalidaRequest,
+    qr_code: str = Form(..., description="Código QR escaneado"),
+    observacion: Optional[str] = Form(None, description="Observación opcional de salida"),
+    imagenes: List[UploadFile] = File(None, description="Imágenes de evidencia (máximo 3)"),
     db: Session = Depends(get_db),
     usuario: TokenData = Depends(get_current_user)
 ):
+    # Validar cantidad de imágenes
+    if imagenes and len(imagenes) > 3:
+        raise HTTPException(status_code=400, detail="Se permiten máximo 3 imágenes.")
+
+    # Subir imágenes a Cloudinary
+    imagenes_urls = []
+    if imagenes:
+        try:
+            for img in imagenes:
+                if not img.content_type.startswith("image/"):
+                    continue
+                
+                temp_path = save_upload_to_temp(img)
+                try:
+                    result = upload_image(temp_path, folder="escaneo_guardia")
+                    imagenes_urls.append(result["secure_url"])
+                finally:
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
+        except Exception as e:
+            logging.error(f"Error subiendo imágenes de salida: {str(e)}")
+
     # Obtener el guardia actual
     guardia = db.query(Guardia).filter(Guardia.usuario_id == usuario.id).first()
     if not guardia:
         raise HTTPException(status_code=404, detail="Guardia no encontrado")
     
     # Llamar al servicio para registrar la salida
-    resultado = registrar_salida_visita(db, request.qr_code, guardia.id)
+    resultado = registrar_salida_visita(db, qr_code, guardia.id, observacion, imagenes_urls)
     
     # Registrar el escaneo de salida
     user_agent_str = raw_request.headers.get("user-agent", "desconocido")
@@ -151,19 +212,34 @@ def registrar_salida(
         "fecha_salida": resultado["fecha_salida"],
         "estado": resultado["estado"],
         "visitante": resultado["visitante"],
+        "observacion_salida": resultado.get("observacion_salida"),
+        "imagenes": resultado.get("imagenes", []),
         "guardia": {
             "id": guardia.id,
-            "nombre": guardia.usuario.nombre if guardia else usuario_obj.nombre,
+            "nombre": guardia.usuario.nombre if guardia.usuario else usuario_obj.nombre,
             "rol": usuario.rol
         }
     }
 
-@router.get("/residente/mis_visitas", response_model=list[VisitaResponse], dependencies=[Depends(verify_role(["residente", "admin"]))])
+@router.get("/residente/mis_visitas", response_model=PaginatedResponse[VisitaResponse], dependencies=[Depends(verify_role(["residente", "admin"]))])
 def mis_visitas(
+    page: int = Query(1, ge=1),
+    limit: int = Query(15, ge=1),
     db: Session = Depends(get_db),
     usuario: TokenData = Depends(get_current_user)
 ):
-    return obtener_visitas_residente(db, usuario.id)
+    result = obtener_visitas_residente(db, usuario.id, page, limit)
+    
+    total = result["total"]
+    total_pages = math.ceil(total / limit)
+    
+    return PaginatedResponse(
+        total=total,
+        page=page,
+        limit=limit,
+        total_pages=total_pages,
+        data=result["data"]
+    )
 
 @router.patch("/residente/editar_visita/{visita_id}", response_model=VisitaResponse, dependencies=[Depends(verify_role(["residente", "admin"]))])
 def editar_visita(
@@ -275,14 +351,6 @@ def obtener_escaneos_guardia_admin(
 ):
     """Endpoint para que los administradores vean los escaneos realizados por guardias"""
     try:
-        from datetime import datetime, timezone
-        from app.models.escaneo_qr import EscaneoQR
-        from app.models.guardia import Guardia
-        from app.models.usuario import Usuario
-        from app.models.visitante import Visitante
-        from app.models.residente import Residente
-        from app.models.administrador import Administrador
-        
         # Verificar que el usuario es admin
         admin = db.query(Administrador).filter(Administrador.usuario_id == usuario.id).first()
         if not admin:

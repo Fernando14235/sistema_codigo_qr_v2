@@ -52,7 +52,10 @@ def listar_tickets_service(estado: Optional[EstadoTicket], skip: int, limit: int
     
     if estado:
         query = query.filter(Ticket.estado == estado)
+    
+    total = query.count()
     results = query.order_by(Ticket.fecha_creacion.desc()).offset(skip).limit(limit).all()
+    
     tickets = []
     for ticket, residente in results:
         tickets.append({
@@ -67,14 +70,18 @@ def listar_tickets_service(estado: Optional[EstadoTicket], skip: int, limit: int
             "residente_id": ticket.residente_id,
             "nombre_residente": residente.usuario.nombre if residente.usuario else None
         })
-    return tickets
+    return {"total": total, "data": tickets}
 
-def listar_tickets_residente_service(db: Session, usuario_actual: Usuario):
+def listar_tickets_residente_service(db: Session, usuario_actual: Usuario, page: int = 1, limit: int = 15):
     residente = db.query(Residente).filter(Residente.usuario_id == usuario_actual.id).first()
     if not residente:
         raise HTTPException(status_code=404, detail="Residente no encontrado para este usuario")
-    tickets = db.query(Ticket).filter(Ticket.residente_id == residente.id).order_by(Ticket.fecha_creacion.desc()).all()
-    return tickets
+    
+    query = db.query(Ticket).filter(Ticket.residente_id == residente.id)
+    total = query.count()
+    results = query.order_by(Ticket.fecha_creacion.desc()).offset((page - 1) * limit).limit(limit).all()
+    
+    return {"total": total, "data": results}
 
 def obtener_ticket_service(ticket_id: int, db: Session, usuario_actual: Usuario) -> dict:
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()

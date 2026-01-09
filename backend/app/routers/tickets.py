@@ -21,24 +21,52 @@ def crear_ticket(
     return crear_ticket_service(titulo, descripcion, imagen, db, usuario_actual)
 
 # 2. Listar y filtrar tickets (admin)
-@router.get("/listar_tickets/admin", response_model=List[TicketListResponse], name="Listar y filtrar tickets (admin)")
+from app.schemas.pagination import PaginatedResponse
+import math
+
+# 2. Listar y filtrar tickets (admin)
+@router.get("/listar_tickets/admin", response_model=PaginatedResponse[TicketListResponse], name="Listar y filtrar tickets (admin)")
 def listar_tickets(
     estado: Optional[EstadoTicket] = Query(None),
-    skip: int = 0,
-    limit: int = 50,
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1),
     db: Session = Depends(get_db),
     usuario_actual: Usuario = Depends(verify_role(["admin"])),
     residencial_id: int = Depends(get_current_residencial_id)
 ):
-    return listar_tickets_service(estado, skip, limit, db, residencial_id)
+    offset = (page - 1) * limit
+    result = listar_tickets_service(estado, offset, limit, db, residencial_id)
+    
+    total = result["total"]
+    total_pages = math.ceil(total / limit)
+    
+    return PaginatedResponse(
+        total=total,
+        page=page,
+        limit=limit,
+        total_pages=total_pages,
+        data=result["data"]
+    )
 
 # 2b. Listar tickets del residente autenticado
-@router.get("/listar_tickets/residente", response_model=List[TicketListResponse], name="Listar tickets del residente autenticado")
+@router.get("/listar_tickets/residente", response_model=PaginatedResponse[TicketListResponse], name="Listar tickets del residente autenticado")
 def listar_tickets_residente(
+    page: int = Query(1, ge=1),
+    limit: int = Query(15, ge=1),
     db: Session = Depends(get_db),
     usuario_actual: Usuario = Depends(verify_role(["residente"]))
 ):
-    return listar_tickets_residente_service(db, usuario_actual)
+    result = listar_tickets_residente_service(db, usuario_actual, page, limit)
+    total = result["total"]
+    total_pages = math.ceil(total / limit)
+    
+    return PaginatedResponse(
+        total=total,
+        page=page,
+        limit=limit,
+        total_pages=total_pages,
+        data=result["data"]
+    )
 
 # 3. Obtener ticket por id (ambos roles)
 @router.get("/obtener_ticket/{ticket_id}", response_model=TicketResponse, name="Obtener ticket por ID")

@@ -1,14 +1,13 @@
 from datetime import timedelta, datetime
 import pytz
 from app.core.config import settings
-from jose import JWTError, jwt
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.database import get_db
-from app.models import Usuario, RefreshToken
-from app.schemas.auth_schema import Token, LoginResponse, RefreshRequest, RefreshResponse
+from app.models import Usuario
+from app.schemas.auth_schema import LoginResponse, RefreshResponse
 from app.services.refresh_token_service import RefreshTokenService
 from app.utils.security import (
     verify_password,
@@ -20,6 +19,25 @@ from app.utils.security import (
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
+is_production = settings.ENVIRONMENT == "production"
+
+# Setear una cookie
+cookie_config = {
+    "key": "refresh_token",
+    "httponly": True,
+    "secure": True if is_production else False,
+    "samesite": "none" if is_production else "lax",
+    "path": "/",
+    #"domain": ".tekhnosupport.com" if is_production else None
+}
+
+# Eliminar una cookie
+def clear_refresh_cookie(response: Response):
+    response.delete_cookie(
+        key="refresh_token",
+        path="/",
+        #domain=".tekhnosupport.com" if is_production else None
+    )
 
 class ChangePasswordRequest(BaseModel):
     current_password: str
@@ -64,15 +82,12 @@ def login(
         device_info=device_info
     )
     
-    # Configurar cookie HttpOnly para el refresh token con seguridad mejorada
+    # Configurar cookie HttpOnly para que el refresh token cuente con seguridad mejorada
     response.set_cookie(
-        key="refresh_token",
+        **cookie_config,
         value=refresh_token_plain,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  # En segundos
-        httponly=True,
-        secure=True, 
-        samesite="none",
-        path="/"
+        
     )
 
     return LoginResponse(
@@ -105,21 +120,13 @@ def logout(
     refresh_token = request.cookies.get("refresh_token")
     
     if refresh_token:
-        # Revocar el refresh token específico
         RefreshTokenService.revoke_refresh_token(db, refresh_token)
     
     # Limpiar cookie
-    response.delete_cookie(
-        key="refresh_token",
-        httponly=True,
-        secure=True, 
-        samesite="none", 
-        path="/"
-    )
+    clear_refresh_cookie(response)
     
     # Establecer la zona horaria de Honduras
-    honduras_tz = pytz.timezone('America/Tegucigalpa')
-    usuario_actual.ult_conexion = datetime.now(honduras_tz)
+    usuario_actual.ult_conexion = datetime.now(pytz.timezone('America/Tegucigalpa'))
     db.commit()
     
     return {"mensaje": "Cierre de sesión exitoso."}
@@ -302,12 +309,10 @@ def test_login_endpoint(
         
         # Configurar cookie HttpOnly para el refresh token
         response.set_cookie(
-            key="refresh_token",
+            **cookie_config,
             value=refresh_token_plain,
             max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-            httponly=True,
-            secure=True,  # SIEMPRE usar HTTPS
-            samesite="none"  # Permitir cross-origin
+            
         )
         
         return {
@@ -333,7 +338,6 @@ def test_token_flow(
     db: Session = Depends(get_db),
     usuario_actual: Usuario = Depends(get_current_user)
 ):
-    """Endpoint para probar que el flujo completo de tokens funcione"""
     try:
         # Verificar que el usuario actual se obtuvo correctamente
         active_tokens = RefreshTokenService.get_user_active_tokens(db, usuario_actual.id)
@@ -375,9 +379,7 @@ def get_active_sessions(
     db: Session = Depends(get_db),
     usuario_actual: Usuario = Depends(get_current_user)
 ):
-    """
-    Obtener todas las sesiones activas del usuario actual
-    """
+    #Obtener todas las sesiones activas del usuario actual
     active_tokens = RefreshTokenService.get_user_active_tokens(db, usuario_actual.id)
     
     sessions = []
@@ -397,9 +399,7 @@ def revoke_session(
     db: Session = Depends(get_db),
     usuario_actual: Usuario = Depends(get_current_user)
 ):
-    """
-    Revocar una sesión específica del usuario actual
-    """
+    #Revocar una sesión específica del usuario actual
     success = RefreshTokenService.revoke_token_by_id(db, session_id, usuario_actual.id)
     
     if not success:
@@ -422,13 +422,7 @@ def revoke_all_sessions(
     revoked_count = RefreshTokenService.revoke_all_user_tokens(db, usuario_actual.id)
     
     # Limpiar cookie actual también
-    response.delete_cookie(
-        key="refresh_token",
-        httponly=True,
-        secure=True,  # SIEMPRE usar HTTPS
-        samesite="none",  # Consistente con set_cookie
-        path="/"
-    )
+    clear_refresh_cookie(response)
     
     return {
         "mensaje": f"Se revocaron {revoked_count} sesiones exitosamente",
@@ -508,17 +502,10 @@ def change_password(
         revoked_count = RefreshTokenService.revoke_all_user_tokens(db, usuario_actual.id)
         
         # Limpiar cookie actual
-        response.delete_cookie(
-            key="refresh_token",
-            httponly=True,
-            secure=True,  # SIEMPRE usar HTTPS
-            samesite="none",  # Consistente con set_cookie
-            path="/"
-        )
+        clear_refresh_cookie(response)
         
         return {
             "mensaje": "Contraseña actualizada exitosamente. Por favor inicia sesión nuevamente.",
-            "revoked_sessions": revoked_count,
             "require_login": True
         }
         

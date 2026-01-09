@@ -8,6 +8,9 @@ from app.models.visitante import Visitante
 from app.models.residente import Residente
 from app.models.admin import Administrador
 from app.models.residencial import Residencial
+from app.models.notificacion import Notificacion
+from app.utils.notificaciones import enviar_correo
+from app.models.visita_imagen import VisitaImagen
 from sqlalchemy import literal
 from app.services.notificacion_service import enviar_notificacion_residente, enviar_notificacion_guardia, enviar_notificacion_visita_actualizada, enviar_notificacion_solicitud_visita, enviar_notificacion_solicitud_aprobada, enviar_notificacion_escaneo
 from app.schemas.visita_schema import VisitaCreate, VisitaQRResponse, VisitaUpdate, SolicitudVisitaCreate
@@ -21,6 +24,8 @@ import base64
 import os
 from app.utils.cloudinary_utils import save_bytes_to_temp
 from app.services.cloudinary_service import upload_image
+from sqlalchemy import case, and_, literal
+from sqlalchemy.orm import aliased
 
 def to_utc(dt: datetime) -> datetime:
     if dt is None:
@@ -214,7 +219,15 @@ def crear_visita_con_qr(db: Session, visita_data: VisitaCreate, admin_id: int = 
 
 # Función eliminada - se usa validar_qr_entrada en su lugar
 
-def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str = None) -> dict:
+def _guardar_imagenes_visita(db: Session, visita_id: int, urls: list[str], tipo: str = None):
+    """Guarda las URLs de las imágenes asociadas a una visita."""
+    if not urls:
+        return
+    for url in urls:
+        imagen = VisitaImagen(visita_id=visita_id, url=url, tipo=tipo)
+        db.add(imagen)
+
+def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str = None, observacion: str = None, imagenes: list[str] = []) -> dict:
     try:
         # Buscar la visita con el QR proporcionado
         visitas = db.query(Visita).filter(Visita.qr_code == qr_code).all()
@@ -305,6 +318,12 @@ def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str =
         # Asignar guardia a la visita
         visita.guardia_id = guardia_id
         
+        # Guardar observación y generar imágenes
+        if observacion:
+            visita.observacion_entrada = observacion
+        
+        _guardar_imagenes_visita(db, visita.id, imagenes, tipo="entrada")
+        
         # Obtener información del visitante para la respuesta
         visitante = db.query(Visitante).filter(Visitante.id == visita.visitante_id).first()
         
@@ -323,12 +342,16 @@ def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str =
                 "telefono": visitante.telefono,
                 "tipo_vehiculo": visitante.tipo_vehiculo,
                 "placa_vehiculo": visitante.placa_vehiculo,
+                "placa_chasis": visitante.placa_chasis,
+                "destino_visita": visitante.destino_visita,
                 "motivo_visita": visitante.motivo_visita
             },
             "estado": visita.estado,
             "visita_id": visita.id,
             "entrada_anticipada": entrada_anticipada,
-            "mensaje_entrada_anticipada": mensaje_entrada_anticipada if entrada_anticipada else None
+            "mensaje_entrada_anticipada": mensaje_entrada_anticipada if entrada_anticipada else None,
+            "observacion_entrada": visita.observacion_entrada,
+            "imagenes": imagenes
         }
         
     except HTTPException as e:
@@ -343,7 +366,7 @@ def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str =
             detail=f"Error al validar QR de entrada: {str(e)}"
         )
 
-def registrar_salida_visita(db: Session, qr_code: str, guardia_id: int) -> dict:
+def registrar_salida_visita(db: Session, qr_code: str, guardia_id: int, observacion: str = None, imagenes: list[str] = []) -> dict:
     try:
         # Buscar la visita con el QR proporcionado
         visita = db.query(Visita).filter(Visita.qr_code == qr_code).first()
@@ -400,25 +423,19 @@ def registrar_salida_visita(db: Session, qr_code: str, guardia_id: int) -> dict:
         visita.fecha_salida = now_utc
         visita.estado = "completado"
         
+        if observacion:
+            visita.observacion_salida = observacion
+            
+        _guardar_imagenes_visita(db, visita.id, imagenes, tipo="salida")
+        
         # Obtener información del visitante para la respuesta
         visitante = db.query(Visitante).filter(Visitante.id == visita.visitante_id).first()
         
-        # Obtener información del guardia para las notificaciones
+        # Obtener información del guardia para las notificaciones (si se re-habilita)
         guardia_usuario = db.query(Usuario).filter(Usuario.id == guardia.usuario_id).first()
-        guardia_nombre = guardia_usuario.nombre if guardia_usuario else "Guardia"
+        # guardia_nombre = guardia_usuario.nombre if guardia_usuario else "Guardia"
         
         db.commit()
-        
-        # REMOVED: Email notifications for exit scans to reduce email consumption
-        # Users will only receive emails when visits are created
-        # try:
-        #     if salida_tardia:
-        #         enviar_notificacion_salida_tardia(db, visita, guardia_nombre)
-        #     else:
-        #         enviar_notificacion_escaneo(db, visita, guardia_nombre, es_salida=True)
-        # except Exception as e:
-        #     print(f"Error al enviar notificación de salida: {str(e)}")
-        
         
         mensaje_respuesta = "Salida registrada exitosamente"
         if salida_tardia:
@@ -437,7 +454,9 @@ def registrar_salida_visita(db: Session, qr_code: str, guardia_id: int) -> dict:
                 "placa_vehiculo": visitante.placa_vehiculo,
                 "motivo_visita": visitante.motivo_visita
             },
-            "visita_id": visita.id
+            "visita_id": visita.id,
+            "observacion_salida": visita.observacion_salida,
+            "imagenes": imagenes
         }
         
     except HTTPException as e:
@@ -452,15 +471,14 @@ def registrar_salida_visita(db: Session, qr_code: str, guardia_id: int) -> dict:
             detail=f"Error interno del servidor al registrar la salida: {str(e)}"
         )
 
-def obtener_historial_escaneos_dia(db: Session, guardia_id: int = None, residencial_id: int = None, nombre_guardia: str = None) -> dict:
+def obtener_historial_escaneos_dia(db: Session, guardia_id: int = None, residencial_id: int = None, nombre_guardia: str = None, page: int = 1, limit: int = 15) -> dict:
     try:
         # Obtener fecha actual en UTC
         now_utc = datetime.now(timezone.utc)
         fecha_inicio = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
         fecha_fin = now_utc.replace(hour=23, minute=59, second=59, microsecond=999999)
         
-        # Construir consulta base que incluya tanto visitas de residentes como de administradores
-        # Primero, consulta para visitas creadas por residentes
+        # Consultas base
         query_residentes = db.query(
             EscaneoQR,
             Visita,
@@ -480,11 +498,9 @@ def obtener_historial_escaneos_dia(db: Session, guardia_id: int = None, residenc
             Usuario, Residente.usuario_id == Usuario.id
         ).filter(
             EscaneoQR.fecha_escaneo >= fecha_inicio,
-            EscaneoQR.fecha_escaneo <= fecha_fin,
-            Visita.residente_id.isnot(None)
+            EscaneoQR.fecha_escaneo <= fecha_fin
         )
         
-        # Segunda consulta para visitas creadas por administradores
         query_admins = db.query(
             EscaneoQR,
             Visita,
@@ -504,89 +520,58 @@ def obtener_historial_escaneos_dia(db: Session, guardia_id: int = None, residenc
             Usuario, Administrador.usuario_id == Usuario.id
         ).filter(
             EscaneoQR.fecha_escaneo >= fecha_inicio,
-            EscaneoQR.fecha_escaneo <= fecha_fin,
-            Visita.admin_id.isnot(None)
+            EscaneoQR.fecha_escaneo <= fecha_fin
         )
         
-        # Filtrar por guardia específico si se proporciona
+        # Filtros adicionales
         if guardia_id:
             query_residentes = query_residentes.filter(EscaneoQR.guardia_id == guardia_id)
             query_admins = query_admins.filter(EscaneoQR.guardia_id == guardia_id)
         
-        # Filtrar por residencial_id si se proporciona
         if residencial_id:
             query_residentes = query_residentes.filter(Residente.residencial_id == residencial_id)
             query_admins = query_admins.filter(Administrador.residencial_id == residencial_id)
+
+        # Union
+        union_query = query_residentes.union_all(query_admins)
         
-        # Ejecutar ambas consultas y combinar resultados
-        resultados_residentes = query_residentes.order_by(EscaneoQR.fecha_escaneo.desc()).all()
-        resultados_admins = query_admins.order_by(EscaneoQR.fecha_escaneo.desc()).all()
+        # Conteo total antes de paginar
+        total_escaneos = union_query.count()
+        resultados = union_query.order_by(EscaneoQR.fecha_escaneo.desc()).offset((page - 1) * limit).limit(limit).all()
         
         # Procesar resultados
         escaneos = []
-        
-        # Procesar escaneos de visitas creadas por residentes
-        for escaneo, visita, visitante, guardia, creador_nombre, unidad_residencial in resultados_residentes:
+        for row in resultados:
+            escaneo, visita, visitante, guardia, creador_nombre, unidad_residencial = row
+            
             fecha_escaneo_utc = to_utc(escaneo.fecha_escaneo)
             tipo_escaneo = "salida" if visita.fecha_salida and fecha_escaneo_utc >= to_utc(visita.fecha_salida) else "entrada"
             
-            # Verificar si fue entrada anticipada
             entrada_anticipada = False
             if tipo_escaneo == "entrada" and visita.fecha_entrada:
                 entrada_anticipada = fecha_escaneo_utc < to_utc(visita.fecha_entrada)
-            
+                
             escaneos.append({
                 "id_escaneo": escaneo.id,
                 "fecha_escaneo": fecha_escaneo_utc,
                 "dispositivo": escaneo.dispositivo or "No especificado",
-                "nombre_guardia": guardia.usuario.nombre if guardia.usuario else f"Guardia {guardia.id}",
+                "nombre_guardia": guardia.usuario.nombre if getattr(guardia, 'usuario', None) else f"Guardia {guardia.id}",
                 "nombre_visitante": visitante.nombre_conductor,
                 "dni_visitante": visitante.dni_conductor,
                 "tipo_vehiculo": visitante.tipo_vehiculo,
                 "placa_vehiculo": visitante.placa_vehiculo,
                 "motivo_visita": visitante.motivo_visita,
-                "nombre_residente": creador_nombre,
+                "nombre_residente": f"{creador_nombre}{' (Admin)' if unidad_residencial == 'Admin' else ''}",
                 "unidad_residencial": unidad_residencial,
                 "estado_visita": visita.estado,
                 "tipo_escaneo": tipo_escaneo,
-                "tipo_creador": "residente",
+                "tipo_creador": "admin" if unidad_residencial == 'Admin' else "residente",
                 "entrada_anticipada": entrada_anticipada
             })
-        
-        # Procesar escaneos de visitas creadas por administradores
-        for escaneo, visita, visitante, guardia, creador_nombre, unidad_residencial in resultados_admins:
-            fecha_escaneo_utc = to_utc(escaneo.fecha_escaneo)
-            tipo_escaneo = "salida" if visita.fecha_salida and fecha_escaneo_utc >= to_utc(visita.fecha_salida) else "entrada"
             
-            # Verificar si fue entrada anticipada
-            entrada_anticipada = False
-            if tipo_escaneo == "entrada" and visita.fecha_entrada:
-                entrada_anticipada = fecha_escaneo_utc < to_utc(visita.fecha_entrada)
-            
-            escaneos.append({
-                "id_escaneo": escaneo.id,
-                "fecha_escaneo": fecha_escaneo_utc,
-                "dispositivo": escaneo.dispositivo or "No especificado",
-                "nombre_guardia": guardia.usuario.nombre if guardia.usuario else f"Guardia {guardia.id}",
-                "nombre_visitante": visitante.nombre_conductor,
-                "dni_visitante": visitante.dni_conductor,
-                "tipo_vehiculo": visitante.tipo_vehiculo,
-                "placa_vehiculo": visitante.placa_vehiculo,
-                "motivo_visita": visitante.motivo_visita,
-                "nombre_residente": f"{creador_nombre} (Admin)",
-                "unidad_residencial": "Administrador",
-                "estado_visita": visita.estado,
-                "tipo_escaneo": tipo_escaneo,
-                "tipo_creador": "admin",
-                "entrada_anticipada": entrada_anticipada
-            })
-        
-        # Ordenar todos los escaneos por fecha descendente
-        escaneos.sort(key=lambda x: x["fecha_escaneo"], reverse=True)
-        
         return {
             "escaneos": escaneos,
-            "total_escaneos": len(escaneos),
+            "total_escaneos": total_escaneos,
             "fecha_consulta": now_utc
         }
         
@@ -598,29 +583,176 @@ def obtener_historial_escaneos_dia(db: Session, guardia_id: int = None, residenc
             detail=f"Error al obtener historial de escaneos: {str(e)}"
         )
         
-def obtener_historial_escaneos_totales(db: Session, residencial_id: int = None, nombre_guardia: str = None, tipo_escaneo: str = None, estado_visita: str = None) -> dict:
-    query = db.query(
-        EscaneoQR,
-        Visita,
-        Visitante,
-        Residente,
-        Usuario,
-        Guardia
-    ).join(
-        Visita, EscaneoQR.visita_id == Visita.id
-    ).join(
-        Visitante, Visita.visitante_id == Visitante.id
-    ).join(
-        Residente, Visita.residente_id == Residente.id
-    ).join(
-        Guardia, EscaneoQR.guardia_id == Guardia.id
-    ).join(
-        Usuario, Guardia.usuario_id == Usuario.id
-    )
+def obtener_historial_escaneos_totales(db: Session, residencial_id: int = None, nombre_guardia: str = None, tipo_escaneo: str = None, estado_visita: str = None, page: int = 1, limit: int = 15) -> dict:
+    try:       
+        # Consultas base
+        query_residentes = db.query(
+            EscaneoQR,
+            Visita,
+            Visitante,
+            Guardia,
+            Usuario.nombre.label('creador_nombre'),
+            Residente.unidad_residencial.label('unidad_residencial')
+        ).join(
+            Visita, EscaneoQR.visita_id == Visita.id
+        ).join(
+            Visitante, Visita.visitante_id == Visitante.id
+        ).join(
+            Guardia, EscaneoQR.guardia_id == Guardia.id
+        ).join(
+            Residente, Visita.residente_id == Residente.id
+        ).join(
+            Usuario, Residente.usuario_id == Usuario.id
+        ).filter(
+            Visita.residente_id.isnot(None)
+        )
+        
+        query_admins = db.query(
+            EscaneoQR,
+            Visita,
+            Visitante,
+            Guardia,
+            Usuario.nombre.label('creador_nombre'),
+            literal("Admin").label('unidad_residencial')
+        ).join(
+            Visita, EscaneoQR.visita_id == Visita.id
+        ).join(
+            Visitante, Visita.visitante_id == Visitante.id
+        ).join(
+            Guardia, EscaneoQR.guardia_id == Guardia.id
+        ).join(
+            Administrador, Visita.admin_id == Administrador.id
+        ).join(
+            Usuario, Administrador.usuario_id == Usuario.id
+        ).filter(
+            Visita.admin_id.isnot(None)
+        )
+        
+        # Filtros adicionales
+        if nombre_guardia:
+            query_residentes = query_residentes.filter(Usuario.nombre.ilike(f"%{nombre_guardia}%"))
+            pass
+        
+        # FIX JOINS FOR ACCURATE FILTERING
+        UsuarioGuardia = aliased(Usuario)
+        UsuarioCreador = aliased(Usuario)
+        
+        # Re-construct queries with aliases
+        query_residentes = db.query(
+            EscaneoQR,
+            Visita,
+            Visitante,
+            Guardia,
+            UsuarioCreador.nombre.label('creador_nombre'),
+            Residente.unidad_residencial.label('unidad_residencial'),
+            UsuarioGuardia.nombre.label('guardia_nombre')
+        ).join(
+            Visita, EscaneoQR.visita_id == Visita.id
+        ).join(
+            Visitante, Visita.visitante_id == Visitante.id
+        ).join(
+            Guardia, EscaneoQR.guardia_id == Guardia.id
+        ).join(
+            UsuarioGuardia, Guardia.usuario_id == UsuarioGuardia.id
+        ).join(
+            Residente, Visita.residente_id == Residente.id
+        ).join(
+            UsuarioCreador, Residente.usuario_id == UsuarioCreador.id
+        ).filter(
+            Visita.residente_id.isnot(None)
+        )
+        
+        query_admins = db.query(
+            EscaneoQR,
+            Visita,
+            Visitante,
+            Guardia,
+            UsuarioCreador.nombre.label('creador_nombre'),
+            literal("Admin").label('unidad_residencial'),
+            UsuarioGuardia.nombre.label('guardia_nombre')
+        ).join(
+            Visita, EscaneoQR.visita_id == Visita.id
+        ).join(
+            Visitante, Visita.visitante_id == Visitante.id
+        ).join(
+            Guardia, EscaneoQR.guardia_id == Guardia.id
+        ).join(
+            UsuarioGuardia, Guardia.usuario_id == UsuarioGuardia.id
+        ).join(
+            Administrador, Visita.admin_id == Administrador.id
+        ).join(
+            UsuarioCreador, Administrador.usuario_id == UsuarioCreador.id
+        ).filter(
+            Visita.admin_id.isnot(None)
+        )
 
-    # Filtrar por residencial_id si se proporciona
-    if residencial_id:
-        query = query.filter(Residente.residencial_id == residencial_id)
+        if residencial_id:
+            query_residentes = query_residentes.filter(Residente.residencial_id == residencial_id)
+            query_admins = query_admins.filter(Administrador.residencial_id == residencial_id)
+
+        if nombre_guardia:
+            query_residentes = query_residentes.filter(UsuarioGuardia.nombre.ilike(f"%{nombre_guardia}%"))
+            query_admins = query_admins.filter(UsuarioGuardia.nombre.ilike(f"%{nombre_guardia}%"))
+            
+        if estado_visita:
+            query_residentes = query_residentes.filter(Visita.estado == estado_visita)
+            query_admins = query_admins.filter(Visita.estado == estado_visita)
+
+        # Union
+        union_query = query_residentes.union_all(query_admins)
+
+        cond_salida = and_(Visita.fecha_salida.isnot(None), EscaneoQR.fecha_escaneo >= Visita.fecha_salida)
+        
+        if tipo_escaneo == "salida":
+            query_residentes = query_residentes.filter(cond_salida)
+            query_admins = query_admins.filter(cond_salida)
+        elif tipo_escaneo == "entrada":
+            query_residentes = query_residentes.filter(~cond_salida)
+            query_admins = query_admins.filter(~cond_salida)
+
+        # Re-apply Union
+        union_query = query_residentes.union_all(query_admins)
+        total_escaneos = union_query.count()
+
+        # Trying direct order by if Supported
+        resultados = union_query.order_by(EscaneoQR.fecha_escaneo.desc()).offset((page - 1) * limit).limit(limit).all()
+
+        escaneos = []
+        for row in resultados:
+            escaneo, visita, visitante, guardia, creador_nombre, unidad_residencial, guardia_nombre = row
+            
+            fecha_escaneo_utc = to_utc(escaneo.fecha_escaneo)
+            tipo_escaneo_val = "salida" if visita.fecha_salida and fecha_escaneo_utc >= to_utc(visita.fecha_salida) else "entrada"
+            
+            escaneos.append({
+                "id_escaneo": escaneo.id,
+                "fecha_escaneo": fecha_escaneo_utc,
+                "dispositivo": escaneo.dispositivo or "No especificado",
+                "nombre_guardia": guardia_nombre,
+                "nombre_visitante": visitante.nombre_conductor,
+                "dni_visitante": visitante.dni_conductor,
+                "tipo_vehiculo": visitante.tipo_vehiculo,
+                "placa_vehiculo": visitante.placa_vehiculo,
+                "motivo_visita": visitante.motivo_visita,
+                "nombre_residente": f"{creador_nombre}{' (Admin)' if unidad_residencial == 'Admin' else ''}",
+                "unidad_residencial": unidad_residencial,
+                "estado_visita": visita.estado,
+                "tipo_escaneo": tipo_escaneo_val
+            })
+
+        return {
+            "escaneos": escaneos,
+            "total_escaneos": total_escaneos,
+            "fecha_consulta": datetime.now()
+        }
+    except Exception as e:
+        print(f"Error al obtener historial de escaneos totales: {str(e)}")
+        print(traceback.format_exc())
+        return {
+            "escaneos": [],
+            "total_escaneos": 0,
+            "error": str(e)
+        }
 
     if nombre_guardia:
         query = query.filter(Usuario.nombre.ilike(f"%{nombre_guardia}%"))
@@ -657,22 +789,25 @@ def obtener_historial_escaneos_totales(db: Session, residencial_id: int = None, 
         "fecha_consulta": datetime.now()
     }
 
-def obtener_visitas_residente(db: Session, usuario_id: int):
+def obtener_visitas_residente(db: Session, usuario_id: int, page: int = 1, limit: int = 15):
     residente = db.query(Residente).filter(Residente.usuario_id == usuario_id).first()
     admin = db.query(Administrador).filter(Administrador.usuario_id == usuario_id).first()
 
     if not residente and not admin:
-        return []
+        return {"total": 0, "data": []}
 
     query = db.query(Visita)
     if residente and admin:
-        visitas = query.filter(
+        query = query.filter(
             (Visita.residente_id == residente.id) | (Visita.admin_id == admin.id)
-        ).order_by(Visita.fecha_entrada.desc()).all()
+        )
     elif residente:
-        visitas = query.filter(Visita.residente_id == residente.id).order_by(Visita.fecha_entrada.desc()).all()
+        query = query.filter(Visita.residente_id == residente.id)
     else:  # solo admin
-        visitas = query.filter(Visita.admin_id == admin.id).order_by(Visita.fecha_entrada.desc()).all()
+        query = query.filter(Visita.admin_id == admin.id)
+        
+    total = query.count()
+    visitas = query.order_by(Visita.fecha_entrada.desc()).offset((page - 1) * limit).limit(limit).all()
 
     result = []
     for v in visitas:
@@ -694,7 +829,7 @@ def obtener_visitas_residente(db: Session, usuario_id: int):
             "qr_code_img_base64": getattr(v, "qr_code_img_base64", ""),
             "tipo_creador": tipo_creador_val,
         })
-    return result
+    return {"total": total, "data": result}
 
 def editar_visita_residente(db: Session, visita_id: int, usuario_id: int, visita_update: VisitaUpdate, rol: str = "residente"):
     try:
@@ -732,8 +867,6 @@ def editar_visita_residente(db: Session, visita_id: int, usuario_id: int, visita
                     setattr(visitante, field, value)
         db.commit()
         db.refresh(visita)
-        # REMOVED: Email notification for visit updates to reduce email consumption
-        # enviar_notificacion_visita_actualizada(db, visita)
         return visita
     except HTTPException as e:
         db.rollback()
@@ -906,10 +1039,6 @@ def aprobar_solicitud_visita_admin(db: Session, visita_id: int, admin_id: int) -
 
         # Enviar notificaciones
         try:
-            # REMOVED: Email to residente when solicitud is approved to reduce email consumption
-            # enviar_notificacion_solicitud_aprobada(db, visita, qr_img_personalizado)
-            
-            # Notificar a los guardias sobre la nueva visita
             enviar_notificacion_guardia(db, visita)
         except Exception as e:
             print(f"Error al enviar notificaciones: {str(e)}")
@@ -985,10 +1114,7 @@ def enviar_notificacion_salida_tardia(db: Session, visita, guardia_nombre: str):
     """
     Envía notificación especial cuando un visitante sale después de la expiración del QR
     """
-    try:
-        from app.models.notificacion import Notificacion
-        from app.utils.notificaciones import enviar_correo
-        
+    try:                
         residente = db.query(Residente).filter(Residente.id == visita.residente_id).first()
         visitante = db.query(Visitante).filter(Visitante.id == visita.visitante_id).first()
         

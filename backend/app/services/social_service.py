@@ -6,6 +6,7 @@ from app.models.usuario import Usuario
 from app.models.residente import Residente
 from fastapi import HTTPException
 from fastapi import UploadFile
+from sqlalchemy.orm import joinedload
 import uuid
 from app.services.notificacion_service import enviar_notificacion_nueva_publicacion
 from app.utils.cloudinary_utils import upload_file_to_cloudinary, delete_from_cloudinary_by_url
@@ -102,10 +103,10 @@ def get_social_list(
     residencial_id: int = None,
     tipo_publicacion: Optional[str] = None,
     estado: Optional[str] = None,
-    fecha: Optional[str] = None
-):
-    from sqlalchemy.orm import joinedload
-    
+    fecha: Optional[str] = None,
+    page: int = 1,
+    limit: int = 15
+):    
     query = db.query(Social).options(
         joinedload(Social.imagenes),
         joinedload(Social.destinatarios),
@@ -124,26 +125,28 @@ def get_social_list(
     if fecha:
         query = query.filter(Social.fecha_creacion >= fecha)
     
+    if fecha:
+        query = query.filter(Social.fecha_creacion >= fecha)
+    
     if rol == "admin":
-        return query.order_by(Social.fecha_creacion.desc()).all()
+        total = query.count()
+        results = query.order_by(Social.fecha_creacion.desc()).offset((page - 1) * limit).limit(limit).all()
+        return {"total": total, "data": results}
     else:
         # Para residentes: publicaciones para todos O donde es destinatario específico
         residente = db.query(Residente).filter(Residente.usuario_id == user_id).first()
         if not residente:
-            return []
+            return {"total": 0, "data": []}
         
-        return (
-            query.filter(
-                (Social.para_todos == True) |
-                (Social.destinatarios.any(SocialDestinatario.residente_id == residente.id))
-            )
-            .order_by(Social.fecha_creacion.desc())
-            .all()
+        filtered_query = query.filter(
+            (Social.para_todos == True) |
+            (Social.destinatarios.any(SocialDestinatario.residente_id == residente.id))
         )
+        total = filtered_query.count()
+        results = filtered_query.order_by(Social.fecha_creacion.desc()).offset((page - 1) * limit).limit(limit).all()
+        return {"total": total, "data": results}
 
-def get_social_by_id(db: Session, social_id: int):
-    from sqlalchemy.orm import joinedload
-    
+def get_social_by_id(db: Session, social_id: int):   
     return db.query(Social).options(
         joinedload(Social.imagenes),
         joinedload(Social.destinatarios),
@@ -188,7 +191,6 @@ def update_social(db: Session, social_id: int, data: SocialUpdate, imagenes_nuev
     social = db.query(Social).filter(Social.id == social_id).first()
     if not social:
         return None
-    
     error_message = None
     
     try:
@@ -334,7 +336,7 @@ async def crear_publicacion_service(db: Session, social_data: SocialCreate, imag
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-def listar_publicaciones_service(db: Session, current_user: Usuario, tipo_publicacion: Optional[str], estado: Optional[str], fecha: Optional[str]):
+def listar_publicaciones_service(db: Session, current_user: Usuario, tipo_publicacion: Optional[str], estado: Optional[str], fecha: Optional[str], page: int = 1, limit: int = 15):
     return get_social_list(
         db,
         user_id=current_user.id,
@@ -342,7 +344,9 @@ def listar_publicaciones_service(db: Session, current_user: Usuario, tipo_public
         residencial_id=current_user.residencial_id,
         tipo_publicacion=tipo_publicacion,
         estado=estado,
-        fecha=fecha
+        fecha=fecha,
+        page=page,
+        limit=limit
     )
 
 def obtener_publicacion_service(db: Session, id: int, current_user: Usuario):

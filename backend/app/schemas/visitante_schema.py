@@ -9,7 +9,9 @@ class VisitanteCreate(BaseModel):
     placa_vehiculo: Optional[str] = None  # Cambiado a Optional
     marca_vehiculo: Optional[str] = None   # Nuevo campo
     color_vehiculo: Optional[str] = None   # Nuevo campo
+    placa_chasis: Optional[str] = None    # Nuevo campo
     motivo_visita: str
+    destino_visita: Optional[str] = None  # Nuevo campo
 
     @validator("dni_conductor", pre=True, always=True)
     def default_dni(cls, v):

@@ -18,7 +18,13 @@ class Visita(Base):
     fecha_salida = Column(DateTime(timezone=True), nullable=True)
     estado = Column(String(30), nullable=False, default="pendiente")
     notas = Column(Text, nullable=True)
+    observacion_entrada = Column(Text, nullable=True)
+    observacion_salida = Column(Text, nullable=True)
     expiracion = Column(String(1), nullable=False, default="N")
+
+    @property
+    def imagenes(self):
+        return self.imagenes_rel
 
     residente = relationship("Residente", back_populates="visitas")
     admin = relationship("Administrador", back_populates="visitas")
@@ -26,6 +32,7 @@ class Visita(Base):
     guardia = relationship("Guardia", back_populates="visitas")
     escaneos = relationship("EscaneoQR", back_populates="visita", passive_deletes=True)
     notificaciones = relationship("Notificacion", back_populates="visita", passive_deletes=True)
+    imagenes_rel = relationship("VisitaImagen", back_populates="visita", cascade="all, delete-orphan")
 
     __table_args__ = (
         CheckConstraint(

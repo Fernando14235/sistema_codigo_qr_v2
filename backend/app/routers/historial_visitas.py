@@ -15,15 +15,22 @@ from app.services.visita_service import obtener_historial_escaneos_dia, obtener_
 
 router = APIRouter(prefix="/visitas", tags=["Visitas"])
 
-@router.get("/admin/historial", response_model=HistorialVisitaResponse)
+from sqlalchemy import or_
+from app.schemas.pagination import PaginatedResponse
+import math
+
+@router.get("/admin/historial", response_model=PaginatedResponse[HistorialVisitaItem])
 def obtener_historial_visitas_admin(
     db: Session = Depends(get_db),
     admin_actual: Usuario = Depends(verify_role(["admin"])),
     residencial_id: int = Depends(get_current_residencial_id),
+    page: int = Query(1, ge=1, description="Número de página"),
+    limit: int = Query(15, ge=1, le=100, description="Registros por página"),
     nombre_residente: Optional[str] = Query(None, description="Filtrar por nombre del residente"),
     unidad_residencial: Optional[str] = Query(None, description="Filtrar por unidad residencial"),
     nombre_visitante: Optional[str] = Query(None, description="Filtrar por nombre del visitante"),
-    estado: Optional[str] = Query(None, description="Filtrar por estado de la visita")
+    estado: Optional[str] = Query(None, description="Filtrar por estado de la visita"),
+    q: Optional[str] = Query(None, description="Búsqueda general (Placa o Chasis)")
 ):
 
     # Construir consulta con joins y filtro por residencial_id
@@ -42,9 +49,24 @@ def obtener_historial_visitas_admin(
         query = query.filter(Visitante.nombre_conductor.ilike(f"%{nombre_visitante}%"))
     if estado:
         query = query.filter(Visita.estado == estado)
+    if q:
+        query = query.filter(or_(
+            Visitante.placa_vehiculo.ilike(f"%{q}%"),
+            Visitante.placa_chasis.ilike(f"%{q}%")
+        ))
 
-    # Ejecutar la consulta ordenada
-    resultados = query.order_by(Visita.fecha_entrada.desc()).all()
+    # Total de registros antes de paginar
+    total = query.count()
+
+    # Calcular offset y total de páginas
+    offset = (page - 1) * limit
+    total_pages = math.ceil(total / limit)
+
+    # Ejecutar la consulta ordenada y paginada
+    resultados = query.order_by(Visita.fecha_entrada.desc())\
+                      .offset(offset)\
+                      .limit(limit)\
+                      .all()
 
     # Armar respuesta
     historial = [
@@ -60,12 +82,20 @@ def obtener_historial_visitas_admin(
             color_vehiculo=visitante.color_vehiculo,
             motivo_visita=visitante.motivo_visita,
             fecha_salida=visita.fecha_salida,
-            estado=visita.estado
+            estado=visita.estado,
+            placa_chasis=visitante.placa_chasis,
+            destino_visita=visitante.destino_visita
         )
         for residente, usuario_obj, visita, visitante in resultados
     ]
 
-    return HistorialVisitaResponse(visitas=historial)
+    return PaginatedResponse(
+        total=total,
+        page=page,
+        limit=limit,
+        total_pages=total_pages,
+        data=historial
+    )
 
 @router.get("/admin/escaneos-dia", response_model=HistorialEscaneosDiaResponse)
 def obtener_escaneos_dia_admin(
@@ -73,9 +103,16 @@ def obtener_escaneos_dia_admin(
     admin_actual: Usuario = Depends(verify_role(["admin"])),
     residencial_id: int = Depends(get_current_residencial_id),
     nombre_guardia: Optional[str] = Query(None, description="Nombre del guardia para filtrar los escaneos"),
-    #estado_escaneo: Optional[str] = Query(None, description="Tipo de escaneo (entrada/salida)")
+    page: int = Query(1, ge=1, description="Número de página"),
+    limit: int = Query(15, ge=1, le=100, description="Registros por página")
 ):
-    return obtener_historial_escaneos_dia(db, residencial_id=residencial_id, nombre_guardia=nombre_guardia)
+    result = obtener_historial_escaneos_dia(db, residencial_id=residencial_id, nombre_guardia=nombre_guardia, page=page, limit=limit)
+    total = result["total_escaneos"]
+    
+    result["page"] = page
+    result["limit"] = limit
+    result["total_pages"] = math.ceil(total / limit)
+    return result
 
 @router.get("/admin/escaneos-totales", response_model=HistorialEscaneosTotalesResponse)
 def obtener_escaneos_totales_admin(
@@ -84,20 +121,32 @@ def obtener_escaneos_totales_admin(
     residencial_id: int = Depends(get_current_residencial_id),
     nombre_guardia: Optional[str] = Query(None, description="Nombre del guardia para filtrar los escaneos"),
     tipo_escaneo: Optional[str] = Query(None, description="Filtrar por tipo de escaneo (entrada/salida)"),
-    estado_visita: Optional[str] = Query(None, description="Filtrar por estado de la visita")
+    estado_visita: Optional[str] = Query(None, description="Filtrar por estado de la visita"),
+    page: int = Query(1, ge=1, description="Número de página"),
+    limit: int = Query(15, ge=1, le=100, description="Registros por página")
 ):
-    return obtener_historial_escaneos_totales(
+    result = obtener_historial_escaneos_totales(
         db,
         residencial_id=residencial_id,
         nombre_guardia=nombre_guardia,
         tipo_escaneo=tipo_escaneo,
-        estado_visita=estado_visita
+        estado_visita=estado_visita,
+        page=page,
+        limit=limit
     )
+    total = result["total_escaneos"]
+    
+    result["page"] = page
+    result["limit"] = limit
+    result["total_pages"] = math.ceil(total / limit)
+    return result
 
 @router.get("/guardia/escaneos-dia", response_model=HistorialEscaneosDiaResponse)
 def obtener_escaneos_dia_guardia(
     db: Session = Depends(get_db),
-    usuario_actual: TokenData = Depends(get_current_user)
+    usuario_actual: TokenData = Depends(get_current_user),
+    page: int = Query(1, ge=1, description="Número de página"),
+    limit: int = Query(15, ge=1, le=100, description="Registros por página")
 ):
     # Verificar que el usuario sea guardia
     if usuario_actual.rol != "guardia":
@@ -108,4 +157,10 @@ def obtener_escaneos_dia_guardia(
     if not guardia:
         raise HTTPException(status_code=404, detail="Guardia no encontrado")
     
-    return obtener_historial_escaneos_dia(db, guardia_id=guardia.id, residencial_id=guardia.residencial_id)
+    result = obtener_historial_escaneos_dia(db, guardia_id=guardia.id, residencial_id=guardia.residencial_id, page=page, limit=limit)
+    total = result["total_escaneos"]
+    
+    result["page"] = page
+    result["limit"] = limit
+    result["total_pages"] = math.ceil(total / limit)
+    return result

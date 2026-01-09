@@ -12,7 +12,9 @@ class Visitante(Base):
     tipo_vehiculo = Column(String, nullable=False)
     marca_vehiculo = Column(String, nullable=True)
     color_vehiculo = Column(String, nullable=True) 
-    placa_vehiculo = Column(String, default="sin placa")
+    placa_vehiculo = Column(String, default="no agregado")
+    placa_chasis = Column(String, nullable=True) #nuevo campo
     motivo_visita = Column(String, nullable=False)
+    destino_visita = Column(String, nullable=True)
     
     visitas = relationship("Visita", back_populates="visitante")

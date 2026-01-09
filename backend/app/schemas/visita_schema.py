@@ -117,9 +117,18 @@ class HistorialVisitaItem(BaseModel):
     motivo_visita: str
     fecha_salida: Optional[datetime] = None
     estado: str
+    placa_chasis: Optional[str] = None
+    destino_visita: Optional[str] = None
 
 class HistorialVisitaResponse(BaseModel):
     visitas: List[HistorialVisitaItem]
+
+class VisitaImagenSchema(BaseModel):
+    url: str
+    tipo: Optional[str] = None
+
+    class Config:
+        from_attributes = True
 
 class VisitaResponse(BaseModel):
     id: int
@@ -137,6 +146,9 @@ class VisitaResponse(BaseModel):
     qr_code_img_base64: Optional[str] = ""
     tipo_creador: str
     qr_url: Optional[str] = None
+    observacion_entrada: Optional[str] = None
+    observacion_salida: Optional[str] = None
+    imagenes: List[VisitaImagenSchema] = []
 
     class Config:
         from_attributes = True
@@ -166,11 +178,17 @@ class HistorialEscaneosDiaResponse(BaseModel):
     escaneos: List[EscaneoDiaItem]
     total_escaneos: int
     fecha_consulta: datetime
+    page: int = 1
+    limit: int = 15
+    total_pages: int = 1
     
 class HistorialEscaneosTotalesResponse(BaseModel):
     escaneos: List[EscaneoDiaItem]
     total_escaneos: int
     fecha_consulta: datetime
+    page: int = 1
+    limit: int = 15
+    total_pages: int = 1
 
 class VisitaUpdate(BaseModel):
     fecha_entrada: Optional[datetime] = None

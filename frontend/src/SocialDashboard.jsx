@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
-import { API_URL } from "./api";
+import api from "./api"; // import { API_URL } from "./api";
+import { API_URL } from "./api"; // Keep API_URL in case it's used elsewhere
 import styles from "./SocialDashboard.module.css";
 import Select from "react-select";
 import { Pie } from "react-chartjs-2";
@@ -67,19 +67,22 @@ function SocialDashboard({ token, rol }) {
     setLoading(true); setError("");
     try {
       let url = "";
-      if (rol === "admin" && tab === "admin") url = `${API_URL}/social/obtener_social/admin`;
-      else url = `${API_URL}/social/obtener_social/residente`;
+      if (rol === "admin" && tab === "admin") url = `/social/obtener_social/admin`;
+      else url = `/social/obtener_social/residente`;
       const params = {};
       if (filtros.tipo_publicacion) params.tipo_publicacion = filtros.tipo_publicacion;
       if (filtros.estado) params.estado = filtros.estado;
       if (filtros.fecha) params.fecha = filtros.fecha;
-      const res = await axios.get(url, {
+      const res = await api.get(url, {
         headers: { Authorization: `Bearer ${token}` },
         params
       });
-      setPublicaciones(res.data);
+      // Soporte para respuesta paginada o array directo
+      const data = res.data.data || res.data; 
+      setPublicaciones(Array.isArray(data) ? data : []);
     } catch (err) {
       setError("Error al cargar publicaciones");
+      setPublicaciones([]);
     }
     setLoading(false);
   };
@@ -87,10 +90,13 @@ function SocialDashboard({ token, rol }) {
   // Cargar residentes si el admin quiere seleccionar destinatarios o ver detalle
   useEffect(() => {
     if (isAdmin && ((showForm && !formData.para_todos) || detalle)) {
-      axios.get(`${API_URL}/usuarios/residentes_full`, {
+      api.get(`/usuarios/residentes_full`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      .then(res => setResidentes(res.data))
+      .then(res => {
+        const data = res.data.data || res.data;
+        setResidentes(Array.isArray(data) ? data : []);
+      })
       .catch(() => setResidentes([]));
     }
   }, [isAdmin, showForm, formData.para_todos, detalle, token]);
@@ -178,12 +184,12 @@ function SocialDashboard({ token, rol }) {
       fileList.forEach(fileObj => data.append("imagenes", fileObj.file));
 
       if (editId) {
-        await axios.put(`${API_URL}/social/actualizar_social/admin/${editId}`, data, {
+        await api.put(`/social/actualizar_social/admin/${editId}`, data, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setMensaje("¡Publicación actualizada!");
       } else {
-        await axios.post(`${API_URL}/social/create_social/admin`, data, {
+        await api.post(`/social/create_social/admin`, data, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setMensaje("¡Publicación creada!");
@@ -250,7 +256,7 @@ function SocialDashboard({ token, rol }) {
   const handleEliminar = async id => {
     if (!window.confirm("¿Seguro que deseas eliminar esta publicación?")) return;
     try {
-      await axios.delete(`${API_URL}/social/eliminar_social/admin/${id}`, {
+      await api.delete(`/social/eliminar_social/admin/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       cargarPublicaciones();
@@ -397,7 +403,7 @@ function SocialDashboard({ token, rol }) {
           const usuarioId = tokenData.usuario_id;
           
           // Obtener residente_id usando el usuario_id
-          axios.get(`${API_URL}/usuarios/residentes/usuario/${usuarioId}`, {
+          api.get(`/usuarios/residentes/usuario/${usuarioId}`, {
               headers: { Authorization: `Bearer ${token}` }
             })
             .then(resRes => {
@@ -427,7 +433,7 @@ function SocialDashboard({ token, rol }) {
   // Obtener el nombre del admin cuando se abre el detalle
   useEffect(() => {
     if (detalle && detalle.admin_id) {
-      axios.get(`${API_URL}/usuarios/usuario_nombre/${detalle.admin_id}`, {
+      api.get(`/usuarios/usuario_nombre/${detalle.admin_id}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       .then(res => setAdminNombre(res.data.nombre))
@@ -441,7 +447,7 @@ function SocialDashboard({ token, rol }) {
   const votarEnEncuesta = async (socialId, opcionId) => {
     setDetalleMensaje("Enviando voto...");
     try {
-      await axios.post(`${API_URL}/social/votar/residente/${socialId}`, { opcion_id: opcionId }, {
+      await api.post(`/social/votar/residente/${socialId}`, { opcion_id: opcionId }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setDetalleMensaje("¡Voto registrado!");
@@ -449,7 +455,7 @@ function SocialDashboard({ token, rol }) {
       // Recargar publicaciones para obtener los votos actualizados
       await cargarPublicaciones();
       // Recargar el detalle de la encuesta para obtener los votos
-      const res = await axios.get(`${API_URL}/social/obtener_social/residente`, {
+      const res = await api.get(`/social/obtener_social/residente`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const encuestaActualizada = res.data.find(p => p.id === socialId);
@@ -465,7 +471,7 @@ function SocialDashboard({ token, rol }) {
         if (errorMsg.includes("Ya has votado") || errorMsg.includes("ya votó")) {
           try {
             await cargarPublicaciones();
-            const res = await axios.get(`${API_URL}/social/obtener_social/residente`, {
+            const res = await api.get(`/social/obtener_social/residente`, {
               headers: { Authorization: `Bearer ${token}` }
             });
             const encuestaActualizada = res.data.find(p => p.id === socialId);
@@ -479,7 +485,7 @@ function SocialDashboard({ token, rol }) {
                   const usuarioId = tokenData.usuario_id;
                   
                   // Obtener residente_id usando el usuario_id
-                  axios.get(`${API_URL}/usuarios/residentes/usuario/${usuarioId}`, {
+                  api.get(`/usuarios/residentes/usuario/${usuarioId}`, {
                     headers: { Authorization: `Bearer ${token}` }
                   })
                   .then(resRes => {
@@ -507,7 +513,7 @@ function SocialDashboard({ token, rol }) {
   // Cargar resultados de encuesta (admin)
   const cargarResultadosEncuesta = async (id) => {
     try {
-      const res = await axios.get(`${API_URL}/social/resultados/admin/${id}`, {
+      const res = await api.get(`/social/resultados/admin/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setResultadosEncuesta(res.data);

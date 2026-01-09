@@ -3,6 +3,7 @@ import qrcode
 from cryptography.fernet import Fernet
 from datetime import datetime, timedelta, timezone
 from app.core.config import settings
+from app.utils.time import get_honduras_time
 import hmac
 import hashlib
 import os
@@ -66,7 +67,7 @@ def generar_imagen_qr_base64(data: str) -> str:
     return base64.b64encode(buffered.getvalue()).decode("utf-8")
 
 def generar_qr_completo(visita_id: int, minutos_validez: int = 60) -> Tuple[str, str]:
-    expiracion = datetime.utcnow() + timedelta(minutes=minutos_validez)
+    expiracion = get_honduras_time() + timedelta(minutes=minutos_validez)
     qr_code = generar_payload_qr(visita_id, expiracion)
     qr_img_b64 = generar_imagen_qr_base64(qr_code)
     return qr_code, qr_img_b64

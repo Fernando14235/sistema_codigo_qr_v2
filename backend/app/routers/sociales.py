@@ -23,25 +23,54 @@ async def crear_publicacion(
     result = await crear_publicacion_service(db, social_data_obj, imagenes, current_user)
     return result
 
-@router.get("/obtener_social/admin", response_model=List[SocialResponse], dependencies=[Depends(verify_role(["admin"]))])
+from app.schemas.pagination import PaginatedResponse
+import math
+
+@router.get("/obtener_social/admin", response_model=PaginatedResponse[SocialResponse], dependencies=[Depends(verify_role(["admin"]))])
 def listar_publicaciones_admin(
     tipo_publicacion: Optional[str] = Query(None),
     estado: Optional[str] = Query(None),
     fecha: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(15, ge=1),
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user)
 ):
-    return listar_publicaciones_service(db, current_user, tipo_publicacion, estado, fecha)
+    result = listar_publicaciones_service(db, current_user, tipo_publicacion, estado, fecha, page, limit)
+    
+    total = result["total"]
+    total_pages = math.ceil(total / limit)
+    
+    return PaginatedResponse(
+        total=total,
+        page=page,
+        limit=limit,
+        total_pages=total_pages,
+        data=result["data"]
+    )
 
-@router.get("/obtener_social/residente", response_model=List[SocialResponse], dependencies=[Depends(verify_role(["residente"]))])
+@router.get("/obtener_social/residente", response_model=PaginatedResponse[SocialResponse], dependencies=[Depends(verify_role(["residente"]))])
 def listar_publicaciones_residente(
     tipo_publicacion: Optional[str] = Query(None),
     estado: Optional[str] = Query(None),
     fecha: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(15, ge=1),
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user)
 ):
-    return listar_publicaciones_service(db, current_user, tipo_publicacion, estado, fecha)
+    result = listar_publicaciones_service(db, current_user, tipo_publicacion, estado, fecha, page, limit)
+    
+    total = result["total"]
+    total_pages = math.ceil(total / limit)
+    
+    return PaginatedResponse(
+        total=total,
+        page=page,
+        limit=limit,
+        total_pages=total_pages,
+        data=result["data"]
+    )
 
 @router.get("/obtener_social/admin/{id}", response_model=SocialResponse, dependencies=[Depends(verify_role(["admin"]))])
 def obtener_publicacion_admin(id: int, db: Session = Depends(get_db), current_user: Usuario = Depends(get_current_user)):

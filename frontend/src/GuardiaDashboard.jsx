@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import QrScannerGuardia from "./QrScannerGuardia";
-import axios from "axios";
-import { API_URL } from "./api";
+import api from "./api"; // import { API_URL } from "./api";
+import { API_URL } from "./api"; // Keep API_URL in case it's used elsewhere
 import "./css/GuardiaDashboard.css";
 import UserMenu from "./components/UI/UserMenu";
 import PerfilUsuario from "./PerfilUsuario";
@@ -9,6 +9,7 @@ import ConfiguracionUsuario from "./ConfiguracionUsuario";
 import { useOfflineOperations } from "./hooks/offline/useOfflineOperations";
 import OfflineMessage from "./components/Offline/OfflineMessage";
 import DataStatusIndicator from "./components/Offline/DataStatusIndicator";
+import PaginationControls from "./components/PaginationControls";
 
 function BtnRegresar({ onClick }) {
   return (
@@ -239,12 +240,18 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
   const [modoScanner, setModoScanner] = useState(null);
   const [dataSource, setDataSource] = useState(null);
 
+  // Pagination State
+  const [pageEscaneos, setPageEscaneos] = useState(1);
+  const [totalPagesEscaneos, setTotalPagesEscaneos] = useState(1);
+  const [limitEscaneos] = useState(15);
+
+
   
   // Hook para operaciones offline
   const { isOnline, registerEntry, registerExit, loadEscaneosGuardia } = useOfflineOperations(token, 'guardia');
 
   useEffect(() => {
-    axios.get(`${API_URL}/usuario/actual`, {
+    api.get(`/usuario/actual`, {
       headers: { Authorization: `Bearer ${token}` }
     }).then(res => setUsuario(res.data)).catch(() => {});
   }, [token]);
@@ -255,8 +262,9 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
     setCargando(true);
     setError("");
     try {
-      const result = await loadEscaneosGuardia();
+      const result = await loadEscaneosGuardia(pageEscaneos, limitEscaneos);
       setEscaneos(result.data.escaneos || []);
+      setTotalPagesEscaneos(result.data.total_pages || 1);
       setDataSource(result.source);
     } catch (err) {
       setError("No se pudieron cargar los escaneos del día.");
@@ -268,7 +276,7 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
     if (vista === "escaneos") {
       cargarEscaneos();
     }
-  }, [vista]);
+  }, [vista, pageEscaneos]);
 
   const handleVolver = () => setVista("menu");
 
@@ -296,7 +304,7 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
               Activar Cámara para Escanear QR
             </button>
             {mostrarScanner && modoScanner === "entrada" && (
-              <QrScannerGuardia modo="entrada" token={token} onClose={() => { setMostrarScanner(false); setModoScanner(null); }} />
+              <QrScannerGuardia modo="entrada" token={token} autoAprobar={false} onClose={() => { setMostrarScanner(false); setModoScanner(null); }} />
             )}
           </section>
         )}
@@ -308,7 +316,7 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
               Activar Cámara para Escanear QR
             </button>
             {mostrarScanner && modoScanner === "salida" && (
-              <QrScannerGuardia modo="salida" token={token} onClose={() => { setMostrarScanner(false); setModoScanner(null); }} />
+              <QrScannerGuardia modo="salida" token={token} autoAprobar={false} onClose={() => { setMostrarScanner(false); setModoScanner(null); }} />
             )}
           </section>
         )}
@@ -320,7 +328,16 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
             <DataStatusIndicator source={dataSource} isOnline={isOnline} />
             {cargando && <p>Cargando escaneos...</p>}
             {error && <p style={{ color: "red" }}>{error}</p>}
-            {!cargando && <TablaEscaneosGuardia escaneos={escaneos} />}
+            {!cargando && (
+              <>
+                <TablaEscaneosGuardia escaneos={escaneos} />
+                <PaginationControls
+                  currentPage={pageEscaneos}
+                  totalPages={totalPagesEscaneos}
+                  onPageChange={setPageEscaneos}
+                />
+              </>
+            )}
           </section>
         )}
 

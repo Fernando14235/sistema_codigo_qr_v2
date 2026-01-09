@@ -16,12 +16,25 @@ def listar_residentes(
 ):
     return obtener_usuario(db, rol="residente", residencial_id=residencial_id)
 
-@router.get("/residentes_full", dependencies=[Depends(verify_role(["admin"]))])
+from app.schemas.pagination import PaginatedResponse
+import math
+from fastapi import Query
+
+@router.get("/residentes_full", dependencies=[Depends(verify_role(["admin"]))], response_model=PaginatedResponse[dict])
 def listar_residentes_full(
     db: Session = Depends(get_db),
-    residencial_id: int = Depends(get_current_residencial_id)
+    residencial_id: int = Depends(get_current_residencial_id),
+    page: int = Query(1, ge=1, description="Número de página"),
+    limit: int = Query(15, ge=1, le=100, description="Registros por página")
 ):
-    residentes = db.query(Residente).filter(Residente.residencial_id == residencial_id).all()
+    query = db.query(Residente).filter(Residente.residencial_id == residencial_id)
+    
+    total = query.count()
+    offset = (page - 1) * limit
+    total_pages = math.ceil(total / limit)
+    
+    residentes = query.offset(offset).limit(limit).all()
+    
     resultado = []
     for r in residentes:
         usuario = db.query(Usuario).filter(Usuario.id == r.usuario_id).first()
@@ -33,7 +46,14 @@ def listar_residentes_full(
             "telefono": r.telefono,
             "usuario_id": r.usuario_id
         })
-    return resultado
+        
+    return PaginatedResponse(
+        total=total,
+        page=page,
+        limit=limit,
+        total_pages=total_pages,
+        data=resultado
+    )
 
 @router.get("/usuario_nombre/{id}", dependencies=[Depends(verify_role(["admin", "residente"]))])
 def obtener_nombre_usuario(id: int, db: Session = Depends(get_db)):

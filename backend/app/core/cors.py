@@ -4,21 +4,21 @@ from app.core.config import settings
 def add_cors(app):
     """
     Configuración de CORS optimizada para desarrollo y producción
+    CRÍTICO: Configuración específica para cookies cross-origin
     """
     
     # Orígenes base para producción
     production_origins = [
-        "https://sistemacodigoqrv2-production.up.railway.app",
         "https://tsapp.tekhnosupport.com",
         "https://exquisite-healing-production.up.railway.app",
     ]
     
     # Orígenes para desarrollo
-    development_origins = [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://192.168.1.33:5173",
-        "http://192.168.1.35:5173",
+    development_origins = [ 
+        "http://localhost:5173", 
+        "http://127.0.0.1:5173", 
+        "http://192.168.1.35:5173", 
+        "http://localhost:8000"
     ]
     
     # Determinar orígenes según el ambiente
@@ -49,7 +49,7 @@ def add_cors(app):
     app.add_middleware(
         CORSMiddleware,
         allow_origins=allowed_origins,
-        allow_credentials=True,  # CRÍTICO: Necesario para cookies HttpOnly cross-origin
+        allow_credentials=True,  # CRÍTICO: Esto es lo único necesario para cookies
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
         allow_headers=[
             "Accept",
@@ -61,13 +61,10 @@ def add_cors(app):
             "Origin",
             "Access-Control-Request-Method",
             "Access-Control-Request-Headers",
-            "Cookie",
-            "Set-Cookie",
         ],
         expose_headers=[
             "Content-Length",
             "Content-Range",
             "Content-Type",
-            "Set-Cookie",
         ],
     )

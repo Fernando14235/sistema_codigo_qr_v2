@@ -4,6 +4,7 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 from app.core.config import settings
+from app.utils.time import get_honduras_time
 
 class TokenSecurity:
     """
@@ -23,7 +24,7 @@ class TokenSecurity:
     @staticmethod
     def is_token_expired(expires_at: datetime) -> bool:
         """Verificar si el token ha expirado"""
-        return datetime.utcnow() > expires_at
+        return get_honduras_time() > expires_at
     
     @staticmethod
     def get_token_fingerprint(user_agent: str, ip_address: str) -> str:

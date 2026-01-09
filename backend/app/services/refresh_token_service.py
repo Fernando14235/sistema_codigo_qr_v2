@@ -3,6 +3,7 @@ from sqlalchemy import and_
 from app.models.refresh_token import RefreshToken
 from app.models.usuario import Usuario
 from app.core.config import settings
+from app.utils.time import get_honduras_time
 from datetime import datetime, timedelta
 from typing import Optional
 import hashlib
@@ -56,7 +57,7 @@ class RefreshTokenService:
             and_(
                 RefreshToken.token_hash == token_hash,
                 RefreshToken.revoked == False,
-                RefreshToken.expires_at > datetime.utcnow()
+                RefreshToken.expires_at > get_honduras_time()
             )
         ).first()
         
@@ -109,7 +110,7 @@ class RefreshTokenService:
         Retorna el número de tokens eliminados
         """
         expired_tokens = db.query(RefreshToken).filter(
-            RefreshToken.expires_at < datetime.utcnow()
+            RefreshToken.expires_at < get_honduras_time()
         ).all()
         
         count = len(expired_tokens)
@@ -129,7 +130,7 @@ class RefreshTokenService:
             and_(
                 RefreshToken.usuario_id == usuario_id,
                 RefreshToken.revoked == False,
-                RefreshToken.expires_at > datetime.utcnow()
+                RefreshToken.expires_at > get_honduras_time()
             )
         ).all()
     

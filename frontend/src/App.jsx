@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
-import axios from "axios";
+// CAMBIO 1: Importar la instancia 'api' en lugar de axios por defecto
+// y eliminar la importación de axios si no se usa aparte.
+import api, { API_URL } from "./api"; 
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import './css/App.css';
-import { API_URL } from "./api";
 import 'webrtc-adapter';
 
 // Importar los dashboards separados
@@ -47,21 +48,25 @@ function Login({ onLogin, notification, setNotification }) {
     setCargando(true);
     setNotification({ message: "", type: "" });
     try {
-      const res = await axios.post(`${API_URL}/auth/token`, 
+      // CAMBIO 2: Usar la instancia 'api'
+      // Nota: No hace falta poner la URL completa ni withCredentials (ya está en api.js)
+      const res = await api.post(`/auth/token`, 
         new URLSearchParams({ username: email, password }),
         { 
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          withCredentials: true  // Importante para recibir cookies
+          headers: { "Content-Type": "application/x-www-form-urlencoded" }
         }
       );
       
-      // Extraer datos de la respuesta (ya no incluye refresh_token porque va en cookie)
       const { access_token, usuario, rol, residencial_id } = res.data;
+
+      if (!access_token) {
+        throw new Error("No se recibió un token de acceso válido.");
+      }
       
       if (isMounted.current) {
-        // Solo pasar access_token, el refresh_token está en cookie HttpOnly
         onLogin(access_token, null, usuario, rol, residencial_id);
         setNotification({ message: `Bienvenido ${usuario}`, type: "success" });
+        console.log("✅ Login exitoso, token guardado");
       }
     } catch (err) {
       if (isMounted.current) {
@@ -97,155 +102,149 @@ function Login({ onLogin, notification, setNotification }) {
   );
 }
 
-// Configurar interceptor de Axios para manejo automático de refresh tokens
+// Variables para control de concurrencia en refresh token
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// Configurar interceptor de Axios (ahora sobre la instancia 'api')
 function setupAxiosInterceptors(setToken, setNotification, handleLogout) {
-  // Limpiar interceptores existentes para evitar duplicados
-  axios.interceptors.request.clear();
-  axios.interceptors.response.clear();
+  
+  // CAMBIO 3: Eliminar axios.defaults.withCredentials global
+  // La instancia 'api' ya lo tiene configurado.
 
-  // Configurar axios para enviar cookies automáticamente
-  axios.defaults.withCredentials = true;
-
-  // Interceptor para requests - agregar token automáticamente
-  axios.interceptors.request.use(
+  // Interceptor REQUEST
+  const reqInterceptor = api.interceptors.request.use(
     (config) => {
       const token = localStorage.getItem("token");
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-        console.log(`📤 Request a ${config.url} con token`);
       }
       return config;
     },
     (error) => Promise.reject(error)
   );
 
-  // Interceptor para responses - manejar 401 y refresh automático
-  axios.interceptors.response.use(
-    (response) => {
-      console.log(`✅ Response exitoso de ${response.config.url}`);
-      return response;
-    },
+  // Interceptor RESPONSE
+  const resInterceptor = api.interceptors.response.use(
+    (response) => response,
     async (error) => {
       const originalRequest = error.config;
-      
-      console.log(`❌ Error ${error.response?.status} en ${originalRequest?.url}`);
-      
-      if (error.response && error.response.status === 401 && !originalRequest._retry) {
-        originalRequest._retry = true;
-        
-        try {
-          console.log("🔄 Token expirado, renovando automáticamente...");
-          
-          // ✅ Validar que existe refresh token en cookies antes de intentar renovar
-          const hasRefreshToken = document.cookie.split(';').some(
-            cookie => cookie.trim().startsWith('refresh_token=')
-          );
-          
-          if (!hasRefreshToken) {
-            console.log("⚠️ No hay refresh token en cookies - redirigiendo a login");
-            setNotification({
-              message: "Tu sesión ha expirado. Por favor inicia sesión nuevamente.",
-              type: "warning"
-            });
-            // Limpiar localStorage y forzar logout para evitar bucle infinito
-            localStorage.removeItem("token");
-            localStorage.removeItem("nombre");
-            localStorage.removeItem("rol");
-            localStorage.removeItem("residencial_id");
-            setToken(null);
-            handleLogout();
-            return Promise.reject(error);
-          }
-          
-          // Crear una nueva instancia de axios para evitar interceptores recursivos
-          // El refresh token se envía automáticamente en las cookies
-          const refreshResponse = await axios.create({
-            withCredentials: true
-          }).post(`${API_URL}/auth/refresh`);
-          
-          const newAccessToken = refreshResponse.data.access_token;
-          
-          // Actualizar token en localStorage y estado
-          localStorage.setItem("token", newAccessToken);
-          setToken(newAccessToken);
-          
-          // Actualizar header de la petición original
-          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-          
-          console.log("✅ Token renovado exitosamente, reintentando petición original");
-          
-          // Reintentar la petición original
-          return axios(originalRequest);
-          
-        } catch (refreshError) {
-          console.error("❌ Error al renovar token:", refreshError);
-          
-          // Analizar el tipo de error antes de cerrar sesión
-          const isNetworkError = !refreshError.response;
-          const isCorsError = refreshError.response?.status === 0;
-          const status = refreshError.response?.status;
-          
-          if (isNetworkError || isCorsError) {
-            // Error de red o CORS - NO cerrar sesión, solo mostrar error
-            console.log("🌐 Error de conectividad, manteniendo sesión");
-            setNotification({
-              message: "Error de conexión. Verifica tu red e intenta nuevamente.",
-              type: "error"
-            });
-            return Promise.reject(refreshError);
-          }
-          
-          if (status === 403) {
-            // Refresh token faltante (403 Forbidden)
-            console.log("🔒 Refresh token no encontrado en cookies - forzando logout");
-            setNotification({
-              message: "Tu sesión ha expirado. Por favor inicia sesión nuevamente.",
-              type: "warning"
-            });
-            // Forzar logout completo para evitar bucle infinito
-            handleLogout();
-          } else if (status === 401) {
-            // Refresh token inválido/expirado (401 Unauthorized)
-            console.log("🔒 Refresh token expirado o inválido, cerrando sesión");
-            setNotification({
-              message: "Sesión expirada. Por favor, inicia sesión nuevamente.",
-              type: "warning"
-            });
-            handleLogout();
-          } else {
-            // Otro error del servidor - mantener sesión pero mostrar error
-            console.log("⚠️ Error del servidor, manteniendo sesión");
-            setNotification({
-              message: "Error del servidor. Intenta nuevamente.",
-              type: "error"
-            });
-          }
-          
-          return Promise.reject(refreshError);
-        }
+
+      // Si no hay respuesta o no es error 401, rechazar
+      if (!error.response || error.response.status !== 401 || originalRequest._retry) {
+        return Promise.reject(error);
       }
-      
-      return Promise.reject(error);
+
+      // Evitar bucle infinito
+      // CORRECCIÓN: 'originalRequest' ya es 'error.config', por lo que accedemos directamente a la propiedad
+      if (originalRequest.skipAuthRefresh || 
+          originalRequest.url.includes("/auth/token") || 
+          originalRequest.url.includes("/auth/refresh") || 
+          originalRequest.url.includes("/auth/logout")) {
+        return Promise.reject(error);
+      }
+
+      // Si es 401 y no hemos reintentado
+      if (originalRequest._retry) {
+        return Promise.reject(error);
+      }
+
+      originalRequest._retry = true;
+
+      if (isRefreshing) {
+        // Si ya hay un refresh en proceso, encolar esta petición
+        return new Promise(function(resolve, reject) {
+          failedQueue.push({resolve, reject});
+        }).then(token => {
+          originalRequest.headers['Authorization'] = 'Bearer ' + token;
+          return api(originalRequest); // Usar 'api' en lugar de axios
+        }).catch(err => {
+          return Promise.reject(err);
+        });
+      }
+
+      isRefreshing = true;
+
+      try {
+        console.log("🔄 Intentando renovar token...");
+        console.log("🔍 DEBUG - URL de refresh:", `${API_URL}/auth/refresh`);
+        
+        // Llamada explícita al endpoint de refresh usando la instancia 'api'
+        const refreshRes = await api.post(`/auth/refresh`, {}, {
+            skipAuthRefresh: true // Flag custom
+        });
+
+        const { access_token } = refreshRes.data;
+        console.log("✅ Token renovado exitosamente");
+
+        // Guardar nuevo token
+        localStorage.setItem("token", access_token);
+        setToken(access_token);
+
+        // Procesar cola de peticiones fallidas
+        processQueue(null, access_token);
+        
+        // Reintentar la petición original con el nuevo token
+        originalRequest.headers['Authorization'] = `Bearer ${access_token}`;
+        return api(originalRequest); // Usar 'api'
+
+      } catch (refreshError) {
+        console.error("❌ Falló renovación de token:", refreshError);
+        console.error("❌ Status:", refreshError.response?.status);
+        console.error("❌ Data:", refreshError.response?.data);
+        
+        // Si falla el refresh (401 o 403), cerramos sesión
+        processQueue(refreshError, null);
+        
+        setNotification({
+          message: "Tu sesión ha expirado. Por favor inicia sesión nuevamente.",
+          type: "warning"
+        });
+        
+        handleLogout();
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
     }
   );
+
+  // Retornar función de limpieza
+  return () => {
+    api.interceptors.request.eject(reqInterceptor);
+    api.interceptors.response.eject(resInterceptor);
+  };
 }
 
 function usePushNotificationToasts(setNotification) {
   useEffect(() => {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.addEventListener('message', (event) => {
+      const handler = (event) => {
         if (event.data && event.data.type === 'PUSH_NOTIFICATION') {
           setNotification({
             message: event.data.data.body || 'Nueva notificación',
             type: 'info'
           });
         }
-      });
+      };
+      
+      navigator.serviceWorker.addEventListener('message', handler);
+      return () => navigator.serviceWorker.removeEventListener('message', handler);
     }
   }, [setNotification]);
 }
 
-// App principal que maneja el estado de autenticacion y renderiza los dashboards
 function App() {
   const [token, setToken] = useState(localStorage.getItem("token"));
   const [nombre, setNombre] = useState(localStorage.getItem("nombre") || "");
@@ -257,57 +256,47 @@ function App() {
     setNombre(usuario);
     setRol(rol);
     
-    // Solo guardar access token y datos de usuario en localStorage
-    // El refresh token está en cookie HttpOnly (más seguro)
     localStorage.setItem("token", accessToken);
     localStorage.setItem("nombre", usuario);
     localStorage.setItem("rol", rol);
     if (residencialId) {
       localStorage.setItem("residencial_id", residencialId.toString());
     }
-    
-    console.log("✅ Login exitoso - Access token guardado, refresh token en cookie HttpOnly");
-    setNotification({ message: `Bienvenido ${usuario} (${rol})`, type: "success" });
   };
 
   const handleLogout = async () => {
     try {
-      // Intentar notificar al backend del logout (esto también limpiará la cookie)
       if (token) {
-        await axios.post(`${API_URL}/auth/logout`, {}, {
+        // CAMBIO 4: Usar 'api' para el logout también
+        await api.post(`/auth/logout`, {}, {
           headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true  // Importante para enviar cookies
+          skipAuthRefresh: true
         });
       }
-      setNotification({ message: "Sesión cerrada correctamente.", type: "info" });
     } catch (error) {
-      console.error("Error al cerrar sesión en el backend:", error);
-      setNotification({
-        message: "Cerrando sesión. No se pudo notificar al servidor.",
-        type: "warning",
-      });
+      console.error("Error logout backend:", error);
     } finally {
-      // Limpiar todos los datos de autenticación
       setToken(null);
       setNombre("");
       setRol("");
-      
-      // Limpiar localStorage (ya no incluye refresh_token porque está en cookie)
       localStorage.removeItem("token");
       localStorage.removeItem("nombre");
       localStorage.removeItem("rol");
       localStorage.removeItem("residencial_id");
-      
-      console.log("🚪 Logout completado - Access token limpiado, refresh token revocado en servidor");
+      console.log("🚪 Logout local completado");
+      setNotification({
+        message: "Sesión cerrada correctamente",
+        type: "info"
+      });
     }
   };
 
-  // Configurar interceptores de Axios al montar el componente
+  // Configurar interceptores
   useEffect(() => {
-    setupAxiosInterceptors(setToken, setNotification, handleLogout);
-  }, []);
+    const cleanup = setupAxiosInterceptors(setToken, setNotification, handleLogout);
+    return cleanup;
+  }, []); 
 
-  // Hook para notificaciones push
   usePushNotificationToasts(setNotification);
 
   return (

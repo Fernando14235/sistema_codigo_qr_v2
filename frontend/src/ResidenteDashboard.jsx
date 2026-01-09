@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
-import { API_URL } from "./api";
+import api from "./api"; // import { API_URL } from "./api"; // If needed
 import "./css/GuardiaDashboard.css";
 import './css/App.css';
 import './css/ResidenteDashboard.css';
@@ -11,6 +10,7 @@ import ConfiguracionUsuario from "./ConfiguracionUsuario";
 import CustomPhoneInput from "./components/PhoneInput";
 import { useRef } from "react";
 import { getImageUrl } from "./utils/imageUtils";
+import PaginationControls from "./components/PaginationControls";
 
 // Tarjeta de notificación reutilizable
 function Notification({ message, type, onClose }) {
@@ -173,6 +173,8 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
   const [telefono, setTelefono] = useState("");
   const [marca_vehiculo, setMarcaVehiculo] = useState("");
   const [placa_vehiculo, setPlacaVehiculo] = useState("");
+  const [placa_chasis, setPlacaChasis] = useState("");
+  const [destino_visita, setDestinoVisita] = useState("");
   const [tipo_vehiculo, setTipoVehiculo] = useState("");
   const [color_vehiculo, setColorVehiculo] = useState("");
   const [motivo, setMotivo] = useState("");
@@ -267,13 +269,15 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
           marca_vehiculo: tipo_vehiculo === "Bus" ? "No aplica" : marca_vehiculo,
           color_vehiculo,
           placa_vehiculo,
+          placa_chasis,
+          destino_visita,
           motivo_visita: motivo,
         }],
         motivo,
         fecha_entrada: fecha_entrada || null,
         acompanantes: acompanantes.filter(a => a && a.trim().length > 0)
       };
-      const res = await axios.post(`${API_URL}/visitas/residente/crear_visita`, data, {
+      const res = await api.post(`/visitas/residente/crear_visita`, data, {
         headers: { Authorization: `Bearer ${token}` }
       });
       // Si la respuesta contiene el QR, mostrarlo
@@ -388,6 +392,16 @@ function FormCrearVisita({ token, onSuccess, onCancel, setVista }) {
       </div>
 
       <div className="form-row">
+        <label>Placa Chasis: <span style={{color: '#666', fontSize: '0.9em', fontWeight: 'normal'}}>(Opcional)</span></label>
+        <input type="text" value={placa_chasis} onChange={e => setPlacaChasis(e.target.value)} disabled={bloqueado || !!qrUrl} />
+      </div>
+
+      <div className="form-row">
+        <label>Destino de Visita: <span style={{color: '#666', fontSize: '0.9em', fontWeight: 'normal'}}>(Opcional)</span></label>
+        <input type="text" value={destino_visita} onChange={e => setDestinoVisita(e.target.value)} disabled={bloqueado || !!qrUrl} />
+      </div>
+
+      <div className="form-row">
         <label>Motivo de la visita:</label>
         <select value={motivo} onChange={e => setMotivo(e.target.value)} required disabled={bloqueado || !!qrUrl}>
           <option value="">Selecciona un motivo</option>
@@ -450,6 +464,8 @@ function FormEditarVisitaResidente({ token, visita, onSuccess, onCancel, setVist
   const [telefono, setTelefono] = useState(visita.visitante?.telefono || visita.telefono || '');
   const [marca_vehiculo, setMarcaVehiculo] = useState(visita.visitante?.marca_vehiculo || visita.marca_vehiculo || "");
   const [placa_vehiculo, setPlacaVehiculo] = useState(visita.visitante?.placa_vehiculo || visita.placa_vehiculo || "");
+  const [placa_chasis, setPlacaChasis] = useState(visita.visitante?.placa_chasis || visita.placa_chasis || "");
+  const [destino_visita, setDestinoVisita] = useState(visita.visitante?.destino_visita || visita.destino_visita || "");
   const [tipo_vehiculo, setTipoVehiculo] = useState(visita.visitante?.tipo_vehiculo || visita.tipo_vehiculo || "");
   const [color_vehiculo, setColorVehiculo] = useState(visita.visitante?.color_vehiculo || visita.color_vehiculo || "");
   const [motivo, setMotivo] = useState(visita.motivo_visita || visita.notas || "");
@@ -494,10 +510,12 @@ function FormEditarVisitaResidente({ token, visita, onSuccess, onCancel, setVist
           marca_vehiculo: tipo_vehiculo === "Bus" ? "No aplica" : marca_vehiculo,
           color_vehiculo,
           placa_vehiculo,
+          placa_chasis,
+          destino_visita,
           motivo_visita: motivo,
         }
       };
-      await axios.patch(`${API_URL}/visitas/residente/editar_visita/${visita.id}`, data, {
+      await api.patch(`/visitas/residente/editar_visita/${visita.id}`, data, {
         headers: { Authorization: `Bearer ${token}` }
       });
       onSuccess && onSuccess();
@@ -567,6 +585,14 @@ function FormEditarVisitaResidente({ token, visita, onSuccess, onCancel, setVist
       <div className="form-row">
         <label>Placa del vehículo: <span style={{color: '#666', fontSize: '0.9em', fontWeight: 'normal'}}>(Opcional)</span></label>
         <input type="text" value={placa_vehiculo} onChange={e => setPlacaVehiculo(e.target.value)} disabled={cargando || bloqueadoEditar} />
+      </div>
+      <div className="form-row">
+        <label>Placa Chasis: <span style={{color: '#666', fontSize: '0.9em', fontWeight: 'normal'}}>(Opcional)</span></label>
+        <input type="text" value={placa_chasis} onChange={e => setPlacaChasis(e.target.value)} disabled={cargando || bloqueadoEditar} />
+      </div>
+      <div className="form-row">
+        <label>Destino Visita: <span style={{color: '#666', fontSize: '0.9em', fontWeight: 'normal'}}>(Opcional)</span></label>
+        <input type="text" value={destino_visita} onChange={e => setDestinoVisita(e.target.value)} disabled={cargando || bloqueadoEditar} />
       </div>
       <div className="form-row">
         <label>Motivo de la visita:</label>
@@ -649,7 +675,7 @@ const FormSolicitarVisita = ({ token, onSuccess, onCancel, setVista }) => {
         color_vehiculo: colorVehiculo || undefined,
         placa_vehiculo: placaVehiculo || "sin placa"
       };
-      await axios.post(`${API_URL}/visitas/residente/solicitar_visita`, data, {
+      await api.post(`/visitas/residente/solicitar_visita`, data, {
         headers: { Authorization: `Bearer ${token}` }
       });
       onSuccess && onSuccess();
@@ -1004,7 +1030,7 @@ function FormCrearTicketResidente({ token, onSuccess, onCancel }) {
       formData.append("titulo", titulo);
       formData.append("descripcion", descripcion);
       if (imagen) formData.append("imagen", imagen);
-      await axios.post(`${API_URL}/tickets/crear_ticket/residente`, formData, {
+      await api.post(`/tickets/crear_ticket/residente`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -1215,9 +1241,18 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
   const [vistaTicket, setVistaTicket] = useState("listado");
   const [ticketDetalle, setTicketDetalle] = useState(null);
 
+  // Pagination States
+  const [pageVisitas, setPageVisitas] = useState(1);
+  const [totalPagesVisitas, setTotalPagesVisitas] = useState(1);
+  const [limitVisitas] = useState(10);
+
+  const [pageTickets, setPageTickets] = useState(1);
+  const [totalPagesTickets, setTotalPagesTickets] = useState(1);
+  const [limitTickets] = useState(10);
+
   // Obtener datos completos del usuario autenticado
   useEffect(() => {
-    axios.get(`${API_URL}/usuario/actual`, {
+    api.get(`/usuario/actual`, {
       headers: { Authorization: `Bearer ${token}` }
     }).then(res => setUsuario(res.data)).catch(() => {});
   }, [token]);
@@ -1227,10 +1262,18 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
     setCargando(true);
     setError("");
     try {
-      const res = await axios.get(`${API_URL}/visitas/residente/mis_visitas`, {
+      const res = await api.get(`/visitas/residente/mis_visitas`, {
         headers: { Authorization: `Bearer ${token}` },
+        params: { page: pageVisitas, limit: limitVisitas }
       });
-      setVisitas(res.data || []);
+      // Handle legacy or paginated response
+      if (res.data.data) {
+        setVisitas(res.data.data);
+        setTotalPagesVisitas(res.data.total_pages || 1);
+      } else {
+        setVisitas(res.data || []);
+        setTotalPagesVisitas(1);
+      }
     } catch (err) {
       setNotification({ message: "Error al cargar las visitas", type: "error" });
     }
@@ -1242,7 +1285,7 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
     if (!window.confirm("¿Seguro que deseas eliminar esta visita?")) return;
     
     try {
-      await axios.delete(`${API_URL}/visitas/residente/eliminar_visita/${visitaId}`, {
+      await api.delete(`/visitas/residente/eliminar_visita/${visitaId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setNotification({ message: "Visita eliminada correctamente", type: "success" });
@@ -1260,7 +1303,7 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
     if (!window.confirm("¿Seguro que deseas eliminar este ticket?")) return;
     
     try {
-      await axios.delete(`${API_URL}/tickets/eliminar_ticket/${ticketId}`, {
+      await api.delete(`/tickets/eliminar_ticket/${ticketId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setNotification({ message: "Ticket eliminado correctamente", type: "success" });
@@ -1278,7 +1321,7 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
     setCargando(true);
     setError("");
     try {
-      const res = await axios.get(`${API_URL}/notificaciones/residente/ver_notificaciones`, {
+      const res = await api.get(`/notificaciones/residente/ver_notificaciones`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setNotificaciones(res.data || []);
@@ -1292,10 +1335,17 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
   const cargarTickets = async () => {
     setCargandoTickets(true);
     try {
-      const res = await axios.get(`${API_URL}/tickets/listar_tickets/residente`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const res = await api.get(`/tickets/listar_tickets/residente`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { page: pageTickets, limit: limitTickets }
       });
-      setTickets(res.data || []);
+      if (res.data.data) {
+        setTickets(res.data.data);
+        setTotalPagesTickets(res.data.total_pages || 1);
+      } else {
+        setTickets(res.data || []);
+        setTotalPagesTickets(1);
+      }
     } catch (err) {
       setNotification({ message: "Error al cargar tickets", type: "error" });
     }
@@ -1304,7 +1354,7 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
 
   const verTicketDetalle = async (ticket) => {
     try {
-      const res = await axios.get(`${API_URL}/tickets/obtener_ticket/${ticket.id}`, {
+      const res = await api.get(`/tickets/obtener_ticket/${ticket.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setTicketDetalle(res.data);
@@ -1316,8 +1366,14 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
 
   useEffect(() => {
     if (vista === "visitas") cargarVisitas();
-    if (vista === "notificaciones") cargarNotificaciones();
+  }, [vista, pageVisitas]);
+
+  useEffect(() => {
     if (vista === "tickets") cargarTickets();
+  }, [vista, pageTickets]);
+
+  useEffect(() => {
+    if (vista === "notificaciones") cargarNotificaciones();
   }, [vista]);
 
   // Volver al menú principal
@@ -1360,11 +1416,18 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
             {error && <div className="qr-error">{error}</div>}
             {!cargando && visitas.length === 0 && <div>No tienes visitas registradas.</div>}
             {!cargando && visitas.length > 0 && (
-              <TablaVisitasResidente 
-                visitas={visitas} 
-                onEditar={setVisitaEditar} 
-                onEliminar={eliminarVisita}
-              />
+              <>
+                <TablaVisitasResidente 
+                  visitas={visitas} 
+                  onEditar={setVisitaEditar} 
+                  onEliminar={eliminarVisita}
+                />
+                <PaginationControls
+                  currentPage={pageVisitas}
+                  totalPages={totalPagesVisitas}
+                  onPageChange={setPageVisitas}
+                />
+              </>
             )}
           </section>
         )}
@@ -1462,6 +1525,11 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
                     <TablaTicketsResidente tickets={tickets} onVerDetalle={verTicketDetalle} onEliminar={eliminarTicket} />
                   )
                 )}
+                <PaginationControls
+                  currentPage={pageTickets}
+                  totalPages={totalPagesTickets}
+                  onPageChange={setPageTickets}
+                />
               </>
             )}
             {vistaTicket === 'crear' && (
