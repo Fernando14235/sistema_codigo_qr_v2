@@ -25,10 +25,10 @@ is_production = settings.ENVIRONMENT == "production"
 cookie_config = {
     "key": "refresh_token",
     "httponly": True,
-    "secure": True if is_production else False,
-    "samesite": "none" if is_production else "lax",
+    "secure": True if is_production else False, #False en localhost
+    "samesite": "lax" if is_production else "none", #"none" en localhost
     "path": "/",
-    #"domain": ".tekhnosupport.com" if is_production else None
+    "domain": ".tekhnosupport.com" # None en localhost
 }
 
 # Eliminar una cookie
@@ -36,7 +36,7 @@ def clear_refresh_cookie(response: Response):
     response.delete_cookie(
         key="refresh_token",
         path="/",
-        #domain=".tekhnosupport.com" if is_production else None
+        domain=".tekhnosupport.com" if is_production else None
     )
 
 class ChangePasswordRequest(BaseModel):
@@ -416,9 +416,7 @@ def revoke_all_sessions(
     db: Session = Depends(get_db),
     usuario_actual: Usuario = Depends(get_current_user)
 ):
-    """
-    Revocar todas las sesiones del usuario actual
-    """
+    #Revocar todas las sesiones del usuario actual
     revoked_count = RefreshTokenService.revoke_all_user_tokens(db, usuario_actual.id)
     
     # Limpiar cookie actual también
@@ -435,9 +433,7 @@ def cleanup_expired_tokens(
     db: Session = Depends(get_db),
     usuario_actual: Usuario = Depends(verify_role(["super_admin"]))
 ):
-    """
-    Limpiar tokens expirados manualmente (solo super_admin)
-    """
+    #Limpiar tokens expirados manualmente (solo super_admin)
     deleted_count = RefreshTokenService.cleanup_expired_tokens(db)
     
     return {
@@ -451,9 +447,7 @@ def admin_revoke_user_sessions(
     db: Session = Depends(get_db),
     usuario_actual: Usuario = Depends(verify_role(["super_admin"]))
 ):
-    """
-    Revocar todas las sesiones de un usuario específico (solo super_admin)
-    """
+    #Revocar todas las sesiones de un usuario específico (solo super_admin)
     # Verificar que el usuario existe
     target_user = db.query(Usuario).filter(Usuario.id == usuario_id).first()
     if not target_user:
@@ -474,10 +468,8 @@ def change_password(
     db: Session = Depends(get_db),
     usuario_actual: Usuario = Depends(get_current_user)
 ):
-    """
-    Cambiar contraseña del usuario actual de forma segura
-    Requiere la contraseña actual para validación
-    """
+    # Cambiar contraseña del usuario actual de forma segura
+    # Requiere la contraseña actual para validación
     # Verificar contraseña actual
     if not verify_password(request.current_password, usuario_actual.password_hash):
         raise HTTPException(
@@ -523,9 +515,7 @@ def debug_password_verification(
     db: Session = Depends(get_db),
     usuario_actual: Usuario = Depends(verify_role(["super_admin"]))
 ):
-    """
-    Endpoint de debug para verificar problemas de contraseña (solo super_admin)
-    """
+    #Endpoint de debug para verificar problemas de contraseña (solo super_admin)
     user = db.query(Usuario).filter(Usuario.email == user_email).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")

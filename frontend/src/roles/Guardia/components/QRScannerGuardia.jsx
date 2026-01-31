@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { QrReader } from "@blackbox-vision/react-qr-reader";
-import api from "./api"; // import { API_URL } from "./api";
-import { API_URL } from "./api"; // Keep API_URL in case it's used elsewhere
+import api from "../../../api"; // import { API_URL } from "./api";
+import { API_URL } from "../../../api"; // Keep API_URL in case it's used elsewhere
 
 // Error Boundary Component
 class QRErrorBoundary extends React.Component {

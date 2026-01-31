@@ -1,12 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
-// CAMBIO 1: Importar la instancia 'api' en lugar de axios por defecto
-// y eliminar la importación de axios si no se usa aparte.
 import api, { API_URL } from "./api"; 
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import './css/App.css';
 import 'webrtc-adapter';
-
-// Importar los dashboards separados
 import AdminDashboard from './AdminDashboard';
 import GuardiaDashboard from './GuardiaDashboard';
 import ResidenteDashboard from './ResidenteDashboard';
@@ -48,7 +44,6 @@ function Login({ onLogin, notification, setNotification }) {
     setCargando(true);
     setNotification({ message: "", type: "" });
     try {
-      // CAMBIO 2: Usar la instancia 'api'
       // Nota: No hace falta poner la URL completa ni withCredentials (ya está en api.js)
       const res = await api.post(`/auth/token`, 
         new URLSearchParams({ username: email, password }),
@@ -86,15 +81,13 @@ function Login({ onLogin, notification, setNotification }) {
           placeholder="Correo"
           value={email}
           onChange={e => setEmail(e.target.value)}
-          required
-        />
+          required/>
         <input
           type="password"
           placeholder="Contraseña"
           value={password}
           onChange={e => setPassword(e.target.value)}
-          required
-        />
+          required/>
         <button type="submit" disabled={cargando}>{cargando ? "Entrando..." : "Entrar"}</button>
       </form>
       <Notification {...notification} onClose={() => setNotification({ message: "", type: "" })} />
@@ -119,10 +112,6 @@ const processQueue = (error, token = null) => {
 
 // Configurar interceptor de Axios (ahora sobre la instancia 'api')
 function setupAxiosInterceptors(setToken, setNotification, handleLogout) {
-  
-  // CAMBIO 3: Eliminar axios.defaults.withCredentials global
-  // La instancia 'api' ya lo tiene configurado.
-
   // Interceptor REQUEST
   const reqInterceptor = api.interceptors.request.use(
     (config) => {
@@ -147,7 +136,6 @@ function setupAxiosInterceptors(setToken, setNotification, handleLogout) {
       }
 
       // Evitar bucle infinito
-      // CORRECCIÓN: 'originalRequest' ya es 'error.config', por lo que accedemos directamente a la propiedad
       if (originalRequest.skipAuthRefresh || 
           originalRequest.url.includes("/auth/token") || 
           originalRequest.url.includes("/auth/refresh") || 
@@ -310,9 +298,9 @@ function App() {
             <Route key="login-root" path="/" element={<Login onLogin={handleLogin} notification={notification} setNotification={setNotification} />} />, 
             <Route key="login-any" path="*" element={<Login onLogin={handleLogin} notification={notification} setNotification={setNotification} />} />
           ]}
-          {token && rol === "admin" && [
-            <Route key="admin-root" path="/" element={<AdminDashboard token={token} nombre={nombre} onLogout={handleLogout} />} />, 
-            <Route key="admin-any" path="*" element={<AdminDashboard token={token} nombre={nombre} onLogout={handleLogout} />} />
+          {token && (rol === "admin" || rol === "admin_residencial") && [
+            <Route key="admin-root" path="/" element={<AdminDashboard token={token} nombre={nombre} rol={rol} onLogout={handleLogout} />} />, 
+            <Route key="admin-any" path="*" element={<AdminDashboard token={token} nombre={nombre} rol={rol} onLogout={handleLogout} />} />
           ]}
           {token && rol === "guardia" && [
             <Route key="guardia-root" path="/" element={<GuardiaDashboard token={token} nombre={nombre} onLogout={handleLogout} />} />, 
@@ -331,5 +319,4 @@ function App() {
     </Router>
   );
 }
-
 export default App;

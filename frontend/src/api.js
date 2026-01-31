@@ -6,13 +6,12 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 // 2. Crear la instancia de Axios con la configuración CRÍTICA
 const api = axios.create({
     baseURL: API_URL,
-    withCredentials: true, // <--- ESTO ES LO QUE TE FALTA. Sin esto, no se envían cookies.
+    withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
     }
 });
 
-// 3. (Opcional) Interceptor para depurar errores de respuesta
 api.interceptors.response.use(
     (response) => response,
     (error) => {

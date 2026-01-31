@@ -1,6 +1,5 @@
 // labels.js - Diccionario de etiquetas generalizadas para Porto Pass
 // Este archivo permite adaptar la terminología de la aplicación para diferentes tipos de organizaciones
-
 export const LABELS = {
   // Términos principales de la organización
   RESIDENCIAL: "Organización",
@@ -12,9 +11,9 @@ export const LABELS = {
   RESIDENTE: "Miembro",
   RESIDENTE_PLURAL: "Miembros",
   RESIDENTES: "Miembros",
-  GUARDIA: "Operador",
-  GUARDIA_PLURAL: "Operadores",
-  GUARDIAS: "Operadores",
+  GUARDIA: "Seguridad",
+  GUARDIA_PLURAL: "Seguridad",
+  GUARDIAS: "Seguridad",
   ADMINISTRADOR: "Administrador",
   ADMINISTRADOR_PLURAL: "Administradores",
   SUPER_ADMIN: "Super Administrador",
@@ -45,25 +44,25 @@ export const LABELS = {
   
   // Navegación y menús
   DASHBOARD_RESIDENTE: "Panel de Miembro",
-  DASHBOARD_GUARDIA: "Panel de Operador", 
+  DASHBOARD_GUARDIA: "Panel de Seguridad", 
   DASHBOARD_ADMIN: "Panel de Administrador",
   MIS_VISITAS: "Mis Accesos",
   HISTORIAL_VISITAS: "Historial de Accesos",
   GESTIONAR_USUARIOS: "Gestionar Usuarios",
   GESTIONAR_RESIDENTES: "Gestionar Miembros",
-  GESTIONAR_GUARDIAS: "Gestionar Operadores",
+  GESTIONAR_GUARDIAS: "Gestionar Seguridad",
   
   // Formularios y campos
   DATOS_RESIDENTE: "Datos del Miembro",
   DATOS_VISITANTE: "Datos del Visitante",
-  DATOS_GUARDIA: "Datos del Operador",
+  DATOS_GUARDIA: "Datos del Seguridad",
   NOMBRE_RESIDENTE: "Nombre del Miembro",
   EMAIL_RESIDENTE: "Email del Miembro",
   TELEFONO_RESIDENTE: "Teléfono del Miembro",
   
   // Notificaciones y mensajes
   BIENVENIDO_RESIDENTE: "Bienvenido, Miembro",
-  BIENVENIDO_GUARDIA: "Bienvenido, Operador",
+  BIENVENIDO_GUARDIA: "Bienvenido, Seguridad",
   BIENVENIDO_ADMIN: "Bienvenido, Administrador",
   VISITA_CREADA: "Acceso creado exitosamente",
   VISITA_ACTUALIZADA: "Acceso actualizado exitosamente",
@@ -73,7 +72,7 @@ export const LABELS = {
   ESTADISTICAS_RESIDENCIAL: "Estadísticas de la Organización",
   REPORTE_VISITAS: "Reporte de Accesos",
   TOTAL_RESIDENTES: "Total de Miembros",
-  TOTAL_GUARDIAS: "Total de Operadores",
+  TOTAL_GUARDIAS: "Total de Seguridad",
   TOTAL_VISITAS: "Total de Accesos",
   
   // QR y códigos

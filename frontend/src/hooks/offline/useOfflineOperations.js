@@ -123,56 +123,61 @@ export const useOfflineOperations = (token, rol) => {
   }, [isOnline, token]);
 
   // Funciones específicas por rol
+  // Funciones específicas por rol (Memoized)
+  const loadHistorialVisitas = useCallback((filters = {}) => 
+    loadDataWithOfflineFallback('/visitas/admin/historial', 'offline_historial_visitas', {
+      maxAgeHours: 24,
+      transformData: (data) => data
+    }), [loadDataWithOfflineFallback]);
+
+  const loadEstadisticas = useCallback(() => 
+    loadDataWithOfflineFallback('/admin/estadisticas', 'offline_estadisticas', {
+      maxAgeHours: 6
+    }), [loadDataWithOfflineFallback]);
+
+  const loadEscaneosDia = useCallback((filters = {}) => 
+    loadDataWithOfflineFallback('/visitas/admin/escaneos-dia', 'offline_escaneos_dia', {
+      maxAgeHours: 24
+    }), [loadDataWithOfflineFallback]);
+
+  const loadPublicaciones = useCallback(() => 
+    loadDataWithOfflineFallback('/social/publicaciones', 'offline_publicaciones', {
+      maxAgeHours: 12
+    }), [loadDataWithOfflineFallback]);
+
   const adminOperations = {
-    // Cargar historial de visitas
-    loadHistorialVisitas: (filters = {}) => 
-      loadDataWithOfflineFallback('/visitas/admin/historial', 'offline_historial_visitas', {
-        maxAgeHours: 24,
-        transformData: (data) => data
-      }),
-
-    // Cargar estadísticas
-    loadEstadisticas: () => 
-      loadDataWithOfflineFallback('/admin/estadisticas', 'offline_estadisticas', {
-        maxAgeHours: 6
-      }),
-
-    // Cargar escaneos del día
-    loadEscaneosDia: (filters = {}) => 
-      loadDataWithOfflineFallback('/visitas/admin/escaneos-dia', 'offline_escaneos_dia', {
-        maxAgeHours: 24
-      }),
-
-    // Cargar publicaciones
-    loadPublicaciones: () => 
-      loadDataWithOfflineFallback('/social/publicaciones', 'offline_publicaciones', {
-        maxAgeHours: 12
-      })
+    loadHistorialVisitas,
+    loadEstadisticas,
+    loadEscaneosDia,
+    loadPublicaciones
   };
+
+  // Cargar escaneos del guardia (Memoized)
+  const loadEscaneosGuardia = useCallback((page=1, limit=15) => 
+    loadDataWithOfflineFallback(`/visitas/guardia/escaneos-dia?page=${page}&limit=${limit}`, `offline_escaneos_guardia_${page}`, {
+      maxAgeHours: 24
+    }), [loadDataWithOfflineFallback]);
 
   const guardiaOperations = {
     registerEntry,
     registerExit,
-    // Cargar escaneos del guardia
-    loadEscaneosGuardia: (page=1, limit=15) => 
-      loadDataWithOfflineFallback(`/visitas/guardia/escaneos-dia?page=${page}&limit=${limit}`, `offline_escaneos_guardia_${page}`, {
-        maxAgeHours: 24
-      })
+    loadEscaneosGuardia
   };
+
+  const loadComunicados = useCallback(() => 
+    loadDataWithOfflineFallback('/comunicados', 'offline_comunicados', {
+      maxAgeHours: 12
+    }), [loadDataWithOfflineFallback]);
+
+  const loadVisitasResidente = useCallback(() => 
+    loadDataWithOfflineFallback('/visitas/residente/mis-visitas', 'offline_visitas_residente', {
+      maxAgeHours: 24
+    }), [loadDataWithOfflineFallback]);
 
   const residenteOperations = {
     createVisit,
-    // Cargar comunicados
-    loadComunicados: () => 
-      loadDataWithOfflineFallback('/comunicados', 'offline_comunicados', {
-        maxAgeHours: 12
-      }),
-
-    // Cargar visitas del residente
-    loadVisitasResidente: () => 
-      loadDataWithOfflineFallback('/visitas/residente/mis-visitas', 'offline_visitas_residente', {
-        maxAgeHours: 24
-      })
+    loadComunicados,
+    loadVisitasResidente
   };
 
   // Retornar operaciones según el rol

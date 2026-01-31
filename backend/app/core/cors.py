@@ -6,7 +6,6 @@ def add_cors(app):
     Configuración de CORS optimizada para desarrollo y producción
     CRÍTICO: Configuración específica para cookies cross-origin
     """
-    
     # Orígenes base para producción
     production_origins = [
         "https://tsapp.tekhnosupport.com",
