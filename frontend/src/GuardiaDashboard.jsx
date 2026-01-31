@@ -34,8 +34,7 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
         ultimaConexion={usuario?.ult_conexion}
         onLogout={onLogout}
         onSelect={setVista}
-        selected={vista}
-      />
+        selected={vista}/>
       
       <div style={{ marginTop: 60 }}>
         {vista === 'menu' && (
@@ -43,28 +42,27 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
              nombre={usuario?.nombre || nombre} 
              rol={usuario?.rol} 
              onLogout={onLogout} 
-             onSelectVista={handleSelectVista} 
-          />
+             onSelectVista={handleSelectVista}/>
         )}
 
         {vista === 'entrada' && (
-          <RegistrarEntrada token={token} onCancel={() => setVista('menu')} />
+          <RegistrarEntrada token={token} onCancel={() => setVista('menu')}/>
         )}
 
         {vista === 'salida' && (
-           <RegistrarSalida token={token} onCancel={() => setVista('menu')} />
+           <RegistrarSalida token={token} onCancel={() => setVista('menu')}/>
         )}
 
         {vista === 'escaneos' && (
-           <Escaneos token={token} onCancel={() => setVista('menu')} />
+           <Escaneos token={token} onCancel={() => setVista('menu')}/>
         )}
 
         {vista === 'perfil' && (
-           <PerfilUsuario usuario={usuario} onRegresar={() => setVista('menu')} />
+           <PerfilUsuario usuario={usuario} onRegresar={() => setVista('menu')}/>
         )}
 
         {vista === 'config' && (
-           <ConfiguracionUsuario onRegresar={() => setVista('menu')} usuario={{ id: usuario?.id || 2, rol: 'guardia' }} /> 
+           <ConfiguracionUsuario onRegresar={() => setVista('menu')} usuario={{ id: usuario?.id || 2, rol: 'guardia' }}/>
         )}
       </div>
     </div>
