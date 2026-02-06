@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import api from "./api"; // import { API_URL } from "./api"; // If needed
+import { useNavigate, useLocation, Routes, Route, Navigate } from "react-router-dom";
+import api from "./api";
 import "./css/GuardiaDashboard.css";
 import './css/App.css';
 import './css/ResidenteDashboard.css';
@@ -17,7 +18,7 @@ import Tickets from "./roles/Residente/views/Tickets";
 import Notificaciones from "./roles/Residente/views/Notificaciones";
 import FormEditarVisita from "./roles/Residente/components/FormEditarVisita";
 
-// Componentes Compartidos (inline por ahora, idealmente en utils/components)
+// Componentes Compartidos
 function Notification({ message, type, onClose }) {
   if (!message) return null;
   return (
@@ -40,7 +41,6 @@ function BtnRegresar({ onClick }) {
 }
 
 function ResidenteDashboard({ token, nombre, onLogout }) {
-  const [vista, setVista] = useState("menu");
   const [visitas, setVisitas] = useState([]);
   const [usuario, setUsuario] = useState(null);
   const [cargando, setCargando] = useState(false);
@@ -52,6 +52,9 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
   const [cargandoTickets, setCargandoTickets] = useState(false);
   const [vistaTicket, setVistaTicket] = useState("listado");
   const [ticketDetalle, setTicketDetalle] = useState(null);
+
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // Pagination States
   const [pageVisitas, setPageVisitas] = useState(1);
@@ -78,7 +81,6 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
         headers: { Authorization: `Bearer ${token}` },
         params: { page: pageVisitas, limit: limitVisitas }
       });
-      // Handle legacy or paginated response
       if (res.data.data) {
         setVisitas(res.data.data);
         setTotalPagesVisitas(res.data.total_pages || 1);
@@ -95,13 +97,12 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
   // Eliminar visita
   const eliminarVisita = async (visitaId) => {
     if (!window.confirm("¿Seguro que deseas eliminar esta visita?")) return;
-    
     try {
       await api.delete(`/visitas/residente/eliminar_visita/${visitaId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setNotification({ message: "Visita eliminada correctamente", type: "success" });
-      cargarVisitas(); // Recargar la lista
+      cargarVisitas();
     } catch (err) {
       setNotification({ 
         message: err.response?.data?.detail || "Error al eliminar la visita", 
@@ -113,13 +114,12 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
   // Eliminar ticket
   const eliminarTicket = async (ticketId) => {
     if (!window.confirm("¿Seguro que deseas eliminar este ticket?")) return;
-    
     try {
       await api.delete(`/tickets/eliminar_ticket/${ticketId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setNotification({ message: "Ticket eliminado correctamente", type: "success" });
-      cargarTickets(); // Recargar la lista
+      cargarTickets();
     } catch (err) {
       setNotification({ 
         message: err.response?.data?.detail || "Error al eliminar el ticket", 
@@ -128,7 +128,7 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
     }
   };
 
-  // Cargar notificaciones del residente
+  // Cargar notificaciones
   const cargarNotificaciones = async () => {
     setCargando(true);
     setError("");
@@ -143,7 +143,7 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
     setCargando(false);
   };
 
-  // Cargar tickets del residente
+  // Cargar tickets
   const cargarTickets = async () => {
     setCargandoTickets(true);
     try {
@@ -177,33 +177,39 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
   };
 
   useEffect(() => {
-    if (vista === "visitas") cargarVisitas();
-  }, [vista, pageVisitas]);
+    if (location.pathname === "/visitas") cargarVisitas();
+    if (location.pathname === "/tickets") cargarTickets();
+    if (location.pathname === "/notificaciones") cargarNotificaciones();
+  }, [location.pathname, pageVisitas, pageTickets]);
 
-  useEffect(() => {
-    if (vista === "tickets") cargarTickets();
-  }, [vista, pageTickets]);
-
-  useEffect(() => {
-    if (vista === "notificaciones") cargarNotificaciones();
-  }, [vista]);
-
-  // Volver al menú principal
-  const handleVolver = () => {
-    setVista("menu");
-    //setError(""); // Keeping error might be useful? Or clearing it on nav is better. Original code cleared it.
-    setError("");
+  const handleSelectVista = (nuevaVista) => {
+    const routeMap = {
+      'menu': '/',
+      'visitas': '/visitas',
+      'crear': '/crear-visita',
+      'notificaciones': '/notificaciones',
+      'social': '/social',
+      'solicitar': '/solicitar-visita',
+      'tickets': '/tickets',
+      'perfil': '/perfil',
+      'config': '/configuracion'
+    };
+    navigate(routeMap[nuevaVista] || '/');
   };
 
-  // Mostrar notificación temporal (3 segundos)
-  useEffect(() => {
-    if (notification.message) {
-      const timer = setTimeout(() => {
-        setNotification({ message: "", type: "" });
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [notification.message]);
+  const selectedVista = () => {
+    const path = location.pathname;
+    if (path === '/') return 'menu';
+    if (path === '/visitas') return 'visitas';
+    if (path === '/crear-visita') return 'crear';
+    if (path === '/notificaciones') return 'notificaciones';
+    if (path === '/social') return 'social';
+    if (path === '/solicitar-visita') return 'solicitar';
+    if (path === '/tickets') return 'tickets';
+    if (path === '/perfil') return 'perfil';
+    if (path === '/configuracion') return 'config';
+    return '';
+  };
 
   return (
     <div className="admin-dashboard">
@@ -212,117 +218,130 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
         usuario={usuario || { nombre, rol: "residente" }}
         ultimaConexion={usuario?.ult_conexion}
         onLogout={onLogout}
-        onSelect={setVista}
-        selected={vista}
+        onSelect={handleSelectVista}
+        selected={selectedVista()}
       />
       <div style={{ marginTop: 60 }}>
-        {vista === 'perfil' && <PerfilUsuario usuario={usuario} onRegresar={() => setVista('menu')} />}
-        {vista === 'config' && <ConfiguracionUsuario onRegresar={() => setVista('menu')} usuario={{ id: 3, rol: 'residente' }} />}
-        
-        {vista === 'menu' && (
-          <MainMenu nombre={usuario?.nombre || nombre} rol={usuario?.rol} onLogout={onLogout} onSelectVista={setVista} />
-        )}
+        <Routes>
+          <Route path="/" element={
+            <MainMenu nombre={usuario?.nombre || nombre} rol={usuario?.rol} onLogout={onLogout} onSelectVista={handleSelectVista} />
+          } />
 
-        {vista === 'visitas' && !visitaEditar && (
-          <section className="admin-section">
-            <BtnRegresar onClick={() => setVista('menu')} />
-            <h3>Mis Visitas</h3>
-            <MisVisitas 
-              visitas={visitas} 
-              onEditar={setVisitaEditar} 
-              onEliminar={eliminarVisita}
-              cargando={cargando}
-              error={error}
-              page={pageVisitas}
-              totalPages={totalPagesVisitas}
-              setPage={setPageVisitas}
+          <Route path="/perfil" element={
+            <PerfilUsuario usuario={usuario} onRegresar={() => navigate('/')} />
+          } />
+
+          <Route path="/configuracion" element={
+            <ConfiguracionUsuario onRegresar={() => navigate('/')} usuario={{ id: usuario?.id || 3, rol: 'residente' }} />
+          } />
+
+          <Route path="/visitas" element={
+            !visitaEditar ? (
+              <section className="admin-section">
+                <BtnRegresar onClick={() => navigate('/')} />
+                <h3>Mis Visitas</h3>
+                <MisVisitas 
+                  visitas={visitas} 
+                  onEditar={(v) => { setVisitaEditar(v); navigate('/visitas/editar'); }} 
+                  onEliminar={eliminarVisita}
+                  cargando={cargando}
+                  error={error}
+                  page={pageVisitas}
+                  totalPages={totalPagesVisitas}
+                  setPage={setPageVisitas}
+                />
+              </section>
+            ) : <Navigate to="/visitas/editar" />
+          } />
+
+          <Route path="/visitas/editar" element={
+            visitaEditar ? (
+              <section className="admin-section">
+                <BtnRegresar onClick={() => { setVisitaEditar(null); navigate('/visitas'); }} />
+                <FormEditarVisita
+                  token={token}
+                  visita={visitaEditar}
+                  onSuccess={() => {
+                    setNotification({ message: "Visita editada correctamente", type: "success" });
+                    setVisitaEditar(null);
+                    navigate('/visitas');
+                  }}
+                  onCancel={() => { setVisitaEditar(null); navigate('/visitas'); }}
+                  setVista={handleSelectVista}
+                />
+              </section>
+            ) : <Navigate to="/visitas" />
+          } />
+
+          <Route path="/crear-visita" element={
+            <section className="admin-section">
+              <CrearVisita
+                token={token}
+                onSuccess={() => {
+                  setNotification({ message: "Visita creada correctamente", type: "success" });
+                }}
+                onCancel={() => navigate('/')}
+                setVista={handleSelectVista}
+              />
+            </section>
+          } />
+
+          <Route path="/notificaciones" element={
+            <Notificaciones 
+              notificaciones={notificaciones} 
+              cargando={cargando} 
+              error={error} 
+              onBack={() => navigate('/')} 
             />
-          </section>
-        )}
+          } />
 
-        {vista === 'visitas' && visitaEditar && (
-          <section className="admin-section">
-            <BtnRegresar onClick={() => { setVisitaEditar(null); setVista('visitas'); }} />
-            <FormEditarVisita
-              token={token}
-              visita={visitaEditar}
-              onSuccess={() => {
-                setNotification({ message: "Visita editada correctamente", type: "success" });
-                setVisitaEditar(null);
-                cargarVisitas();
-              }}
-              onCancel={() => setVisitaEditar(null)}
-              setVista={setVista}
-            />
-          </section>
-        )}
+          <Route path="/social" element={
+            <section className="admin-section">
+              <BtnRegresar onClick={() => navigate('/')} />
+              <SocialDashboard token={token} rol={usuario?.rol || "residente"} />
+            </section>
+          } />
 
-        {vista === 'crear' && (
-          <section className="admin-section">
-            <CrearVisita
-              token={token}
-              onSuccess={() => {
-                setNotification({ message: "Visita creada correctamente", type: "success" });
-              }}
-              onCancel={handleVolver}
-              setVista={setVista}
-            />
-          </section>
-        )}
+          <Route path="/solicitar-visita" element={
+            <section className="admin-section">
+              <BtnRegresar onClick={() => navigate('/')} />
+              <h3>Solicitar Visita</h3>
+              <SolicitarVisita
+                token={token}
+                onSuccess={() => {
+                  setNotification({ message: "Solicitud enviada correctamente", type: "success" });
+                  navigate("/visitas");
+                }}
+                onCancel={() => navigate('/')}
+                setVista={handleSelectVista}
+              />
+            </section>
+          } />
 
-        {vista === 'notificaciones' && (
-          <Notificaciones 
-            notificaciones={notificaciones} 
-            cargando={cargando} 
-            error={error} 
-            onBack={() => setVista('menu')} 
-          />
-        )}
+          <Route path="/tickets" element={
+            <section className="admin-section">
+              <Tickets
+                tickets={tickets}
+                cargandoTickets={cargandoTickets}
+                vistaTicket={vistaTicket}
+                setVistaTicket={setVistaTicket}
+                ticketDetalle={ticketDetalle}
+                verTicketDetalle={verTicketDetalle}
+                eliminarTicket={eliminarTicket}
+                token={token}
+                cargarTickets={cargarTickets}
+                setNotification={setNotification}
+                page={pageTickets}
+                totalPages={totalPagesTickets}
+                setPage={setPageTickets}
+                onCancel={() => navigate('/')}
+                BtnRegresar={BtnRegresar}
+              />
+            </section>
+          } />
 
-        {vista === 'social' && (
-          <section className="admin-section">
-            <BtnRegresar onClick={() => setVista('menu')} />
-            <SocialDashboard token={token} rol={usuario?.rol || "residente"} />
-          </section>
-        )}
-
-        {vista === 'solicitar' && (
-          <section className="admin-section">
-            <BtnRegresar onClick={() => setVista('menu')} />
-            <h3>Solicitar Visita</h3>
-            <SolicitarVisita
-              token={token}
-              onSuccess={() => {
-                setNotification({ message: "Solicitud enviada correctamente", type: "success" });
-                setVista("visitas");
-              }}
-              onCancel={handleVolver}
-              setVista={setVista}
-            />
-          </section>
-        )}
-
-        {vista === 'tickets' && (
-          <section className="admin-section">
-            <Tickets
-              tickets={tickets}
-              cargandoTickets={cargandoTickets}
-              vistaTicket={vistaTicket}
-              setVistaTicket={setVistaTicket}
-              ticketDetalle={ticketDetalle}
-              verTicketDetalle={verTicketDetalle}
-              eliminarTicket={eliminarTicket}
-              token={token}
-              cargarTickets={cargarTickets}
-              setNotification={setNotification}
-              page={pageTickets}
-              totalPages={totalPagesTickets}
-              setPage={setPageTickets}
-              onCancel={() => setVista('menu')}
-              BtnRegresar={BtnRegresar} // Pass if needed, or component handles it (currently handling simplified internally)
-            />
-          </section>
-        )}
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
       </div>
     </div>
   );

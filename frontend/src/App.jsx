@@ -299,22 +299,18 @@ function App() {
             <Route key="login-root" path="/" element={<Login onLogin={handleLogin} notification={notification} setNotification={setNotification} />} />, 
             <Route key="login-any" path="*" element={<Login onLogin={handleLogin} notification={notification} setNotification={setNotification} />} />
           ]}
-          {token && (rol === "admin" || rol === "admin_residencial") && [
-            <Route key="admin-root" path="/" element={<AdminDashboard token={token} nombre={nombre} rol={rol} onLogout={handleLogout} />} />, 
-            <Route key="admin-any" path="*" element={<AdminDashboard token={token} nombre={nombre} rol={rol} onLogout={handleLogout} />} />
-          ]}
-          {token && rol === "guardia" && [
-            <Route key="guardia-root" path="/" element={<GuardiaDashboard token={token} nombre={nombre} onLogout={handleLogout} />} />, 
-            <Route key="guardia-any" path="*" element={<GuardiaDashboard token={token} nombre={nombre} onLogout={handleLogout} />} />
-          ]}
-          {token && rol === "residente" && [
-            <Route key="residente-root" path="/" element={<ResidenteDashboard token={token} nombre={nombre}  onLogout={handleLogout} />} />,
-            <Route key="residente-any" path="*" element={<ResidenteDashboard token={token} nombre={nombre} onLogout={handleLogout} />} />
-          ]}
-          {token && rol === "super_admin" && [
-            <Route key="super-admin-root" path="/" element={<SuperAdminDashboard token={token} nombre={nombre} onLogout={handleLogout} />} />,
-            <Route key="super-admin-any" path="*" element={<SuperAdminDashboard token={token} nombre={nombre} onLogout={handleLogout} />} />
-          ]}
+          {token && (rol === "admin" || rol === "admin_residencial") && (
+            <Route path="/*" element={<AdminDashboard token={token} nombre={nombre} rol={rol} onLogout={handleLogout} />} />
+          )}
+          {token && rol === "guardia" && (
+            <Route path="/*" element={<GuardiaDashboard token={token} nombre={nombre} onLogout={handleLogout} />} />
+          )}
+          {token && rol === "residente" && (
+            <Route path="/*" element={<ResidenteDashboard token={token} nombre={nombre}  onLogout={handleLogout} />} />
+          )}
+          {token && rol === "super_admin" && (
+            <Route path="/*" element={<SuperAdminDashboard token={token} nombre={nombre} onLogout={handleLogout} />} />
+          )}
         </Routes>
       </div>
     </Router>

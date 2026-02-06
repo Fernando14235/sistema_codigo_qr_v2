@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate, useLocation, Routes, Route, Navigate } from "react-router-dom";
 import api from "./api";
 import { getImageUrl } from "./utils/imageUtils";
 
@@ -20,11 +21,14 @@ import SocialAdmin from "./roles/Admin/views/SocialAdmin";
 import FormCrearVisitaAdmin from "./roles/Admin/views/subcomponents/FormCrearVisitaAdmin";
 
 function AdminDashboard({ nombre, token, rol, onLogout }) {
-  const [vista, setVista] = useState("menu");
   const [vistasDisponibles, setVistasDisponibles] = useState([]);
   const [notificacion, setNotificacion] = useState(null);
   const [qrUrl, setQrUrl] = useState(null);
   const [showQRFullscreen, setShowQRFullscreen] = useState(false);
+  const [usuarioEditar, setUsuarioEditar] = useState(null);
+
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // Cargar vistas disponibles para este admin
   const cargarVistasDisponibles = useCallback(async () => {
@@ -44,13 +48,9 @@ function AdminDashboard({ nombre, token, rol, onLogout }) {
 
   // Verificar si una vista está disponible
   const isVistaDisponible = (nombreVista) => {
-    // Si no hay configuración de vistas o está vacía, mostrar todo por defecto
     if (!vistasDisponibles || vistasDisponibles.length === 0) return true;
-    
-    // Si es admin_residencial, tiene acceso a todo
     if (rol === 'admin_residencial') return true;
     
-    // Mapeo de nombres internos a nombres de la BD
     const mapping = {
       'usuarios': 'Gestión de Usuarios',
       'crear': 'Crear Usuario',
@@ -73,162 +73,30 @@ function AdminDashboard({ nombre, token, rol, onLogout }) {
     setNotificacion(noti);
   };
 
-  const [usuarioEditar, setUsuarioEditar] = useState(null);
-
-  // Manejar cambio de vista con parámetros
+  // Manejar cambio de vista con navegación
   const handleSelectVista = (nuevaVista, params = null) => {
+    if (nuevaVista === "menu") {
+      navigate("/");
+      return;
+    }
+
     if (nuevaVista === "crear_usuario" || nuevaVista === "crear") {
       setUsuarioEditar(params);
-      setVista("crear_usuario");
+      navigate("/crear-usuario");
     } else {
-      setVista(nuevaVista);
-    }
-  };
-
-  // Renderizado condicional de la vista actual
-  const renderVista = () => {
-    switch (vista) {
-      case "menu":
-        return (
-          <MainMenu
-            nombre={nombre}
-            rol={rol}
-            onLogout={onLogout}
-            onSelectVista={handleSelectVista}
-            vistasDisponibles={vistasDisponibles}
-            isVistaDisponible={isVistaDisponible}
-          />
-        );
-
-      case "crear_usuario":
-        return isVistaDisponible("usuarios") ? (
-          <CrearUsuario
-            token={token}
-            usuarioEditar={usuarioEditar}
-            setUsuarioEditar={setUsuarioEditar}
-            onUsuarioCreado={() => {
-              handleNotification({
-                message: usuarioEditar ? "Usuario actualizado correctamente" : "Usuario creado correctamente",
-                type: "success",
-              });
-              setVista("usuarios");
-              setUsuarioEditar(null);
-            }}
-            onCancel={() => {
-                setVista("usuarios");
-                setUsuarioEditar(null);
-            }}
-            onNotification={handleNotification}
-          />
-        ) : null;
-
-      case "usuarios":
-        return isVistaDisponible("usuarios") ? (
-          <GestionUsuarios
-            token={token}
-            onCancel={() => setVista("menu")}
-            onSelectVista={handleSelectVista}
-            isVistaDisponible={isVistaDisponible}
-            onNotification={handleNotification}
-          />
-        ) : null;
-
-      case "historial":
-        return isVistaDisponible("historial") ? (
-          <HistorialVisitas
-            token={token}
-            onCancel={() => setVista("menu")}
-            onNotification={handleNotification}
-          />
-        ) : null;
-
-      case "estadisticas":
-        return isVistaDisponible("estadisticas") ? (
-          <Estadisticas
-            token={token}
-            onCancel={() => setVista("menu")}
-            onNotification={handleNotification}
-          />
-        ) : null;
-
-      case "escaneos":
-        return isVistaDisponible("escaneos") ? (
-          <Escaneos
-            token={token}
-            onCancel={() => setVista("menu")}
-            onNotification={handleNotification}
-          />
-        ) : null;
-
-      case "crear_visita":
-        return isVistaDisponible("crear_visita") ? (
-          <section className="admin-section">
-            <FormCrearVisitaAdmin
-              token={token}
-              onSuccess={() => {
-                handleNotification({
-                  message: "Visita creada correctamente",
-                  type: "success",
-                });
-                setVista("menu");
-              }}
-              onCancel={() => setVista("menu")}
-              setVista={setVista}
-              usuario={nombre}
-            />
-          </section>
-        ) : null;
-
-      case "solicitudes":
-        return isVistaDisponible("solicitudes") ? (
-          <SolicitudesPendientes
-            token={token}
-            onSuccess={() => {
-              handleNotification({
-                message: "Solicitud aprobada correctamente",
-                type: "success",
-              });
-            }}
-            onCancel={() => setVista("menu")}
-          />
-        ) : null;
-
-      case "mis_visitas":
-        return isVistaDisponible("mis_visitas") ? (
-          <MisVisitas
-            token={token}
-            usuario={nombre}
-            onCancel={() => setVista("menu")}
-            onNotification={handleNotification}
-          />
-        ) : null;
-
-      case "tickets":
-        return isVistaDisponible("tickets") ? (
-          <Tickets
-            token={token}
-            onCancel={() => setVista("menu")}
-            onNotification={handleNotification}
-          />
-        ) : null;
-
-      case "social":
-        return isVistaDisponible("social") ? (
-          <SocialAdmin
-            token={token}
-            onCancel={() => setVista("menu")}
-          />
-        ) : null;
-
-      default:
-        return (
-          <div style={{ textAlign: "center", marginTop: 50 }}>
-            <h3>Vista no encontrada o en construcción</h3>
-            <button onClick={() => setVista("menu")} className="btn-primary">
-              Volver al Menú
-            </button>
-          </div>
-        );
+      const routeMap = {
+        'usuarios': '/usuarios',
+        'historial': '/historial',
+        'estadisticas': '/estadisticas',
+        'escaneos': '/escaneos',
+        'crear_visita': '/crear-visita',
+        'solicitudes': '/solicitudes',
+        'mis_visitas': '/mis-visitas',
+        'tickets': '/tickets',
+        'social': '/social'
+      };
+      const targetRoute = routeMap[nuevaVista] || `/${nuevaVista}`;
+      navigate(targetRoute);
     }
   };
 
@@ -243,7 +111,150 @@ function AdminDashboard({ nombre, token, rol, onLogout }) {
       )}
 
       <div className="admin-content">
-        {renderVista()}
+        <Routes>
+          <Route path="/" element={
+            <MainMenu
+              nombre={nombre}
+              rol={rol}
+              onLogout={onLogout}
+              onSelectVista={handleSelectVista}
+              vistasDisponibles={vistasDisponibles}
+              isVistaDisponible={isVistaDisponible}
+            />
+          } />
+
+          <Route path="/crear-usuario" element={
+            isVistaDisponible("usuarios") ? (
+              <CrearUsuario
+                token={token}
+                usuarioEditar={usuarioEditar}
+                setUsuarioEditar={setUsuarioEditar}
+                onUsuarioCreado={() => {
+                  handleNotification({
+                    message: usuarioEditar ? "Usuario actualizado correctamente" : "Usuario creado correctamente",
+                    type: "success",
+                  });
+                  navigate("/usuarios");
+                  setUsuarioEditar(null);
+                }}
+                onCancel={() => {
+                  navigate("/usuarios");
+                  setUsuarioEditar(null);
+                }}
+                onNotification={handleNotification}
+              />
+            ) : <Navigate to="/" />
+          } />
+
+          <Route path="/usuarios" element={
+            isVistaDisponible("usuarios") ? (
+              <GestionUsuarios
+                token={token}
+                onCancel={() => navigate("/")}
+                onSelectVista={handleSelectVista}
+                isVistaDisponible={isVistaDisponible}
+                onNotification={handleNotification}
+              />
+            ) : <Navigate to="/" />
+          } />
+
+          <Route path="/historial" element={
+            isVistaDisponible("historial") ? (
+              <HistorialVisitas
+                token={token}
+                onCancel={() => navigate("/")}
+                onNotification={handleNotification}
+              />
+            ) : <Navigate to="/" />
+          } />
+
+          <Route path="/estadisticas" element={
+            isVistaDisponible("estadisticas") ? (
+              <Estadisticas
+                token={token}
+                onCancel={() => navigate("/")}
+                onNotification={handleNotification}
+              />
+            ) : <Navigate to="/" />
+          } />
+
+          <Route path="/escaneos" element={
+            isVistaDisponible("escaneos") ? (
+              <Escaneos
+                token={token}
+                onCancel={() => navigate("/")}
+                onNotification={handleNotification}
+              />
+            ) : <Navigate to="/" />
+          } />
+
+          <Route path="/crear-visita" element={
+            isVistaDisponible("crear_visita") ? (
+              <section className="admin-section">
+                <FormCrearVisitaAdmin
+                  token={token}
+                  onSuccess={() => {
+                    handleNotification({
+                      message: "Visita creada correctamente",
+                      type: "success",
+                    });
+                    navigate("/");
+                  }}
+                  onCancel={() => navigate("/")}
+                  setVista={(v) => navigate(`/${v}`)}
+                  usuario={nombre}
+                />
+              </section>
+            ) : <Navigate to="/" />
+          } />
+
+          <Route path="/solicitudes" element={
+            isVistaDisponible("solicitudes") ? (
+              <SolicitudesPendientes
+                token={token}
+                onSuccess={() => {
+                  handleNotification({
+                    message: "Solicitud aprobada correctamente",
+                    type: "success",
+                  });
+                }}
+                onCancel={() => navigate("/")}
+              />
+            ) : <Navigate to="/" />
+          } />
+
+          <Route path="/mis-visitas" element={
+            isVistaDisponible("mis_visitas") ? (
+              <MisVisitas
+                token={token}
+                usuario={nombre}
+                onCancel={() => navigate("/")}
+                onNotification={handleNotification}
+              />
+            ) : <Navigate to="/" />
+          } />
+
+          <Route path="/tickets" element={
+            isVistaDisponible("tickets") ? (
+              <Tickets
+                token={token}
+                onCancel={() => navigate("/")}
+                onNotification={handleNotification}
+              />
+            ) : <Navigate to="/" />
+          } />
+
+          <Route path="/social" element={
+            isVistaDisponible("social") ? (
+              <SocialAdmin
+                token={token}
+                onCancel={() => navigate("/")}
+              />
+            ) : <Navigate to="/" />
+          } />
+
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
       </div>
 
       {showQRFullscreen && qrUrl && (

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation, Routes, Route, Navigate } from "react-router-dom";
 import api from "./api";
 import "./css/GuardiaDashboard.css";
 import UserMenu from "./components/UI/UserMenu";
@@ -12,8 +13,9 @@ import RegistrarSalida from "./roles/Guardia/views/RegistrarSalida";
 import Escaneos from "./roles/Guardia/views/Escaneos";
 
 function GuardiaDashboard({ nombre, token, onLogout }) {
-  const [vista, setVista] = useState("menu");
   const [usuario, setUsuario] = useState(null);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // Obtener info del usuario al montar
   useEffect(() => {
@@ -22,9 +24,27 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
     }).then(res => setUsuario(res.data)).catch(() => {});
   }, [token]);
 
-  // Selección de vista
-  const handleSelectVista = (newVista) => {
-    setVista(newVista);
+  const handleSelectVista = (nuevaVista) => {
+    const routeMap = {
+      'menu': '/',
+      'entrada': '/entrada',
+      'salida': '/salida',
+      'escaneos': '/escaneos',
+      'perfil': '/perfil',
+      'config': '/configuracion'
+    };
+    navigate(routeMap[nuevaVista] || '/');
+  };
+
+  const getSelectedVista = () => {
+    const path = location.pathname;
+    if (path === '/') return 'menu';
+    if (path === '/entrada') return 'entrada';
+    if (path === '/salida') return 'salida';
+    if (path === '/escaneos') return 'escaneos';
+    if (path === '/perfil') return 'perfil';
+    if (path === '/configuracion') return 'config';
+    return '';
   };
 
   return (
@@ -33,37 +53,41 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
         usuario={usuario || { nombre, rol: "guardia" }}
         ultimaConexion={usuario?.ult_conexion}
         onLogout={onLogout}
-        onSelect={setVista}
-        selected={vista}/>
+        onSelect={handleSelectVista}
+        selected={getSelectedVista()} />
       
       <div style={{ marginTop: 60 }}>
-        {vista === 'menu' && (
-          <MainMenu 
-             nombre={usuario?.nombre || nombre} 
-             rol={usuario?.rol} 
-             onLogout={onLogout} 
-             onSelectVista={handleSelectVista}/>
-        )}
+        <Routes>
+          <Route path="/" element={
+            <MainMenu 
+               nombre={usuario?.nombre || nombre} 
+               rol={usuario?.rol} 
+               onLogout={onLogout} 
+               onSelectVista={handleSelectVista}/>
+          } />
 
-        {vista === 'entrada' && (
-          <RegistrarEntrada token={token} onCancel={() => setVista('menu')}/>
-        )}
+          <Route path="/entrada" element={
+            <RegistrarEntrada token={token} onCancel={() => navigate('/')}/>
+          } />
 
-        {vista === 'salida' && (
-           <RegistrarSalida token={token} onCancel={() => setVista('menu')}/>
-        )}
+          <Route path="/salida" element={
+             <RegistrarSalida token={token} onCancel={() => navigate('/')}/>
+          } />
 
-        {vista === 'escaneos' && (
-           <Escaneos token={token} onCancel={() => setVista('menu')}/>
-        )}
+          <Route path="/escaneos" element={
+             <Escaneos token={token} onCancel={() => navigate('/')}/>
+          } />
 
-        {vista === 'perfil' && (
-           <PerfilUsuario usuario={usuario} onRegresar={() => setVista('menu')}/>
-        )}
+          <Route path="/perfil" element={
+             <PerfilUsuario usuario={usuario} onRegresar={() => navigate('/')}/>
+          } />
 
-        {vista === 'config' && (
-           <ConfiguracionUsuario onRegresar={() => setVista('menu')} usuario={{ id: usuario?.id || 2, rol: 'guardia' }}/>
-        )}
+          <Route path="/configuracion" element={
+             <ConfiguracionUsuario onRegresar={() => navigate('/')} usuario={{ id: usuario?.id || 2, rol: 'guardia' }}/>
+          } />
+
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
       </div>
     </div>
   );
