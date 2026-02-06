@@ -8,7 +8,6 @@ function MainMenu({ nombre, onLogout, onSelectVista }) {
       <div className="super-admin-header">
         <div className="header-content">
           <h1>Panel de Super Administrador</h1>
-          <p>Bienvenido, {nombre}</p>
         </div>
         <div className="header-actions">
           <UserMenu 

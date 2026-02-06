@@ -79,10 +79,6 @@ function MainMenu({
   return (
     <div className="main-menu">
       <div className="main-menu-header">
-        <div>
-          <span className="main-menu-user">{nombre}</span>
-          <span className="main-menu-role">{rol}</span>
-        </div>
         <button className="logout-btn" onClick={onLogout}>
           <svg
             width="16"

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import api from "../../../api";
 import CustomPhoneInput from "../../../components/PhoneInput";
+import BtnRegresar from "../components/BtnRegresar";
 
 function CrearUsuario({
   token,
+  onCancel,
   onUsuarioCreado,
   usuarioEditar,
   setUsuarioEditar,
@@ -144,6 +146,14 @@ function CrearUsuario({
       onSubmit={handleCrear}
       className="crear-usuario-form crear-usuario-form-responsive"
     >
+      <BtnRegresar onClick={onCancel}/>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "20px",
+        }}></div>
       <h3 style={{ color: "#1976d2", marginBottom: 10 }}>
         {usuarioEditar ? "Editar Usuario" : "Crear Usuario"}
       </h3>

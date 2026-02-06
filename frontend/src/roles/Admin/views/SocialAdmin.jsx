@@ -147,33 +147,6 @@ function SocialAdmin({ token, onCancel }) {
       <BtnRegresar onClick={onCancel} />
       <div className={styles["social-dashboard"]}>
         <h2>Sección Social (Admin)</h2>
-
-        {/* Tabs para cambiar entre publicaciones de Admin y Residentes */}
-        <div
-          style={{
-            display: "flex",
-            gap: 10,
-            marginBottom: 20,
-            borderBottom: "2px solid #e3eafc",
-            paddingBottom: 10,
-          }}
-        >
-          <button
-            onClick={() => setTab("admin")}
-            className={tab === "admin" ? "btn-primary" : "btn-secondary"}
-            style={{ flex: 1 }}
-          >
-            Mis Publicaciones
-          </button>
-          <button
-            onClick={() => setTab("residente")}
-            className={tab === "residente" ? "btn-primary" : "btn-secondary"}
-            style={{ flex: 1 }}
-          >
-            Ver Publicaciones Residentes
-          </button>
-        </div>
-
         <SocialFilters
           filtros={filtros}
           setFiltros={setFiltros}

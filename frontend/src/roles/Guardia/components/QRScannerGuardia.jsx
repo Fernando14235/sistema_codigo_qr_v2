@@ -192,7 +192,6 @@ function QrScannerGuardia({ modo, token, onClose, autoAprobar = true }) {
       if (res.data.valido) {
         const estadoTexto = res.data.estado === "aprobado" ? "aprobada" : "rechazada";
         let mensajeCompleto = `¡La visita ha sido ${estadoTexto}!\n` +
-                             `Estado: ${res.data.estado}\n` +
                              `Visitante: ${res.data.visitante?.nombre_conductor || 'N/A'}\n` +
                              `Acción aplicada: ${res.data.accion_aplicada || accion || 'automática'}`;
         

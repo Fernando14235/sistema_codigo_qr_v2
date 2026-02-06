@@ -369,7 +369,7 @@ function SocialDetail({ detalle, token, rol, onClose }) {
       <button
         onClick={onClose}
         className="btn-secondary"
-        style={{ marginTop: 20, width: "100%" }}
+        style={{ marginTop: 20, width: "fit-content", alignSelf: "center", minWidth: "120px" }}
       >
         Cerrar
       </button>

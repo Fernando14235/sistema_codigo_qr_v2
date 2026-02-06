@@ -132,8 +132,7 @@ function GestionUsuarios({ token, onCancel, onSelectVista, isVistaDisponible, on
           justifyContent: "space-between",
           alignItems: "center",
           marginBottom: "20px",
-        }}
-      >
+        }}>
         <h3>Usuarios</h3>
         {isVistaDisponible("crear") && (
           <button

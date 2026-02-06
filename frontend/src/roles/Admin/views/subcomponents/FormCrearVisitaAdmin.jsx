@@ -1,10 +1,47 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import api from "../../../../api";
 import { getImageUrl } from "../../../../utils/imageUtils";
 import CustomPhoneInput from "../../../../components/PhoneInput";
 import QRFullscreen from "../../components/QRFullscreen";
+import BtnRegresar from "../../components/BtnRegresar";
 
-// Formulario para crear visita (igual que en el panel de residente, pero para admin)
+const tiposVehiculo = ["Moto", "Camioneta", "Turismo", "Bus", "Otro"];
+const motivosVisita = [
+  "Visita Familiar",
+  "Visita de Amistad",
+  "Delivery",
+  "Reunión de Trabajo",
+  "Mantenimiento",
+  "Otros",
+];
+const marcasPorTipo = {
+  Moto: ["Honda", "Yamaha", "Suzuki", "Kawasaki", "Otra"],
+  Camioneta: ["Toyota", "Ford", "Chevrolet", "Nissan", "Hyundai", "Otra"],
+  Turismo: [
+    "Toyota",
+    "Honda",
+    "Ford",
+    "Chevrolet",
+    "Nissan",
+    "Kia",
+    "Hyundai",
+    "Volkswagen",
+    "Otra",
+  ],
+  Bus: ["No aplica"],
+  Otro: ["Otra"],
+};
+const coloresVehiculo = [
+  "Blanco",
+  "Negro",
+  "Rojo",
+  "Azul",
+  "Gris",
+  "Verde",
+  "Amarillo",
+  "Plateado",
+];
+
 function FormCrearVisitaAdmin({
   token,
   onSuccess,
@@ -12,60 +49,30 @@ function FormCrearVisitaAdmin({
   setVista,
   usuario,
 }) {
-  const [nombre_conductor, setNombreConductor] = useState("");
-  const [dni_conductor, setDNIConductor] = useState("");
-  const [telefono, setTelefono] = useState("");
-  const [marca_vehiculo, setMarcaVehiculo] = useState("");
-  const [placa_vehiculo, setPlacaVehiculo] = useState("");
-  const [placa_chasis, setPlacaChasis] = useState("");
-  const [destino_visita, setDestinoVisita] = useState("");
-  const [tipo_vehiculo, setTipoVehiculo] = useState("");
-  const [color_vehiculo, setColorVehiculo] = useState("");
-  const [motivo, setMotivo] = useState("");
-  const [fecha_entrada, setFechaEntrada] = useState("");
-  const [cantidadAcompanantes, setCantidadAcompanantes] = useState(0);
-  const [acompanantes, setAcompanantes] = useState([]);
+  const [formData, setFormData] = useState({
+    nombre_conductor: "",
+    dni_conductor: "",
+    telefono: "",
+    marca_vehiculo: "",
+    placa_vehiculo: "",
+    placa_chasis: "",
+    destino_visita: "",
+    tipo_vehiculo: "",
+    color_vehiculo: "",
+    motivo: "",
+    fecha_entrada: "",
+    cantidadAcompanantes: 0,
+    acompanantes: [],
+  });
+
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
-  const tiposVehiculo = ["Moto", "Camioneta", "Turismo", "Bus", "Otro"];
-  const motivosVisita = [
-    "Visita Familiar",
-    "Visita de Amistad",
-    "Delivery",
-    "Reunión de Trabajo",
-    "Mantenimiento",
-    "Otros",
-  ];
-  const marcasPorTipo = {
-    Moto: ["Honda", "Yamaha", "Suzuki", "Kawasaki", "Otra"],
-    Camioneta: ["Toyota", "Ford", "Chevrolet", "Nissan", "Hyundai", "Otra"],
-    Turismo: [
-      "Toyota",
-      "Honda",
-      "Ford",
-      "Chevrolet",
-      "Nissan",
-      "Kia",
-      "Hyundai",
-      "Volkswagen",
-      "Otra",
-    ],
-    Bus: ["No aplica"],
-    Otro: ["Otra"],
-  };
-  const coloresVehiculo = [
-    "Blanco",
-    "Negro",
-    "Rojo",
-    "Azul",
-    "Gris",
-    "Verde",
-    "Amarillo",
-    "Plateado",
-  ];
   const [bloqueado, setBloqueado] = useState(false);
   const [qrUrl, setQrUrl] = useState(null);
   const [showQRFullscreen, setShowQRFullscreen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  
+  const qrRef = useRef(null);
 
   useEffect(() => {
     if (qrUrl) {
@@ -81,7 +88,6 @@ function FormCrearVisitaAdmin({
     }
   }, [qrUrl]);
 
-  // Handler para navegación interna (popstate)
   useEffect(() => {
     if (!qrUrl) return;
     const handleNav = (e) => {
@@ -91,7 +97,6 @@ function FormCrearVisitaAdmin({
         )
       ) {
         e.preventDefault();
-        // Evitar que la URL cambie si es posible (depende del router)
         window.history.pushState(null, "", window.location.href);
       }
     };
@@ -101,35 +106,42 @@ function FormCrearVisitaAdmin({
   }, [qrUrl]);
 
   useEffect(() => {
-    setAcompanantes((prev) => {
-      const nuevaCantidad = parseInt(cantidadAcompanantes) || 0;
-      if (nuevaCantidad <= 0) return [];
-      if (prev.length > nuevaCantidad) return prev.slice(0, nuevaCantidad);
-      return [...prev, ...Array(nuevaCantidad - prev.length).fill("")];
+    const nuevaCantidad = parseInt(formData.cantidadAcompanantes) || 0;
+    setFormData(prev => {
+      let newAcompanantes = [...prev.acompanantes];
+      if (nuevaCantidad <= 0) {
+        newAcompanantes = [];
+      } else if (newAcompanantes.length > nuevaCantidad) {
+        newAcompanantes = newAcompanantes.slice(0, nuevaCantidad);
+      } else {
+        newAcompanantes = [...newAcompanantes, ...Array(nuevaCantidad - newAcompanantes.length).fill("")];
+      }
+      return { ...prev, acompanantes: newAcompanantes };
     });
-  }, [cantidadAcompanantes]);
+  }, [formData.cantidadAcompanantes]);
 
   useEffect(() => {
-    if (tipo_vehiculo === "Bus") {
-      setMarcaVehiculo("No aplica");
+    if (formData.tipo_vehiculo === "Bus") {
+      setFormData(prev => ({ ...prev, marca_vehiculo: "No aplica" }));
     } else if (
-      marcasPorTipo[tipo_vehiculo] &&
-      !marcasPorTipo[tipo_vehiculo].includes(marca_vehiculo)
+      marcasPorTipo[formData.tipo_vehiculo] &&
+      !marcasPorTipo[formData.tipo_vehiculo].includes(formData.marca_vehiculo)
     ) {
-      setMarcaVehiculo("");
+      setFormData(prev => ({ ...prev, marca_vehiculo: "" }));
     }
-  }, [tipo_vehiculo]);
+  }, [formData.tipo_vehiculo]);
 
-  const handleAcompananteChange = (idx, value) => {
-    setAcompanantes((prev) => {
-      const arr = [...prev];
-      arr[idx] = value;
-      return arr;
-    });
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleTelefonoChange = (phone) => {
-    setTelefono(phone);
+  const handleAcompananteChange = (idx, value) => {
+    setFormData(prev => {
+      const arr = [...prev.acompanantes];
+      arr[idx] = value;
+      return { ...prev, acompanantes: arr };
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -138,27 +150,26 @@ function FormCrearVisitaAdmin({
     setBloqueado(true);
     setError("");
     setQrUrl(null);
+    setSuccessMessage("");
     try {
       const data = {
         visitantes: [
           {
-            nombre_conductor,
-            dni_conductor,
-            telefono:
-              telefono.trim() && telefono.length > 5 ? telefono : "no agregado",
-            tipo_vehiculo,
-            marca_vehiculo:
-              tipo_vehiculo === "Bus" ? "No aplica" : marca_vehiculo,
-            color_vehiculo,
-            placa_vehiculo,
-            placa_chasis,
-            destino_visita,
-            motivo_visita: motivo,
+            nombre_conductor: formData.nombre_conductor,
+            dni_conductor: formData.dni_conductor,
+            telefono: formData.telefono.trim() && formData.telefono.length > 5 ? formData.telefono : "no agregado",
+            tipo_vehiculo: formData.tipo_vehiculo,
+            marca_vehiculo: formData.tipo_vehiculo === "Bus" ? "No aplica" : formData.marca_vehiculo,
+            color_vehiculo: formData.color_vehiculo,
+            placa_vehiculo: formData.placa_vehiculo,
+            placa_chasis: formData.placa_chasis,
+            destino_visita: formData.destino_visita,
+            motivo_visita: formData.motivo,
           },
         ],
-        motivo,
-        fecha_entrada: fecha_entrada || null,
-        acompanantes: acompanantes.filter((a) => a && a.trim().length > 0),
+        motivo: formData.motivo,
+        fecha_entrada: formData.fecha_entrada || null,
+        acompanantes: formData.acompanantes.filter((a) => a && a.trim().length > 0),
       };
       const res = await api.post(
         `/visitas/residente/crear_visita`,
@@ -169,6 +180,10 @@ function FormCrearVisitaAdmin({
       );
       if (res.data && res.data.length > 0 && res.data[0].qr_url) {
         setQrUrl(getImageUrl(res.data[0].qr_url));
+        setSuccessMessage("Visita creada con éxito. Descarga el QR a continuación.");
+        setTimeout(() => {
+          qrRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
       }
     } catch (err) {
       setError(
@@ -192,7 +207,7 @@ function FormCrearVisitaAdmin({
         .toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" })
         .replace(/:/g, "-");
 
-      const nombreLimpio = nombre_conductor
+      const nombreLimpio = formData.nombre_conductor
         .replace(/[^a-zA-Z0-9]/g, "_")
         .substring(0, 30);
       const fileName = `QR_${nombreLimpio}_${fechaFormato}_${horaFormato}.png`;
@@ -216,185 +231,142 @@ function FormCrearVisitaAdmin({
 
   return (
     <form className="form-visita form-visita-admin" onSubmit={handleSubmit}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px' }}>
+        <BtnRegresar onClick={onCancel} />
+        <h3 style={{ margin: 0, color: '#1976d2' }}>Crear Nueva Visita</h3>
+      </div>
+
       <div className="form-row">
         <label>Nombre del visitante:</label>
         <input
           type="text"
-          value={nombre_conductor}
-          onChange={(e) => setNombreConductor(e.target.value)}
+          name="nombre_conductor"
+          value={formData.nombre_conductor}
+          onChange={handleChange}
           required
           disabled={bloqueado || !!qrUrl}
+          placeholder="Nombre completo"
         />
       </div>
 
       <div className="form-row">
-        <label>
-          DNI del visitante:{" "}
-          <span
-            style={{ color: "#666", fontSize: "0.9em", fontWeight: "normal" }}
-          >
-            (Opcional)
-          </span>
-        </label>
+        <label>DNI del visitante: <small>(Opcional)</small></label>
         <input
           type="text"
-          value={dni_conductor}
-          onChange={(e) => setDNIConductor(e.target.value)}
+          name="dni_conductor"
+          value={formData.dni_conductor}
+          onChange={handleChange}
           disabled={bloqueado || !!qrUrl}
+          placeholder="Número de identidad"
         />
       </div>
 
       <div className="form-row">
-        <label>
-          Teléfono:{" "}
-          <span
-            style={{ color: "#666", fontSize: "0.9em", fontWeight: "normal" }}
-          >
-            (Opcional)
-          </span>
-        </label>
+        <label>Teléfono: <small>(Opcional)</small></label>
         <CustomPhoneInput
-          value={telefono}
-          onChange={handleTelefonoChange}
+          value={formData.telefono}
+          onChange={(phone) => setFormData(prev => ({ ...prev, telefono: phone }))}
           placeholder="Número de teléfono"
           disabled={bloqueado || !!qrUrl}
           required={false}
         />
       </div>
 
-      <div className="form-row">
-        <label>
-          Tipo de vehículo:{" "}
-          <span
-            style={{ color: "#666", fontSize: "0.9em", fontWeight: "normal" }}
+      <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+        <div className="form-row">
+          <label>Tipo de vehículo: <small>(Opcional)</small></label>
+          <select
+            name="tipo_vehiculo"
+            value={formData.tipo_vehiculo}
+            onChange={handleChange}
+            disabled={bloqueado || !!qrUrl}
           >
-            (Opcional)
-          </span>
-        </label>
-        <select
-          value={tipo_vehiculo}
-          onChange={(e) => setTipoVehiculo(e.target.value)}
-          disabled={bloqueado || !!qrUrl}
-        >
-          <option value="">Selecciona un tipo</option>
-          {tiposVehiculo.map((tipo) => (
-            <option key={tipo} value={tipo}>
-              {tipo}
-            </option>
-          ))}
-        </select>
+            <option value="">Selecciona un tipo</option>
+            {tiposVehiculo.map((tipo) => (
+              <option key={tipo} value={tipo}>{tipo}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-row">
+          <label>Marca del vehículo: <small>(Opcional)</small></label>
+          <select
+            name="marca_vehiculo"
+            value={formData.marca_vehiculo}
+            onChange={handleChange}
+            disabled={bloqueado || !!qrUrl}
+          >
+            <option value="">Selecciona una marca</option>
+            {(marcasPorTipo[formData.tipo_vehiculo] || []).map((marca) => (
+              <option key={marca} value={marca}>{marca}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-row">
+          <label>Color del vehículo: <small>(Opcional)</small></label>
+          <select
+            name="color_vehiculo"
+            value={formData.color_vehiculo}
+            onChange={handleChange}
+            disabled={bloqueado || !!qrUrl}
+          >
+            <option value="">Selecciona un color</option>
+            {coloresVehiculo.map((color) => (
+              <option key={color} value={color}>{color}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="form-row">
-        <label>
-          Marca del vehículo:{" "}
-          <span
-            style={{ color: "#666", fontSize: "0.9em", fontWeight: "normal" }}
-          >
-            (Opcional)
-          </span>
-        </label>
-        <select
-          value={marca_vehiculo}
-          onChange={(e) => setMarcaVehiculo(e.target.value)}
-          disabled={bloqueado || !!qrUrl}
-        >
-          <option value="">Selecciona una marca</option>
-          {(marcasPorTipo[tipo_vehiculo] || []).map((marca) => (
-            <option key={marca} value={marca}>
-              {marca}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="form-row">
-        <label>
-          Color del vehículo:{" "}
-          <span
-            style={{ color: "#666", fontSize: "0.9em", fontWeight: "normal" }}
-          >
-            (Opcional)
-          </span>
-        </label>
-        <select
-          value={color_vehiculo}
-          onChange={(e) => setColorVehiculo(e.target.value)}
-          disabled={bloqueado || !!qrUrl}
-        >
-          <option value="">Selecciona un color</option>
-          {coloresVehiculo.map((color) => (
-            <option key={color} value={color}>
-              {color}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="form-row">
-        <label>
-          Placa del vehículo:{" "}
-          <span
-            style={{ color: "#666", fontSize: "0.9em", fontWeight: "normal" }}
-          >
-            (Opcional)
-          </span>
-        </label>
+        <label>Placa del vehículo: <small>(Opcional)</small></label>
         <input
           type="text"
-          value={placa_vehiculo}
-          onChange={(e) => setPlacaVehiculo(e.target.value)}
+          name="placa_vehiculo"
+          value={formData.placa_vehiculo}
+          onChange={handleChange}
           disabled={bloqueado || !!qrUrl}
+          placeholder="Número de placa"
         />
       </div>
 
       <div className="form-row">
-        <label>
-          Placa Chasis:{" "}
-          <span
-            style={{ color: "#666", fontSize: "0.9em", fontWeight: "normal" }}
-          >
-            (Opcional)
-          </span>
-        </label>
+        <label>Número de Chasis: <small>(Opcional)</small></label>
         <input
           type="text"
-          value={placa_chasis}
-          onChange={(e) => setPlacaChasis(e.target.value)}
+          name="placa_chasis"
+          value={formData.placa_chasis}
+          onChange={handleChange}
           disabled={bloqueado || !!qrUrl}
+          placeholder="Número de chasis"
         />
       </div>
 
       <div className="form-row">
-        <label>
-          Destino Visita:{" "}
-          <span
-            style={{ color: "#666", fontSize: "0.9em", fontWeight: "normal" }}
-          >
-            (Opcional)
-          </span>
-        </label>
+        <label>Destino Visita: <small>(Opcional)</small></label>
         <input
           type="text"
-          value={destino_visita}
-          onChange={(e) => setDestinoVisita(e.target.value)}
+          name="destino_visita"
+          value={formData.destino_visita}
+          onChange={handleChange}
           disabled={bloqueado || !!qrUrl}
+          placeholder="Lugar de destino"
         />
       </div>
 
       <div className="form-row">
         <label>Motivo de la visita:</label>
         <select
-          value={motivo}
-          onChange={(e) => setMotivo(e.target.value)}
+          name="motivo"
+          value={formData.motivo}
+          onChange={handleChange}
           required
           disabled={bloqueado || !!qrUrl}
         >
           <option value="">Selecciona un motivo</option>
           {motivosVisita.map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
+            <option key={m} value={m}>{m}</option>
           ))}
         </select>
       </div>
@@ -403,32 +375,28 @@ function FormCrearVisitaAdmin({
         <label>Fecha y hora de entrada:</label>
         <input
           type="datetime-local"
-          value={fecha_entrada}
-          onChange={(e) => setFechaEntrada(e.target.value)}
+          name="fecha_entrada"
+          value={formData.fecha_entrada}
+          onChange={handleChange}
           required
           disabled={bloqueado || !!qrUrl}
         />
       </div>
 
       <div className="form-row">
-        <label>
-          Cantidad de acompañantes:{" "}
-          <span
-            style={{ color: "#666", fontSize: "0.9em", fontWeight: "normal" }}
-          >
-            (Opcional)
-          </span>
-        </label>
+        <label>Cantidad de acompañantes: <small>(Opcional)</small></label>
         <input
           type="number"
+          name="cantidadAcompanantes"
           min="0"
           max="10"
-          value={cantidadAcompanantes}
-          onChange={(e) => setCantidadAcompanantes(e.target.value)}
+          value={formData.cantidadAcompanantes}
+          onChange={handleChange}
           disabled={bloqueado || !!qrUrl}
         />
       </div>
-      {acompanantes.map((a, idx) => (
+
+      {formData.acompanantes.map((a, idx) => (
         <div className="form-row" key={idx}>
           <label>Nombre del acompañante #{idx + 1}:</label>
           <input
@@ -437,69 +405,70 @@ function FormCrearVisitaAdmin({
             onChange={(e) => handleAcompananteChange(idx, e.target.value)}
             required
             disabled={bloqueado || !!qrUrl}
+            placeholder={`Acompañante ${idx + 1}`}
           />
         </div>
       ))}
-      {error && <div className="qr-error">{error}</div>}
-      <div className="form-actions">
+
+      {error && <div className="qr-error" style={{ color: 'red', marginTop: '10px' }}>{error}</div>}
+      {successMessage && <div className="qr-success" style={{ color: 'green', marginTop: '10px', fontWeight: 'bold' }}>{successMessage}</div>}
+
+      <div className="form-actions" style={{ marginTop: '20px', display: 'flex', gap: '15px', justifyContent: 'flex-start' }}>
         <button
           className="btn-primary"
           type="submit"
           disabled={cargando || bloqueado || !!qrUrl}
+          style={{ width: 'fit-content', minWidth: '150px' }}
         >
           {cargando ? "Creando..." : "Crear Visita"}
         </button>
         <button
-          className="btn-regresar"
+          className="btn-secondary"
           type="button"
           onClick={onCancel}
-          style={{ marginLeft: 10 }}
           disabled={bloqueado || !!qrUrl}
+          style={{ width: 'fit-content', minWidth: '120px' }}
         >
           Cancelar
         </button>
       </div>
+
       {qrUrl && (
-        <div style={{ textAlign: "center", marginTop: 18 }}>
-          <h4>QR de tu visita</h4>
+        <div ref={qrRef} style={{ textAlign: "center", marginTop: 25, padding: '20px', background: '#f0f7ff', borderRadius: '12px' }}>
+          <h4 style={{ color: '#1976d2', marginBottom: 15 }}>QR Generado Exitosamente</h4>
           <img
             src={qrUrl}
             alt="QR de la visita"
             style={{
-              width: 220,
-              height: 220,
+              width: 250,
+              height: 250,
               objectFit: "contain",
-              border: "2px solid #1976d2",
-              borderRadius: 12,
+              border: "3px solid #1976d2",
+              borderRadius: 16,
               background: "#fff",
-              marginBottom: 10,
+              marginBottom: 15,
               cursor: "pointer",
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
             }}
             onClick={() => setShowQRFullscreen(true)}
             title="Haz clic para ver en pantalla completa"
           />
-          <br />
-          <div
-            style={{
-              textAlign: "center",
-              marginTop: 8,
-              display: "flex",
-              justifyContent: "center",
-            }}
-          >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
             <button
               type="button"
               onClick={handleDownloadQR}
               className="btn-primary"
+              style={{ width: '200px' }}
             >
-              Descargar QR
+              Descargar Código QR
             </button>
-          </div>
-          <div style={{ color: "#1976d2", marginTop: 6, fontSize: "0.98em" }}>
-            Guarda este QR en su galería para mostrarlo en la entrada
+            <p style={{ color: "#1976d2", fontSize: "0.9em", maxWidth: '300px' }}>
+              Descarga o toma una captura de este código y envíaselo a tu visitante para su ingreso.
+            </p>
           </div>
         </div>
       )}
+
       {showQRFullscreen && qrUrl && (
         <QRFullscreen
           qrUrl={qrUrl}

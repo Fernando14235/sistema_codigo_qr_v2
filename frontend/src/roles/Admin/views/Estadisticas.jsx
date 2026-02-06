@@ -2,8 +2,28 @@ import React, { useState, useEffect } from "react";
 import api from "../../../api";
 import BtnRegresar from "../components/BtnRegresar";
 import { Pie, Bar } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement
+} from 'chart.js';
 
-function Estadisticas({ token, onCancel, onNotification }) {
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement
+);
+
+function Estadisticas({ nombre, token, onCancel, onNotification }) {
   const [estadisticas, setEstadisticas] = useState(null);
 
   // Cargar estadísticas generales

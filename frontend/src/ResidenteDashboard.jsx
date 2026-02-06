@@ -259,8 +259,6 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
 
         {vista === 'crear' && (
           <section className="admin-section">
-            <BtnRegresar onClick={() => setVista('menu')} />
-            <h3>Crear Nueva Visita</h3>
             <CrearVisita
               token={token}
               onSuccess={() => {

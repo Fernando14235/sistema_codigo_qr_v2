@@ -1,9 +1,10 @@
 .social-dashboard {
-  max-width: 900px;
+  width: 100%;
+  max-width: 1000px;
   margin: 0 auto;
   background: #fff;
   border-radius: 12px;
-  box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
   padding: 32px 24px 24px 24px;
 }
 .social-dashboard h2 {
@@ -37,7 +38,7 @@
   border-radius: 10px;
   padding: 24px;
   margin-bottom: 24px;
-  box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -94,7 +95,8 @@
   border-radius: 8px;
   overflow: hidden;
 }
-.social-table th, .social-table td {
+.social-table th,
+.social-table td {
   padding: 12px 10px;
   border-bottom: 1px solid #e0e0e0;
   text-align: left;
@@ -116,7 +118,9 @@
   padding: 6px 14px;
   font-size: 0.95rem;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s;
+  transition:
+    background 0.2s,
+    color 0.2s;
 }
 .social-table-actions button:hover {
   background: #1976d2;
@@ -125,7 +129,7 @@
 .social-detail-card {
   background: #f5faff;
   border-radius: 10px;
-  box-shadow: 0 1px 8px rgba(0,0,0,0.07);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.07);
   padding: 24px;
   margin: 24px 0;
   max-width: 600px;
@@ -139,7 +143,7 @@
   border-radius: 8px;
   margin-right: 8px;
   margin-bottom: 8px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 .social-detail-card .social-detail-row {
   margin-bottom: 8px;
@@ -200,7 +204,9 @@
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s, box-shadow 0.2s;
+  transition:
+    background 0.2s,
+    box-shadow 0.2s;
   box-shadow: 0 1px 4px rgba(25, 118, 210, 0.08);
   margin-left: 8px;
   display: flex;
@@ -212,7 +218,9 @@
   box-shadow: 0 2px 8px rgba(25, 118, 210, 0.13);
 }
 @media (max-width: 700px) {
-  .social-table { display: none !important; }
+  .social-table {
+    display: none !important;
+  }
   .social-cards-mobile {
     display: flex;
     flex-direction: column;
@@ -243,12 +251,14 @@
     height: 100%;
     margin-left: auto;
   }
-  .social-table th, .social-table td {
+  .social-table th,
+  .social-table td {
     padding: 8px 4px;
     font-size: 0.97em;
   }
-  .social-detail-card img, .social-detail-img {
+  .social-detail-card img,
+  .social-detail-img {
     width: 80px !important;
     height: 60px !important;
   }
-} 
+}

@@ -195,12 +195,8 @@ function setupAxiosInterceptors(setToken, setNotification, handleLogout) {
         // Si falla el refresh (401 o 403), cerramos sesión
         processQueue(refreshError, null);
         
-        setNotification({
-          message: "Tu sesión ha expirado. Por favor inicia sesión nuevamente.",
-          type: "warning"
-        });
-        
-        handleLogout();
+        // El handleLogout se encargará de limpiar el estado y localStorage
+        handleLogout("Tu sesión ha expirado por inactividad. Por favor inicia sesión nuevamente.");
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -252,7 +248,7 @@ function App() {
     }
   };
 
-  const handleLogout = async () => {
+  const handleLogout = async (reason = null) => {
     try {
       if (token) {
         // CAMBIO 4: Usar 'api' para el logout también
@@ -272,9 +268,14 @@ function App() {
       localStorage.removeItem("rol");
       localStorage.removeItem("residencial_id");
       console.log("🚪 Logout local completado");
+      
+      // Asegurarse de que 'reason' sea un string y no un objeto evento
+      const finalMessage = typeof reason === "string" ? reason : "Sesión cerrada correctamente";
+      const finalType = typeof reason === "string" ? "error" : "info";
+
       setNotification({
-        message: "Sesión cerrada correctamente",
-        type: "info"
+        message: finalMessage,
+        type: finalType
       });
     }
   };

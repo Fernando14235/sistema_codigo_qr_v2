@@ -17,6 +17,7 @@ import Escaneos from "./roles/Admin/views/Escaneos";
 import MisVisitas from "./roles/Admin/views/MisVisitas";
 import Tickets from "./roles/Admin/views/Tickets";
 import SocialAdmin from "./roles/Admin/views/SocialAdmin";
+import FormCrearVisitaAdmin from "./roles/Admin/views/subcomponents/FormCrearVisitaAdmin";
 
 function AdminDashboard({ nombre, token, rol, onLogout }) {
   const [vista, setVista] = useState("menu");
@@ -162,7 +163,6 @@ function AdminDashboard({ nombre, token, rol, onLogout }) {
       case "crear_visita":
         return isVistaDisponible("crear_visita") ? (
           <section className="admin-section">
-            <h2 className="crear-visita-title">Crear Nueva Visita</h2>
             <FormCrearVisitaAdmin
               token={token}
               onSuccess={() => {

@@ -243,8 +243,7 @@ const PWADownloadButton = () => {
     <div 
       className={`pwa-download-button ${!isVisible ? 'hidden' : ''}`}
       onClick={handleInstallClick}
-      title="Instalar aplicación en tu dispositivo"
-    >
+      title="Instalar aplicación en tu dispositivo">
       <span style={{ fontSize: '16px' }}>📱</span>
       <span>{isMobile ? 'Instalar' : 'Instalar App'}</span>
     </div>
