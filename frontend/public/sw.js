@@ -1,5 +1,5 @@
 // Service Worker para Residencial Access PWA
-const CACHE_NAME = 'porto-pass-v3.1.5';
+const CACHE_NAME = 'porto-pass-v3.1.6';
 const urlsToCache = [
   '/',
   '/index.html',
