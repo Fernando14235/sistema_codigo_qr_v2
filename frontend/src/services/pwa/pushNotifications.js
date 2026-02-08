@@ -185,7 +185,6 @@ class PushNotificationService {
     };
 
     const notification = new Notification(title, defaultOptions);
-
     // Manejar clics en la notificación
     notification.onclick = (event) => {
       event.preventDefault();
@@ -220,8 +219,12 @@ class PushNotificationService {
 
   // Obtener VAPID public key desde el backend
   async getVapidPublicKey() {
+    //const envKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+    //if (envKey) {
+    //  return envKey;
+    //}
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const API_URL = import.meta.env.VITE_API_URL;
       // Intentar obtener la key del backend
       const response = await fetch(`${API_URL}/push/vapid-public-key`);
       if (response.ok) {
@@ -229,11 +232,12 @@ class PushNotificationService {
         return data.publicKey;
       }
     } catch (error) {
-      console.warn('No se pudo obtener VAPID key del backend, usando key por defecto');
+      console.warn('No se pudo obtener VAPID key del backend');
     }
     
     // Fallback a key hardcodeada (debería ser la misma del backend)
-    return 'BEl62iUYgUivxIkv69yViEuiBIa1qkS3qgRupZW2oONf_3j8gZmxbDnEY_4zJPKNBmhoXV0d2D4R49sJqYoLtEWY';
+    //return envKey;
+    throw new Error('No se pudo obtener VAPID key');
   }
 
   // Configurar tipos de notificación por rol (actualizados con los nuevos tipos del backend)
@@ -320,5 +324,4 @@ class PushNotificationService {
 
 // Instancia singleton
 const pushNotificationService = new PushNotificationService();
-
 export default pushNotificationService; 

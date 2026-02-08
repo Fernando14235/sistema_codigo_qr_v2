@@ -213,20 +213,11 @@ const PWADownloadButton = () => {
   const isChrome = /Chrome/.test(navigator.userAgent);
   const isEdge = /Edg/.test(navigator.userAgent);
   const isFirefox = /Firefox/.test(navigator.userAgent);
-  
-  // Mostrar el botón si:
-  // 1. Está habilitado explícitamente, O
-  // 2. Es compatible y no está instalada, O
-  // 3. Es un navegador compatible (Chrome, Edge, Firefox, móvil)
+
   const shouldShow = showButton || 
                     (isCompatible && !isInstalled) || 
                     (isChrome || isEdge || isFirefox || isMobile);
   
-
-  // Solo mostrar si:
-  // 1. No está instalada
-  // 2. Está en el dashboard principal
-  // 3. No se ha hecho scroll
   if (isInstalled) {
     return null;
   }
