@@ -19,24 +19,33 @@ from app.utils.security import (
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
+
+# ===== CONFIGURACIÓN DE COOKIES (CRÍTICO) =====
 is_production = settings.ENVIRONMENT == "production"
 
-# Setear una cookie
+# Definimos la configuración base para asegurar consistencia
 cookie_config = {
     "key": "refresh_token",
-    "httponly": True,
-    "secure": True if is_production else False, #False en localhost
-    "samesite": "lax" if is_production else "none", #"none" en localhost
-    "path": "/",
-    "domain": ".tekhnosupport.com" # None en localhost
+    "httponly": True,   # Javascript no puede acceder (seguridad XSS)
+    "path": "/",        # Disponible en todo el sitio
+    "secure": True if is_production else False,
+    "samesite": "lax",  # Lax es mejor para desarrollo que "none" sin secure
+    "domain": ".tekhnosupport.com" if is_production else None
 }
 
-# Eliminar una cookie
 def clear_refresh_cookie(response: Response):
+    """
+    Elimina la cookie de forma segura.
+    IMPORTANTE: Para borrar una cookie, los atributos domain, secure y samesite
+    deben coincidir EXACTAMENTE con los usados al crearla.
+    """
     response.delete_cookie(
-        key="refresh_token",
-        path="/",
-        domain=".tekhnosupport.com" if is_production else None
+        key=cookie_config["key"],
+        path=cookie_config["path"],
+        domain=cookie_config["domain"],
+        secure=cookie_config["secure"],
+        samesite=cookie_config["samesite"],
+        httponly=cookie_config["httponly"]
     )
 
 class ChangePasswordRequest(BaseModel):

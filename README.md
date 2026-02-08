@@ -1,11 +1,10 @@
-<<<<<<< HEAD
-# 🏠 Residencial Access - Sistema de Control de Acceso
+# 🏠 Porto Pass - Sistema de Control de Acceso
 
 Sistema completo de control de acceso residencial mediante códigos QR, desarrollado con FastAPI (backend) y React (frontend).
 
 ## 📋 Descripción
 
-Residencial Access es una aplicación web que permite gestionar el acceso de visitantes a residenciales mediante códigos QR. El sistema incluye:
+PortoPass es una aplicación web que permite gestionar el acceso de visitantes a residenciales mediante códigos QR. El sistema incluye:
 
 - **Gestión de usuarios**: Administradores, guardias y residentes
 - **Creación de visitas**: Los residentes pueden crear visitas con códigos QR únicos
@@ -14,27 +13,6 @@ Residencial Access es una aplicación web que permite gestionar el acceso de vis
 - **Historial**: Seguimiento completo de todas las visitas
 - **Estadísticas**: Dashboard con métricas del sistema
 
-## 🏗️ Arquitectura
-
-```
-residencial_access/
-├── backend/                 # API FastAPI
-│   ├── app/
-│   │   ├── core/           # Configuración y CORS
-│   │   ├── models/         # Modelos de base de datos
-│   │   ├── routers/        # Endpoints de la API
-│   │   ├── schemas/        # Esquemas Pydantic
-│   │   ├── services/       # Lógica de negocio
-│   │   └── utils/          # Utilidades (QR, notificaciones, etc.)
-│   ├── alembic/            # Migraciones de base de datos
-│   └── requirements.txt    # Dependencias Python
-├── frontend/               # Aplicación React
-│   ├── src/               # Código fuente React
-│   ├── public/            # Archivos estáticos
-│   └── package.json       # Dependencias Node.js
-└── README.md              # Este archivo
-```
-
 ## 🚀 Instalación
 
 ### Prerrequisitos
@@ -42,6 +20,8 @@ residencial_access/
 - Python 3.8+
 - Node.js 16+
 - PostgreSQL
+- JavaScript
+- Github
 - Git
 
 ### Backend
@@ -49,15 +29,17 @@ residencial_access/
 1. **Clonar el repositorio**
    ```bash
    git clone <url-del-repositorio>
-   cd residencial_access
+   cd <tu-directorio>
    ```
 
 2. **Configurar entorno virtual**
    ```bash
    cd backend
    python -m venv venv
+   
    # En Windows:
    venv\Scripts\activate
+   
    # En Linux/Mac:
    source venv/bin/activate
    ```
@@ -111,6 +93,7 @@ residencial_access/
 4. **Validar entrada**: El guardia escanea el QR para permitir entrada
 5. **Registrar salida**: El guardia registra la salida del visitante
 
+
 ## 🔧 Tecnologías
 
 ### Backend
@@ -119,8 +102,9 @@ residencial_access/
 - **PostgreSQL**: Base de datos principal
 - **Alembic**: Migraciones de base de datos
 - **JWT**: Autenticación y autorización
-- **APScheduler**: Programación de tareas
+- **APScheduler**: Programación de tareas automaticas
 - **QR Code**: Generación de códigos QR
+
 
 ### Frontend
 - **React**: Biblioteca de interfaz de usuario
@@ -130,6 +114,7 @@ residencial_access/
 - **Chart.js**: Gráficos y estadísticas
 - **QR Scanner**: Lectura de códigos QR
 
+
 ## 📊 API Endpoints
 
 ### Autenticación
@@ -137,17 +122,20 @@ residencial_access/
 - `POST /auth/refresh` - Renovar token
 - `GET /auth/secure` - Endpoint seguro
 
+
 ### Visitas
 - `POST /visitas/residente/crear_visita` - Crear visita
 - `POST /visitas/guardia/validar_qr` - Validar QR
 - `POST /visitas/guardia/registrar_salida` - Registrar salida
 - `GET /visitas/residente/mis_visitas` - Ver visitas del residente
 
+
 ### Usuarios (Admin)
 - `GET /usuarios/admin` - Listar usuarios
 - `POST /create_usuarios/admin` - Crear usuario
 - `PUT /update_usuarios/admin/{id}` - Actualizar usuario
 - `DELETE /delete_usuarios/admin/{id}` - Eliminar usuario
+
 
 ## 🤝 Contribución
 
@@ -157,18 +145,22 @@ residencial_access/
 4. Push a la rama (`git push origin feature/AmazingFeature`)
 5. Abrir un Pull Request
 
+
 ## 📄 Licencia
 
 Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
 
+
 ## 📞 Soporte
 
-Para soporte técnico o preguntas, contactar al administrador del sistema.
+Para soporte técnico o preguntas, contactar al administrador del sistema:
+
+correo: nandix2004@gmail.com
+linkedin: https://linkedin.com/in/jose-velasquez-97284b325
 
 ---
 
-**Desarrollado para Residencial**
+**Desarrollado para Entidad**
 =======
 # sistema_codigo_qr_v2
 Version 2 del sistema de control de acceso a las residenciales por codigo QR
->>>>>>> be04137bdbcb2eaa3743cb2cf8cc3055bdc3fc90

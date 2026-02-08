@@ -4,6 +4,7 @@ function MainMenu({ nombre, rol, onLogout, onSelectVista }) {
   const menuItems = [
     { id: "entrada", title: "Registrar Entrada", icon: "🚪", description: "Escanear QR para registrar entrada de visitantes" },
     { id: "salida", title: "Registrar Salida", icon: "🚗", description: "Escanear QR para registrar salida de visitantes" },
+    { id: "visitas-dia", title: "Visitas del Día", icon: "📋", description: "Ver todas las visitas programadas para hoy" },
     { id: "escaneos", title: "Mis Escaneos del Día", icon: "🕒", description: "Ver historial de escaneos realizados hoy" }
   ];
 

@@ -142,41 +142,14 @@ def obtener_mis_vistas(db: Session = Depends(get_db), current_user = Depends(ver
         
         # Determinar las vistas activas para este administrador
         vistas_activas = determinar_vistas_admin(db, admin.id)
-        
-        # Si no hay vistas activas configuradas, devolver todas las vistas de la BD como activas
-        if not vistas_activas:
-            todas_vistas = db.query(Vista).all()
-            return [
-                VistaConfigItem(
-                    id=vista.id,
-                    nombre=vista.nombre,
-                    descripcion=vista.descripcion or "",
-                    activa=True
-                ) for vista in todas_vistas
-            ]
-        
         return vistas_activas
         
     except Exception as e:
-        # En caso de error, devolver todas las vistas de la base de datos
+        # En caso de error, devolver lista vacía para seguridad
         print(f"Error en obtener_mis_vistas: {str(e)}")
         import traceback
         traceback.print_exc()
-        
-        try:
-            # Intentar obtener vistas de la base de datos como fallback
-            todas_vistas = db.query(Vista).all()
-            return [
-                VistaConfigItem(
-                    id=vista.id,
-                    nombre=vista.nombre,
-                    descripcion=vista.descripcion or "",
-                    activa=True
-                ) for vista in todas_vistas
-            ]
-        except:
-            # Si todo falla, devolver lista vacía
-            return []
+        return []
         
 @router.get("/{vista_id}", response_model=VistaResponse)
 def obtener_vista_por_id(vista_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):

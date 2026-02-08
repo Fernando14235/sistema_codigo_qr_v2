@@ -9,6 +9,7 @@ import ResidenteDashboard from './ResidenteDashboard';
 import SuperAdminDashboard from './SuperAdminDashboard';
 import PWADownloadButton from './components/PWA/PWADownloadButton';
 import OfflineIndicator from './components/Offline/OfflineIndicator';
+import PushNotificationManager from './components/PWA/PushNotificationManager';
 
 // Notificación tipo tarjeta
 function Notification({ message, type, onClose }) {
@@ -131,20 +132,15 @@ function setupAxiosInterceptors(setToken, setNotification, handleLogout) {
       const originalRequest = error.config;
 
       // Si no hay respuesta o no es error 401, rechazar
-      if (!error.response || error.response.status !== 401 || originalRequest._retry) {
+      if (!error.response || error.response.status !== 401) {
         return Promise.reject(error);
       }
 
-      // Evitar bucle infinito
-      if (originalRequest.skipAuthRefresh || 
+      // Evitar bucle infinito y verificar endpoints de auth
+      if (originalRequest._retry || 
           originalRequest.url.includes("/auth/token") || 
           originalRequest.url.includes("/auth/refresh") || 
           originalRequest.url.includes("/auth/logout")) {
-        return Promise.reject(error);
-      }
-
-      // Si es 401 y no hemos reintentado
-      if (originalRequest._retry) {
         return Promise.reject(error);
       }
 
@@ -166,11 +162,10 @@ function setupAxiosInterceptors(setToken, setNotification, handleLogout) {
 
       try {
         console.log("🔄 Intentando renovar token...");
-        console.log("🔍 DEBUG - URL de refresh:", `${API_URL}/auth/refresh`);
         
         // Llamada explícita al endpoint de refresh usando la instancia 'api'
         const refreshRes = await api.post(`/auth/refresh`, {}, {
-            skipAuthRefresh: true // Flag custom
+            skipAuthRefresh: true // Flag custom por si acaso
         });
 
         const { access_token } = refreshRes.data;
@@ -189,14 +184,13 @@ function setupAxiosInterceptors(setToken, setNotification, handleLogout) {
 
       } catch (refreshError) {
         console.error("❌ Falló renovación de token:", refreshError);
-        console.error("❌ Status:", refreshError.response?.status);
-        console.error("❌ Data:", refreshError.response?.data);
         
         // Si falla el refresh (401 o 403), cerramos sesión
         processQueue(refreshError, null);
         
         // El handleLogout se encargará de limpiar el estado y localStorage
-        handleLogout("Tu sesión ha expirado por inactividad. Por favor inicia sesión nuevamente.");
+        // Solo mostrar notificación si no estamos en la pantalla de login ya
+        handleLogout("Tu sesión ha expirado. Por favor inicia sesión nuevamente.");
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -215,11 +209,25 @@ function usePushNotificationToasts(setNotification) {
   useEffect(() => {
     if ('serviceWorker' in navigator) {
       const handler = (event) => {
+        // Manejar notificaciones push (mostrar toast)
         if (event.data && event.data.type === 'PUSH_NOTIFICATION') {
           setNotification({
             message: event.data.data.body || 'Nueva notificación',
             type: 'info'
           });
+        }
+        
+        // Manejar clicks en notificaciones (navegar a la URL)
+        if (event.data && event.data.type === 'NOTIFICATION_CLICK') {
+          const url = event.data.url || '/';
+          console.log('📍 Navegando a:', url);
+          
+          if (url.startsWith('http')) {
+            window.location.href = url;
+          } else {
+            // Para rutas relativas, usar pathname
+            window.location.pathname = url;
+          }
         }
       };
       
@@ -251,11 +259,10 @@ function App() {
   const handleLogout = async (reason = null) => {
     try {
       if (token) {
-        // CAMBIO 4: Usar 'api' para el logout también
+        // Intentar logout en backend, pero no bloquear el logout local si falla
         await api.post(`/auth/logout`, {}, {
-          headers: { Authorization: `Bearer ${token}` },
-          skipAuthRefresh: true
-        });
+          headers: { Authorization: `Bearer ${token}` }
+        }).catch(() => {/* Ignorar error de red en logout */});
       }
     } catch (error) {
       console.error("Error logout backend:", error);
@@ -269,9 +276,9 @@ function App() {
       localStorage.removeItem("residencial_id");
       console.log("🚪 Logout local completado");
       
-      // Asegurarse de que 'reason' sea un string y no un objeto evento
       const finalMessage = typeof reason === "string" ? reason : "Sesión cerrada correctamente";
-      const finalType = typeof reason === "string" ? "error" : "info";
+      // Si es cierre voluntario (reason es evento o null) -> info, si es forzado -> error
+      const finalType = (reason && typeof reason === "string") ? "error" : "info";
 
       setNotification({
         message: finalMessage,
@@ -293,6 +300,9 @@ function App() {
       <div>
         <PWADownloadButton />
         <OfflineIndicator />
+        {/* Renderizar PushNotificationManager solo si hay usuario logueado */}
+        {token && <PushNotificationManager token={token} usuario={{ nombre, rol }} />}
+        
         <Notification {...notification} onClose={() => setNotification({ message: "", type: "" })} />
         <Routes>
           {!token && [

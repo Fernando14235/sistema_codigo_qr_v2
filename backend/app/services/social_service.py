@@ -327,7 +327,8 @@ async def crear_publicacion_service(db: Session, social_data: SocialCreate, imag
                 creador=current_user.nombre,
                 notificar_a=notificar_a,
                 residencial_id=current_user.residencial_id,
-                residentes_especificos=residentes_especificos
+                residentes_especificos=residentes_especificos,
+                publicacion_id=social.id
             )
                 
         except Exception as e:

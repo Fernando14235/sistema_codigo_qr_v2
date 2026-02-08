@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import api from "./api"; 
 import styles from "./SocialDashboard.module.css";
 import { getImageUrl } from './utils/imageUtils';
+import cardStyles from "./css/Cards.module.css";
 import { Pie } from "react-chartjs-2";
 import { Chart, ArcElement, Tooltip, Legend } from "chart.js";
 
@@ -12,6 +13,15 @@ function SocialDashboard({ token, rol }) {
   const getOpcionColor = (index) => {
     const colors = ['#1976d2', '#43a047', '#e53935', '#fbc02d', '#8e24aa', '#00bcd4', '#ff9800', '#c2185b', '#3f51b5', '#009688'];
     return colors[index % colors.length];
+  };
+
+  const getTypeIcon = (tipo) => {
+    switch (tipo) {
+      case "comunicado": return "📢";
+      case "encuesta": return "📊";
+      case "publicacion": return "📝";
+      default: return "📄";
+    }
   };
 
   const [publicaciones, setPublicaciones] = useState([]);
@@ -119,54 +129,48 @@ function SocialDashboard({ token, rol }) {
   );
 
   const renderPublicaciones = () => {
-    const isMobile = window.innerWidth < 700;
-    if (!publicaciones || publicaciones.length === 0) {
-      return <p style={{ textAlign: 'center', color: '#888', fontWeight: 'bold', fontSize: '1.1em', marginTop: 32 }}>No hay publicaciones recientes</p>;
-    }
     return (
-      <div>
+      <div className={cardStyles["cards-container"]}>
         {renderFiltros()}
-        {isMobile ? (
-          <div className="social-cards-mobile">
-            {publicaciones.map(pub => (
-              <div className="social-card-mobile" key={pub.id}>
-                <div className="social-card-mobile-info">
-                  <div><b>Título:</b> {pub.titulo}</div>
-                  <div><b>Tipo:</b> {pub.tipo_publicacion}</div>
-                  <div><b>Fecha:</b> {new Date(pub.fecha_creacion).toLocaleDateString()}</div>
-                </div>
-                <div className="social-card-mobile-actions" style={{ marginLeft: 'auto' }}>
-                  <span onClick={() => setDetalle(pub)}><IconVer /></span>
+        {publicaciones.map(pub => (
+          <div className={cardStyles["horizontal-card"]} key={pub.id}>
+            <div className={`${cardStyles["status-stripe"]} ${cardStyles["success"]}`}></div>
+            
+            <div className={cardStyles["card-main-content"]}>
+              <div className={cardStyles["card-section"]}>
+                <span className={cardStyles["section-label"]}>Tipo</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '1.2rem' }}>{getTypeIcon(pub.tipo_publicacion)}</span>
+                  <span className={cardStyles["section-value"]} style={{ textTransform: 'capitalize' }}>
+                    {pub.tipo_publicacion}
+                  </span>
                 </div>
               </div>
-            ))}
+
+              <div className={cardStyles["card-section"]}>
+                <span className={cardStyles["section-label"]}>Título</span>
+                <h4 className={cardStyles["card-title"]}>{pub.titulo}</h4>
+              </div>
+
+              <div className={cardStyles["card-section"]}>
+                <span className={cardStyles["section-label"]}>Publicado</span>
+                <span className={cardStyles["section-value"]}>
+                  {new Date(pub.fecha_creacion).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
+
+            <div className={cardStyles["card-actions"]}>
+              <button 
+                className={`${cardStyles["action-btn"]} ${cardStyles["view"]}`}
+                onClick={() => setDetalle(pub)}
+                title="Ver detalle"
+              >
+                🔍
+              </button>
+            </div>
           </div>
-        ) : (
-          <table className={styles["social-table"]}>
-            <thead>
-              <tr>
-                <th>Título</th>
-                <th>Tipo</th>
-                <th>Fecha</th>
-                <th>Hora</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {publicaciones.map(pub => (
-                <tr key={pub.id}>
-                  <td>{pub.titulo}</td>
-                  <td>{pub.tipo_publicacion}</td>
-                  <td>{new Date(pub.fecha_creacion).toLocaleDateString()}</td>
-                  <td>{new Date(pub.fecha_creacion).toLocaleTimeString()}</td>
-                  <td className={styles["social-table-actions"]}>
-                    <span onClick={() => setDetalle(pub)}><IconVer /></span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        ))}
       </div>
     );
   };

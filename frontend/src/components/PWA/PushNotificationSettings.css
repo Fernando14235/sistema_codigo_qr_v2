@@ -1,0 +1,320 @@
+/* Push Notification Settings Component */
+.push-settings-container {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e2e8f0;
+  padding: 24px;
+  margin: 20px 0;
+}
+
+.push-settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #f7fafc;
+}
+
+.push-settings-header h3 {
+  margin: 0;
+  color: #2d3748;
+  font-size: 1.4em;
+  font-weight: 700;
+}
+
+.status-badge {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.status-badge.status-granted {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.status-denied {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status-badge.status-default {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* Not Supported */
+.push-settings-not-supported {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.not-supported-icon {
+  font-size: 4em;
+  display: block;
+  margin-bottom: 16px;
+}
+
+.push-settings-not-supported p {
+  color: #4a5568;
+  font-size: 1.1em;
+  margin: 8px 0;
+}
+
+.not-supported-hint {
+  font-size: 0.9em !important;
+  color: #9ca3af !important;
+}
+
+/* Content */
+.push-settings-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Info Box */
+.push-info-box {
+  background: #f7fafc;
+  border-radius: 12px;
+  padding: 18px;
+  border-left: 4px solid #667eea;
+}
+
+.push-info-box p {
+  margin: 0 0 12px 0;
+  color: #4a5568;
+  font-weight: 600;
+}
+
+.push-benefits-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.push-benefits-list li {
+  color: #2d3748;
+  font-size: 0.95em;
+  padding: 8px 12px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+/* Status Box */
+.push-status-box {
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: #f7fafc;
+  border-radius: 8px;
+}
+
+.status-label {
+  font-weight: 600;
+  color: #4a5568;
+  font-size: 0.95em;
+}
+
+.status-value {
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+.status-value.status-active {
+  color: #065f46;
+}
+
+.status-value.status-inactive {
+  color: #9ca3af;
+}
+
+.status-value.status-granted {
+  color: #065f46;
+}
+
+.status-value.status-denied {
+  color: #991b1b;
+}
+
+.status-value.status-default {
+  color: #92400e;
+}
+
+/* Message */
+.push-message {
+  padding: 14px 18px;
+  border-radius: 10px;
+  font-size: 0.95em;
+  font-weight: 500;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.push-message-success {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.push-message-error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+/* Actions */
+.push-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btn-push {
+  flex: 1;
+  min-width: 200px;
+  padding: 14px 24px;
+  border: none;
+  border-radius: 10px;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.btn-push:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn-push-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.btn-push-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-push-secondary {
+  background: linear-gradient(135deg, #718096 0%, #4a5568 100%);
+  color: white;
+}
+
+.btn-push-secondary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(113, 128, 150, 0.4);
+}
+
+.btn-push-test {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  color: white;
+}
+
+.btn-push-test:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(72, 187, 120, 0.4);
+}
+
+/* Help Box */
+.push-help-box {
+  background: #fef3c7;
+  border: 2px solid #fde68a;
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.push-help-box h4 {
+  margin: 0 0 12px 0;
+  color: #92400e;
+  font-size: 1.1em;
+}
+
+.push-help-box p {
+  margin: 0 0 12px 0;
+  color: #78350f;
+  font-size: 0.95em;
+}
+
+.push-help-box ol {
+  margin: 0;
+  padding-left: 20px;
+  color: #78350f;
+}
+
+.push-help-box li {
+  margin: 6px 0;
+  font-size: 0.9em;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .push-settings-container {
+    padding: 18px;
+  }
+
+  .push-settings-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .push-actions {
+    flex-direction: column;
+  }
+
+  .btn-push {
+    min-width: 100%;
+  }
+
+  .status-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .push-settings-header h3 {
+    font-size: 1.2em;
+  }
+
+  .push-info-box {
+    padding: 14px;
+  }
+
+  .push-benefits-list li {
+    font-size: 0.9em;
+  }
+}

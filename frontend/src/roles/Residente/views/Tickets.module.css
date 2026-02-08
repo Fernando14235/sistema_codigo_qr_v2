@@ -1,0 +1,268 @@
+.ticket-form-revamped {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 600px;
+  margin: 0 auto;
+  border: 1px solid #f0f0f0;
+}
+
+.form-header {
+  border-bottom: 2px solid #f5f8fa;
+  padding-bottom: 16px;
+  text-align: center;
+}
+
+.form-header h2 {
+  margin: 0;
+  font-size: 1.6rem;
+  color: #1a237e;
+  font-weight: 800;
+}
+
+.ticket-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field-group label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #455a64;
+}
+
+.form-input, .form-textarea {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e3eafc;
+  border-radius: 10px;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  background: #fff;
+}
+
+.form-input:focus, .form-textarea:focus {
+  border-color: #1976d2;
+  box-shadow: 0 0 0 4px rgba(25, 118, 210, 0.1);
+  outline: none;
+}
+
+/* Media Section */
+.media-section {
+  background: #fcfdfe;
+  border-radius: 12px;
+  border: 1px solid #edf2f7;
+  padding: 16px;
+}
+
+.media-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1976d2;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.file-upload-box {
+  margin-bottom: 0;
+}
+
+.hidden-input {
+  display: none;
+}
+
+.file-drop-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  border: 2px dashed #cfd8dc;
+  border-radius: 12px;
+  cursor: pointer;
+  background: #fff;
+  transition: all 0.2s ease;
+}
+
+.file-drop-area:hover {
+  border-color: #1976d2;
+  background: #f0f7ff;
+}
+
+.upload-icon {
+  font-size: 1.5rem;
+  margin-bottom: 4px;
+}
+
+.upload-text {
+  font-weight: 600;
+  color: #1a237e;
+}
+
+.upload-hint {
+  font-size: 0.75rem;
+  color: #90a4ae;
+}
+
+.preview-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.image-preview-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 300px;
+}
+
+.preview-image {
+  width: 100%;
+  height: auto;
+  max-height: 250px;
+  object-fit: contain;
+  border-radius: 12px;
+  border: 2px solid #e3eafc;
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.15);
+}
+
+.btn-remove-preview {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 28px;
+  height: 28px;
+  background: #f44336;
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  font-size: 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.file-name-info {
+  font-size: 0.8rem;
+  color: #607d8b;
+  text-align: center;
+}
+
+.btn-change-media {
+  padding: 8px 16px;
+  background: #ff9800;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.2s;
+}
+
+.btn-change-media:hover {
+  background: #f57c00;
+}
+
+/* Actions */
+.form-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.error-badge {
+  padding: 12px;
+  background: #ffebee;
+  color: #c62828;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.btns-group {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.btn-submit {
+  flex: 1;
+  background: #1976d2;
+  color: #fff;
+  border: none;
+  padding: 14px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.btn-submit:hover:not(:disabled) {
+  background: #1565c0;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+}
+
+.btn-cancel {
+  flex: 0.8;
+  background: #f5f5f5;
+  color: #607d8b;
+  border: none;
+  padding: 14px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.btn-cancel:hover {
+  background: #eeeeee;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 500px) {
+  .ticket-form-revamped {
+    padding: 16px;
+  }
+  .btns-group {
+    flex-direction: column;
+  }
+}

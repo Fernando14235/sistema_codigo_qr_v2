@@ -1,91 +1,88 @@
 import React, { useState } from "react";
 import PaginationControls from "../../../components/PaginationControls";
+import cardStyles from "../../../css/Cards.module.css";
 
-// Tabla de visitas (responsive)
-function TablaVisitasResidente({ visitas, onEditar, onEliminar }) {
-  // Detectar si la pantalla es pequeña
-  const isMobile = window.innerWidth < 700;
-  if (isMobile) {
+// Listado de visitas (Diseño Moderno de Tarjetas)
+function VisitasList({ visitas, onEditar, onEliminar }) {
+  if (!visitas || visitas.length === 0) {
     return (
-      <div className="visitas-cards-mobile">
-        {visitas.map((v, i) => (
-          <div className="visita-card-mobile" key={i}>
-            <div className="visita-card-mobile-info">
-              <div><b>Visitante:</b> {v.visitante?.nombre_conductor || '-'}</div>
-              <div><b>Teléfono:</b> {v.visitante?.telefono || '-'}</div>
-              <div><b>Vehículo:</b> {v.visitante?.tipo_vehiculo || '-'}</div>
-              <div><b>Motivo:</b> {v.visitante?.motivo_visita || '-'}</div>
-              <div><b>Estado:</b> {v.estado === 'solicitada' ? 'Solicitada' : v.estado}</div>
-              <div><b>Expiración:</b> {v.expiracion == 'S' ? 'Sí' : 'No'}</div>
-              <div><b>Fecha Entrada:</b> {v.fecha_entrada ? new Date(v.fecha_entrada).toLocaleString() : "-"}</div>
-            </div>
-            <div className="visita-card-mobile-action">
-              <span
-                onClick={() => onEliminar(v.id)}
-                style={{ color: '#e53935', cursor: 'pointer', fontSize: 28, marginRight: 8 }}
-                title="Eliminar visita"
-              >
-                🗑️
-              </span>
-              <span
-                onClick={() => (v.estado === 'pendiente' && v.expiracion === 'N') ? onEditar(v) : null}
-                style={{ color: (v.estado === 'pendiente' && v.expiracion === 'N') ? '#1976d2' : '#bdbdbd', cursor: (v.estado === 'pendiente' && v.expiracion === 'N') ? 'pointer' : 'not-allowed', fontSize: 28 }}
-                title={(v.estado === 'pendiente' && v.expiracion === 'N') ? 'Editar visita' : 'Solo puedes editar visitas pendientes y no expiradas'}
-              >
-                ✏️
-              </span>
-            </div>
-          </div>
-        ))}
+      <div style={{ textAlign: "center", color: "#888", padding: "40px" }}>
+        No tienes visitas registradas.
       </div>
     );
   }
-  // Tabla para escritorio
+
   return (
-    <div className="tabla-responsive">
-      <table className="admin-table">
-        <thead>
-          <tr>
-            <th>Visitante</th>
-            <th>Teléfono</th>
-            <th>Vehículo</th>
-            <th>Motivo</th>
-            <th>Estado</th>
-            <th>Expiración</th>
-            <th>Fecha Entrada</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {visitas.map((v, i) => (
-            <tr key={i}>
-              <td>{v.visitante?.nombre_conductor || '-'}</td>
-              <td>{v.visitante?.telefono || '-'}</td>
-              <td>{v.visitante?.tipo_vehiculo || '-'}</td>
-              <td>{v.visitante?.motivo_visita || '-'}</td>
-              <td>{v.estado === 'solicitada' ? 'Solicitada' : v.estado}</td>
-              <td>{v.expiracion == 'S' ? 'Sí' : 'No'}</td>
-              <td>{v.fecha_entrada ? new Date(v.fecha_entrada).toLocaleString() : "-"}</td>
-              <td>
-                <span
-                  onClick={() => onEliminar(v.id)}
-                  style={{ color: '#e53935', cursor: 'pointer', fontSize: 20, marginRight: 8 }}
-                  title="Eliminar visita"
-                >
-                  🗑️
+    <div className={cardStyles["cards-container"]}>
+      {visitas.map((v, i) => (
+        <div className={cardStyles["horizontal-card"]} key={i}>
+          <div className={`${cardStyles["status-stripe"]} ${
+            v.estado === 'aprobada' || v.estado === 'completada' ? cardStyles["success"] : 
+            v.estado === 'rechazada' || v.expiracion === 'S' ? cardStyles["danger"] : cardStyles["warning"]
+          }`}></div>
+          
+          <div className={cardStyles["card-main-content"]}>
+            <div className={cardStyles["card-section"]}>
+              <span className={cardStyles["section-label"]}>Visitante</span>
+              <span className={cardStyles["section-value"]} style={{ fontSize: '1.1rem' }}>
+                {v.visitante?.nombre_conductor || 'Anónimo'}
+              </span>
+              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>📞 {v.visitante?.telefono || '-'}</span>
+            </div>
+
+            <div className={cardStyles["card-section"]}>
+              <span className={cardStyles["section-label"]}>Vehículo / Motivo</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>🆔 DNI: {v.visitante?.dni_conductor || '-'}</span>
+                <span className={cardStyles["section-value"]}>{v.visitante?.tipo_vehiculo || '-'}</span>
+                {v.visitante?.placa_vehiculo && (
+                  <span style={{ fontSize: '0.75rem', color: '#1e293b' }}>🚗 Placa: {v.visitante.placa_vehiculo}</span>
+                )}
+                {v.visitante?.placa_chasis && (
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>⚙️ Chasis: {v.visitante.placa_chasis}</span>
+                )}
+              </div>
+              <span style={{ fontSize: '0.85rem', color: '#64748b' }}>💬 {v.visitante?.motivo_visita || '-'}</span>
+            </div>
+
+            <div className={cardStyles["card-section"]}>
+              <span className={cardStyles["section-label"]}>Estado / Expiración</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span className={`${cardStyles["badge"]} ${cardStyles["badge-" + (v.estado === 'solicitada' ? 'pendiente' : v.estado)]}`}>
+                  {v.estado === 'pendiente' ? '⏳ Pendiente' : 
+                   v.estado === 'aprobada' ? '✅ Aprobada' : 
+                   v.estado === 'completada' ? '🏁 Completada' : 
+                   v.estado === 'rechazada' ? '❌ Rechazada' : v.estado}
                 </span>
-                <span
-                  onClick={() => (v.estado === 'pendiente' && v.expiracion === 'N') ? onEditar(v) : null}
-                  style={{ color: (v.estado === 'pendiente' && v.expiracion === 'N') ? '#1976d2' : '#bdbdbd', cursor: (v.estado === 'pendiente' && v.expiracion === 'N') ? 'pointer' : 'not-allowed', fontSize: 20 }}
-                  title={(v.estado === 'pendiente' && v.expiracion === 'N') ? 'Editar visita' : 'Solo puedes editar visitas pendientes y no expiradas'}
-                >
-                  ✏️
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                {v.expiracion === 'S' && (
+                  <span className={`${cardStyles["badge"]} ${cardStyles["badge-expirado"]}`} style={{ fontSize: '0.65rem' }}>
+                    ⚠️ Expirada
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className={cardStyles["card-actions"]}>
+            <button 
+              className={`${cardStyles["action-btn"]} ${cardStyles["edit"]}`}
+              onClick={() => (v.estado === 'pendiente' && v.expiracion === 'N') ? onEditar(v) : null}
+              disabled={!(v.estado === 'pendiente' && v.expiracion === 'N')}
+              style={{ opacity: (v.estado === 'pendiente' && v.expiracion === 'N') ? 1 : 0.3, cursor: (v.estado === 'pendiente' && v.expiracion === 'N') ? 'pointer' : 'not-allowed' }}
+              title="Editar visita"
+            >
+              ✏️
+            </button>
+            <button 
+              className={`${cardStyles["action-btn"]} ${cardStyles["delete"]}`}
+              onClick={() => onEliminar(v.id)}
+              title="Eliminar visita"
+            >
+              🗑️
+            </button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -97,7 +94,7 @@ function MisVisitas({ visitas, onEditar, onEliminar, cargando, error, page, tota
 
   return (
     <>
-      <TablaVisitasResidente 
+      <VisitasList 
         visitas={visitas} 
         onEditar={onEditar} 
         onEliminar={onEliminar}

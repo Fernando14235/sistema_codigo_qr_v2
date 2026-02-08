@@ -12,6 +12,7 @@ from .ticket import Ticket, EstadoTicket
 from .notificacion import Notificacion
 from .social import Social, SocialImagen, SocialDestinatario, SocialVoto, SocialOpcion
 from .refresh_token import RefreshToken
+from .push_subscription import PushSubscription
 from .vista import Vista
 from .vista_admin import VistaAdmin
 from .vista_residencial import VistaResidencial

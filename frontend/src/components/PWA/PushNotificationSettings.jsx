@@ -1,161 +1,252 @@
-import React from 'react';
-import { usePushNotifications } from '../../hooks/pwa/usePushNotifications';
+import React, { useState, useEffect } from 'react';
+import pushNotificationService from '../../services/pwa/pushNotifications';
+import './PushNotificationSettings.css';
 
-const PushNotificationSettings = ({ userId, userRole }) => {
-  const {
-    isSupported,
-    permission,
-    isSubscribed,
-    isLoading,
-    subscribe,
-    unsubscribe,
-    requestPermission,
-    getAllowedNotificationTypes
-  } = usePushNotifications(userId, userRole);
+function PushNotificationSettings({ token, usuario }) {
+  const [isSupported, setIsSupported] = useState(false);
+  const [permission, setPermission] = useState('default');
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState({ type: '', text: '' });
 
-  const getPermissionStatusText = () => {
-    switch (permission) {
-      case 'granted':
-        return { text: 'Permitidas', color: '#4caf50', icon: '✅' };
-      case 'denied':
-        return { text: 'Denegadas', color: '#f44336', icon: '❌' };
-      case 'default':
-        return { text: 'No configuradas', color: '#ff9800', icon: '⚠️' };
-      default:
-        return { text: 'No soportadas', color: '#9e9e9e', icon: '❓' };
+  useEffect(() => {
+    // Verificar soporte y permisos
+    setIsSupported(pushNotificationService.isPushSupported());
+    setPermission(pushNotificationService.getPermissionStatus());
+    
+    // Verificar si ya está suscrito
+    checkSubscriptionStatus();
+  }, []);
+
+  const checkSubscriptionStatus = async () => {
+    try {
+      if ('serviceWorker' in navigator && 'PushManager' in window) {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        setIsSubscribed(!!subscription);
+      }
+    } catch (error) {
+      console.error('Error verificando suscripción:', error);
     }
   };
 
-  const getNotificationTypesText = () => {
-    const types = getAllowedNotificationTypes();
-    const typeLabels = {
-      publicacion_creada: '📢 Nuevas publicaciones',
-      visita_creada: '👥 Nuevas visitas',
-      escaneo_entrada: '🚪 Entradas registradas',
-      escaneo_salida: '🚗 Salidas registradas',
-      escaneo_registrado: '📱 Escaneos registrados'
-    };
+  const handleSubscribe = async () => {
+    setLoading(true);
+    setMessage({ type: '', text: '' });
 
-    return types.map(type => typeLabels[type] || type).join(', ');
+    try {
+      const success = await pushNotificationService.subscribeToPush(token);
+      
+      if (success) {
+        setIsSubscribed(true);
+        setPermission('granted');
+        setMessage({
+          type: 'success',
+          text: '✅ ¡Suscrito exitosamente! Ahora recibirás notificaciones push.'
+        });
+      } else {
+        setMessage({
+          type: 'error',
+          text: '❌ No se pudo suscribir. Verifica los permisos del navegador.'
+        });
+      }
+    } catch (error) {
+      console.error('Error suscribiéndose:', error);
+      setMessage({
+        type: 'error',
+        text: '❌ Error al suscribirse. Intenta nuevamente.'
+      });
+    }
+
+    setLoading(false);
   };
 
-  const handleToggleNotifications = async () => {
-    if (isSubscribed) {
-      await unsubscribe();
-    } else {
-      if (permission === 'default') {
-        await requestPermission();
-      } else if (permission === 'granted') {
-        await subscribe();
+  const handleUnsubscribe = async () => {
+    setLoading(true);
+    setMessage({ type: '', text: '' });
+
+    try {
+      const success = await pushNotificationService.unsubscribeFromPush(token);
+      
+      if (success) {
+        setIsSubscribed(false);
+        setMessage({
+          type: 'success',
+          text: '✅ Desuscrito exitosamente. Ya no recibirás notificaciones push.'
+        });
+      } else {
+        setMessage({
+          type: 'error',
+          text: '❌ No se pudo desuscribir. Intenta nuevamente.'
+        });
       }
+    } catch (error) {
+      console.error('Error desuscribiéndose:', error);
+      setMessage({
+        type: 'error',
+        text: '❌ Error al desuscribirse. Intenta nuevamente.'
+      });
+    }
+
+    setLoading(false);
+  };
+
+  const handleTestNotification = () => {
+    if (permission === 'granted') {
+      pushNotificationService.showLocalNotification(
+        '🔔 Notificación de Prueba',
+        {
+          body: 'Esta es una notificación de prueba de PortoPass',
+          icon: '/genfavicon-180-v3.png',
+          badge: '/genfavicon-64-v3.png',
+          data: {
+            url: '/',
+            tipo: 'test'
+          }
+        }
+      );
+      setMessage({
+        type: 'success',
+        text: '✅ Notificación de prueba enviada'
+      });
     }
   };
 
   if (!isSupported) {
     return (
-      <div style={{
-        background: '#f5f5f5',
-        border: '1px solid #ddd',
-        borderRadius: '8px',
-        padding: '16px',
-        marginBottom: '16px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-          <span>❌</span>
-          <strong>Notificaciones Push No Soportadas</strong>
+      <div className="push-settings-container">
+        <div className="push-settings-header">
+          <h4>🔔 Notificaciones Push</h4>
         </div>
-        <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>
-          Tu navegador no soporta notificaciones push. Considera usar Chrome, Firefox o Edge.
-        </p>
+        <div className="push-settings-not-supported">
+          <span className="not-supported-icon">⚠️</span>
+          <p>Tu navegador no soporta notificaciones push.</p>
+          <p className="not-supported-hint">
+            Intenta usar Chrome, Firefox, Edge o Safari en un dispositivo compatible.
+          </p>
+        </div>
       </div>
     );
   }
 
-  const status = getPermissionStatusText();
-
   return (
-    <div style={{
-      background: '#fff',
-      border: '1px solid #e0e0e0',
-      borderRadius: '8px',
-      padding: '16px',
-      marginBottom: '16px',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-        <span style={{ fontSize: '20px' }}>🔔</span>
-        <strong>Notificaciones Push</strong>
+    <div className="push-settings-container">
+      <div className="push-settings-header">
+        <h4>🔔 Notificaciones Push</h4>
+        <span className={`status-badge status-${permission}`}>
+          {permission === 'granted' ? '✅ Activadas' : 
+           permission === 'denied' ? '❌ Bloqueadas' : 
+           '⚠️ No configuradas'}
+        </span>
       </div>
 
-      {/* Estado de permisos */}
-      <div style={{ marginBottom: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-          <span>{status.icon}</span>
-          <span style={{ color: status.color, fontWeight: 'bold' }}>
-            Estado: {status.text}
-          </span>
+      <div className="push-settings-content">
+        {/* Información */}
+        <div className="push-info-box">
+          <p>
+            Las notificaciones push te permiten recibir alertas instantáneas sobre:
+          </p>
+          <ul className="push-benefits-list">
+            {usuario?.rol === 'admin' && (
+              <>
+                <li>🚨 Nuevas visitas programadas</li>
+                <li>✏️ Actualizaciones de visitas</li>
+                <li>📋 Solicitudes de visita pendientes</li>
+                <li>🎫 Nuevos tickets de soporte</li>
+                <li>📢 Nuevas publicaciones</li>
+              </>
+            )}
+            {usuario?.rol === 'guardia' && (
+              <>
+                <li>🚨 Nuevas visitas programadas</li>
+                <li>📢 Nuevas publicaciones</li>
+              </>
+            )}
+            {usuario?.rol === 'residente' && (
+              <>
+                <li>🚪 Entrada de visitantes</li>
+                <li>🚗 Salida de visitantes</li>
+                <li>✏️ Actualizaciones de visitas</li>
+                <li>✅ Actualizaciones de tickets</li>
+                <li>📢 Nuevas publicaciones</li>
+              </>
+            )}
+          </ul>
         </div>
-      </div>
 
-      {/* Tipos de notificación */}
-      <div style={{ marginBottom: '16px' }}>
-        <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
-          Notificaciones que recibirás:
+        {/* Estado actual */}
+        <div className="push-status-box">
+          <div className="status-row">
+            <span className="status-label">Estado:</span>
+            <span className={`status-value status-${isSubscribed ? 'active' : 'inactive'}`}>
+              {isSubscribed ? '🟢 Suscrito' : '⚪ No suscrito'}
+            </span>
+          </div>
+          <div className="status-row">
+            <span className="status-label">Permisos:</span>
+            <span className={`status-value status-${permission}`}>
+              {permission === 'granted' ? '🟢 Concedidos' : 
+               permission === 'denied' ? '🔴 Denegados' : 
+               '🟡 Pendientes'}
+            </span>
+          </div>
         </div>
-        <div style={{ fontSize: '14px', color: '#666', lineHeight: '1.4' }}>
-          {getNotificationTypesText()}
+
+        {/* Mensaje de feedback */}
+        {message.text && (
+          <div className={`push-message push-message-${message.type}`}>
+            {message.text}
+          </div>
+        )}
+
+        {/* Acciones */}
+        <div className="push-actions">
+          {!isSubscribed ? (
+            <button
+              onClick={handleSubscribe}
+              disabled={loading || permission === 'denied'}
+              className="btn-push btn-push-primary"
+            >
+              {loading ? '⏳ Suscribiendo...' : '🔔 Activar Notificaciones'}
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={handleUnsubscribe}
+                disabled={loading}
+                className="btn-push btn-push-secondary"
+              >
+                {loading ? '⏳ Desuscribiendo...' : '🔕 Desactivar Notificaciones'}
+              </button>
+              <button
+                onClick={handleTestNotification}
+                disabled={loading}
+                className="btn-push btn-push-test"
+              >
+                🧪 Probar Notificación
+              </button>
+            </>
+          )}
         </div>
-      </div>
 
-      {/* Botón de control */}
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-        <button
-          onClick={handleToggleNotifications}
-          disabled={isLoading || permission === 'denied'}
-          style={{
-            background: isSubscribed ? '#f44336' : '#4caf50',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            padding: '8px 16px',
-            fontSize: '14px',
-            fontWeight: 'bold',
-            cursor: isSubscribed || permission === 'denied' ? 'not-allowed' : 'pointer',
-            opacity: isSubscribed || permission === 'denied' ? 0.6 : 1,
-            transition: 'all 0.2s ease'
-          }}
-        >
-          {isLoading ? '⏳ Cargando...' : 
-           isSubscribed ? '🔕 Desactivar Notificaciones' : 
-           permission === 'denied' ? '❌ Permisos Denegados' :
-           '🔔 Activar Notificaciones'}
-        </button>
-
+        {/* Ayuda para permisos denegados */}
         {permission === 'denied' && (
-          <div style={{ fontSize: '12px', color: '#f44336' }}>
-            Ve a Configuración del navegador para permitir notificaciones
+          <div className="push-help-box">
+            <h4>⚠️ Permisos Bloqueados</h4>
+            <p>
+              Has bloqueado las notificaciones para este sitio. Para activarlas:
+            </p>
+            <ol>
+              <li>Haz clic en el icono de candado 🔒 en la barra de direcciones</li>
+              <li>Busca "Notificaciones" en los permisos</li>
+              <li>Cambia el permiso a "Permitir"</li>
+              <li>Recarga la página</li>
+            </ol>
           </div>
         )}
       </div>
-
-      {/* Información adicional */}
-      <div style={{
-        marginTop: '12px',
-        padding: '8px',
-        background: '#f8f9fa',
-        borderRadius: '4px',
-        fontSize: '12px',
-        color: '#666'
-      }}>
-        <strong>💡 Información:</strong>
-        <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
-          <li>Las notificaciones aparecerán incluso cuando la app esté cerrada</li>
-          <li>Puedes desactivarlas en cualquier momento</li>
-          <li>Los datos se procesan de forma segura</li>
-        </ul>
-      </div>
     </div>
   );
-};
+}
 
-export default PushNotificationSettings; 
+export default PushNotificationSettings;

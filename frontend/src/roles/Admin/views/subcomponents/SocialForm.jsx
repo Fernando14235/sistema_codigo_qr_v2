@@ -155,7 +155,13 @@ function SocialForm({
 
       onSuccess();
     } catch (err) {
-      setMensaje(err.response?.data?.detail || "Error al guardar publicación");
+      const detail = err.response?.data?.detail;
+      const msg = Array.isArray(detail)
+        ? detail.map((d) => d.msg).join(", ")
+        : typeof detail === "string"
+        ? detail
+        : "Error al guardar publicación";
+      setMensaje(`Error: ${msg}`);
     }
     setBloqueado(false);
   };
@@ -166,369 +172,288 @@ function SocialForm({
   }));
 
   return (
-    <form onSubmit={handleCrear} className={styles["social-form"]}>
-      <h3>{editId ? "Editar Publicación" : "Nueva Publicación"}</h3>
-
-      <div className="form-row">
-        <label>Título</label>
-        <input
-          name="titulo"
-          placeholder="Título"
-          value={formData.titulo}
-          onChange={handleInputChange}
-          required
-          disabled={bloqueado}
-        />
+    <form onSubmit={handleCrear} className={styles["social-form-revamped"]}>
+      <div className={styles["form-header"]}>
+        <div className={styles["header-title"]}>
+          <span className={styles["header-icon"]}>{editId ? "📝" : "📍"}</span>
+          <h3>{editId ? "Editar Publicación" : "Nueva Publicación"}</h3>
+        </div>
+        <p className={styles["header-subtitle"]}>
+          {editId ? "Modifica los detalles de tu publicación existente." : "Crea contenido relevante para los residentes de tu comunidad."}
+        </p>
       </div>
 
-      {formData.tipo_publicacion === "encuesta" ? (
-        <>
-          <div className="form-row">
-            <label>Pregunta de la encuesta</label>
-            <input
-              name="contenido"
-              placeholder="Pregunta de la encuesta"
-              value={formData.contenido}
-              onChange={handleInputChange}
-              required
-              disabled={bloqueado}
-            />
+      <div className={styles["form-grid"]}>
+        {/* SECCIÓN 1: CONTENIDO PRINCIPAL */}
+        <div className={styles["form-section"]}>
+          <div className={styles["section-title"]}>
+            <span role="img" aria-label="content">📄</span> Contenido Principal
           </div>
-          <div className="form-row">
-            <label>Opciones de respuesta</label>
-            {opcionesEncuesta.map((op, idx) => (
-              <div
-                key={idx}
-                style={{ display: "flex", gap: 8, marginBottom: 8 }}
+          <div className={styles["section-content"]}>
+            <div className={styles["field-group"]}>
+              <label>Título de la publicación</label>
+              <input
+                name="titulo"
+                placeholder="Ej: Mantenimiento de áreas verdes"
+                value={formData.titulo}
+                onChange={handleInputChange}
+                required
+                disabled={bloqueado}
+                className={styles["form-input"]}
+              />
+            </div>
+
+            <div className={styles["field-group"]}>
+              <label>Tipo de comunicación</label>
+              <select
+                name="tipo_publicacion"
+                value={formData.tipo_publicacion}
+                onChange={handleInputChange}
+                required
+                disabled={bloqueado}
+                className={styles["form-select"]}
               >
-                <input
-                  type="text"
-                  value={op}
-                  onChange={(e) =>
-                    handleOpcionesEncuestaChange(idx, e.target.value)
-                  }
-                  placeholder={`Opción ${idx + 1}`}
-                  style={{ flex: 1 }}
-                  disabled={bloqueado}
-                />
-                {opcionesEncuesta.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => handleEliminarOpcion(idx)}
-                    style={{
-                      background: "#e53935",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: 4,
-                      padding: "0 12px",
-                      cursor: "pointer",
-                    }}
+                <option value="comunicado">📢 Comunicado (Importante)</option>
+                <option value="publicacion">📰 Publicación General</option>
+                <option value="encuesta">📊 Encuesta / Votación</option>
+              </select>
+            </div>
+
+            {formData.tipo_publicacion === "encuesta" ? (
+              <div className={styles["survey-container"]}>
+                <div className={styles["field-group"]}>
+                  <label>Pregunta de la encuesta</label>
+                  <input
+                    name="contenido"
+                    placeholder="¿Qué te gustaría preguntar?"
+                    value={formData.contenido}
+                    onChange={handleInputChange}
+                    required
                     disabled={bloqueado}
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={handleAgregarOpcion}
-              style={{
-                marginBottom: 16,
-                background: "#1976d2",
-                color: "#fff",
-                border: "none",
-                borderRadius: 4,
-                padding: "8px 16px",
-                cursor: "pointer",
-              }}
-              disabled={bloqueado}
-            >
-              + Agregar opción
-            </button>
-          </div>
-        </>
-      ) : (
-        <div className="form-row">
-          <label>Contenido</label>
-          <textarea
-            name="contenido"
-            placeholder="Contenido"
-            value={formData.contenido}
-            onChange={handleInputChange}
-            required
-            disabled={bloqueado}
-            rows={5}
-          />
-        </div>
-      )}
-
-      <div className="form-row">
-        <label>Tipo de publicación</label>
-        <select
-          name="tipo_publicacion"
-          value={formData.tipo_publicacion}
-          onChange={handleInputChange}
-          required
-          disabled={bloqueado}
-        >
-          <option value="comunicado">Comunicado</option>
-          <option value="publicacion">Publicación</option>
-          <option value="encuesta">Encuesta</option>
-        </select>
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          margin: "16px 0",
-        }}
-      >
-        <label
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            cursor: "pointer",
-            margin: 0,
-          }}
-        >
-          <span style={{ fontWeight: 500, color: "#1976d2" }}>
-            Para todos los residentes
-          </span>
-          <span
-            style={{
-              position: "relative",
-              display: "inline-block",
-              width: 40,
-              height: 22,
-            }}
-          >
-            <input
-              type="checkbox"
-              name="para_todos"
-              checked={formData.para_todos}
-              onChange={handleInputChange}
-              style={{ opacity: 0, width: 0, height: 0 }}
-            />
-            <span
-              style={{
-                position: "absolute",
-                cursor: "pointer",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: formData.para_todos ? "#1976d2" : "#b0bec5",
-                borderRadius: 22,
-                transition: "background 0.2s",
-              }}
-            ></span>
-            <span
-              style={{
-                position: "absolute",
-                left: formData.para_todos ? 20 : 2,
-                top: 2,
-                width: 18,
-                height: 18,
-                background: "#fff",
-                borderRadius: "50%",
-                boxShadow: "0 1px 4px #0002",
-                transition: "left 0.2s",
-              }}
-            ></span>
-          </span>
-        </label>
-      </div>
-
-      {!formData.para_todos && (
-        <div style={{ marginBottom: 16 }}>
-          <label
-            style={{
-              color: formData.destinatarios.length === 0 ? "#d32f2f" : "#000",
-              display: "block",
-              marginBottom: 8,
-            }}
-          >
-            Destinatarios (selecciona uno o más residentes)
-            {formData.destinatarios.length === 0 && " *Obligatorio*"}:
-          </label>
-          <Select
-            isMulti
-            options={residentesOptions}
-            value={residentesOptions.filter((opt) =>
-              formData.destinatarios.some((d) => d.residente_id === opt.value)
-            )}
-            onChange={handleDestinatariosChange}
-            placeholder="Buscar y seleccionar residentes..."
-            classNamePrefix="react-select"
-            styles={{
-              menu: (base) => ({ ...base, zIndex: 9999 }),
-              container: (base) => ({ ...base, width: "100%" }),
-              control: (base) => ({
-                ...base,
-                borderColor:
-                  formData.destinatarios.length === 0
-                    ? "#d32f2f"
-                    : base.borderColor,
-              }),
-            }}
-          />
-        </div>
-      )}
-
-      {editId && imagenesExistentes.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ fontWeight: "bold", marginBottom: 8, display: "block" }}>
-            Imágenes actuales:
-          </label>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-            {imagenesExistentes.map((img, index) => (
-              <div
-                key={img.id}
-                style={{ position: "relative", display: "inline-block" }}
-              >
-                <img
-                  src={getImageUrl(img.imagen_url)}
-                  alt={`Imagen ${index + 1}`}
-                  style={{
-                    width: 100,
-                    height: 100,
-                    objectFit: "cover",
-                    borderRadius: 8,
-                    border: img.eliminar ? "3px solid #e53935" : "1px solid #ccc",
-                    opacity: img.eliminar ? 0.5 : 1,
-                  }}
-                />
+                    className={styles["form-input"]}
+                  />
+                </div>
+                
+                <div className={styles["survey-options-label"]}>Opciones de respuesta</div>
+                <div className={styles["survey-options-list"]}>
+                  {opcionesEncuesta.map((op, idx) => (
+                    <div key={idx} className={styles["survey-option-row"]}>
+                      <span className={styles["option-number"]}>{idx + 1}</span>
+                      <input
+                        type="text"
+                        value={op}
+                        onChange={(e) => handleOpcionesEncuestaChange(idx, e.target.value)}
+                        placeholder={`Opción de respuesta...`}
+                        disabled={bloqueado}
+                        className={styles["form-input"]}
+                      />
+                      {opcionesEncuesta.length > 1 && (
+                        <button
+                          type="button"
+                          className={styles["btn-remove-option"]}
+                          onClick={() => handleEliminarOpcion(idx)}
+                          disabled={bloqueado}
+                          title="Eliminar opción"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    setImagenesExistentes((prev) =>
-                      prev.map((item, i) =>
-                        i === index ? { ...item, eliminar: !item.eliminar } : item
-                      )
-                    );
-                  }}
-                  style={{
-                    position: "absolute",
-                    top: -8,
-                    right: -8,
-                    background: img.eliminar ? "#43a047" : "#e53935",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "50%",
-                    width: 24,
-                    height: 24,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontWeight: "bold",
-                  }}
+                  className={styles["btn-add-option"]}
+                  onClick={handleAgregarOpcion}
+                  disabled={bloqueado}
                 >
-                  {img.eliminar ? "↺" : "×"}
+                  <span className={styles["btn-icon"]}>+</span> Agregar otra opción
                 </button>
               </div>
-            ))}
+            ) : (
+              <div className={styles["field-group"]}>
+                <label>Detalle del contenido</label>
+                <textarea
+                  name="contenido"
+                  placeholder="Escribe aquí el mensaje completo..."
+                  value={formData.contenido}
+                  onChange={handleInputChange}
+                  required
+                  disabled={bloqueado}
+                  rows={6}
+                  className={styles["form-textarea"]}
+                />
+              </div>
+            )}
           </div>
         </div>
-      )}
 
-      <div className="form-row">
-        <label>
-          {editId ? "Agregar nuevas imágenes:" : "Imágenes (máximo 10):"}
-        </label>
-        <input
-          type="file"
-          multiple
-          accept="image/*"
-          onChange={(e) => {
-            const files = Array.from(e.target.files || []);
-            setFileList((prev) => [
-              ...prev,
-              ...files.map((file) => ({
-                file,
-                id: Math.random().toString(36).substr(2, 9),
-                preview: URL.createObjectURL(file),
-              })),
-            ]);
-          }}
-          disabled={bloqueado}
-        />
-      </div>
+        <div className={styles["side-controls"]}>
+          {/* SECCIÓN 2: AUDIENCIA */}
+          <div className={`${styles["form-section"]} ${styles["audience-section"]}`}>
+            <div className={styles["section-title"]}>
+              <span role="img" aria-label="audience">👥</span> Audiencia
+            </div>
+            <div className={styles["section-content"]}>
+              <div className={styles["audience-toggle"]}>
+                <div className={styles["toggle-info"]}>
+                  <span className={styles["toggle-label"]}>Público General</span>
+                  <span className={styles["toggle-desc"]}>{formData.para_todos ? "Todos los residentes" : "Residentes específicos"}</span>
+                </div>
+                <label className={styles["switch"]}>
+                  <input
+                    type="checkbox"
+                    name="para_todos"
+                    checked={formData.para_todos}
+                    onChange={handleInputChange}
+                    disabled={bloqueado}
+                  />
+                  <span className={`${styles["slider"]} ${styles["round"]}`}></span>
+                </label>
+              </div>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 10 }}>
-        {fileList.map((fileObj, index) => (
-          <div
-            key={fileObj.id}
-            style={{ position: "relative", display: "inline-block" }}
-          >
-            <img
-              src={fileObj.preview}
-              alt={`Preview ${index + 1}`}
-              style={{
-                width: 100,
-                height: 100,
-                objectFit: "cover",
-                borderRadius: 8,
-                border: "1px solid #ccc",
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => {
-                setFileList((prev) => prev.filter((_, i) => i !== index));
-                URL.revokeObjectURL(fileObj.preview);
-              }}
-              style={{
-                position: "absolute",
-                top: -8,
-                right: -8,
-                background: "#e53935",
-                color: "white",
-                border: "none",
-                borderRadius: "50%",
-                width: 24,
-                height: 24,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-              }}
-            >
-              ×
-            </button>
+              {!formData.para_todos && (
+                <div className={styles["destinatarios-container"]}>
+                  <label className={styles["field-sublabel"]}>
+                    Seleccionar destinatarios {formData.destinatarios.length === 0 && <span className={styles["required"]}>*Requerido</span>}
+                  </label>
+                  <Select
+                    isMulti
+                    options={residentesOptions}
+                    value={residentesOptions.filter((opt) =>
+                      formData.destinatarios.some((d) => d.residente_id === opt.value)
+                    )}
+                    onChange={handleDestinatariosChange}
+                    placeholder="Buscar residentes..."
+                    className={styles["multi-select"]}
+                    classNamePrefix="react-select"
+                    styles={{
+                      menu: (base) => ({ ...base, zIndex: 100 }),
+                      control: (base) => ({
+                        ...base,
+                        borderRadius: '8px',
+                        borderColor: formData.destinatarios.length === 0 ? '#ff5252' : '#e0e0e0',
+                        boxShadow: 'none',
+                        '&:hover': { borderColor: '#1976d2' }
+                      }),
+                    }}
+                  />
+                </div>
+              )}
+            </div>
           </div>
-        ))}
+
+          {/* SECCIÓN 3: MULTIMEDIA */}
+          <div className={styles["form-section"]}>
+            <div className={styles["section-title"]}>
+              <span role="img" aria-label="media">📸</span> Multimedia
+            </div>
+            <div className={styles["section-content"]}>
+              <div className={styles["file-upload-box"]}>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  id="social-file-input"
+                  className={styles["hidden-input"]}
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    setFileList((prev) => [
+                      ...prev,
+                      ...files.map((file) => ({
+                        file,
+                        id: Math.random().toString(36).substr(2, 9),
+                        preview: URL.createObjectURL(file),
+                      })),
+                    ]);
+                  }}
+                  disabled={bloqueado}
+                />
+                <label htmlFor="social-file-input" className={styles["file-drop-area"]}>
+                  <span className={styles["upload-icon"]}>☁️</span>
+                  <span className={styles["upload-text"]}>Subir imágenes</span>
+                  <span className={styles["upload-hint"]}>Máximo 10 archivos</span>
+                </label>
+              </div>
+
+              {/* Imágenes Existentes */}
+              {editId && imagenesExistentes.length > 0 && (
+                <div className={styles["images-grid-container"]}>
+                  <label>Imágenes actuales:</label>
+                  <div className={styles["images-preview-grid"]}>
+                    {imagenesExistentes.map((img, index) => (
+                      <div key={img.id} className={`${styles["preview-item"]} ${img.eliminar ? styles["marked-for-delete"] : ""}`}>
+                        <img src={getImageUrl(img.imagen_url)} alt="Thumbnail" />
+                        <button
+                          type="button"
+                          className={styles["btn-delete-preview"]}
+                          onClick={() => {
+                            setImagenesExistentes((prev) =>
+                              prev.map((item, i) =>
+                                i === index ? { ...item, eliminar: !item.eliminar } : item
+                              )
+                            );
+                          }}
+                        >
+                          {img.eliminar ? "↺" : "×"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Nuevas Imágenes */}
+              {fileList.length > 0 && (
+                <div className={styles["images-grid-container"]}>
+                  <label>Nuevas imágenes:</label>
+                  <div className={styles["images-preview-grid"]}>
+                    {fileList.map((fileObj, index) => (
+                      <div key={fileObj.id} className={styles["preview-item"]}>
+                        <img src={fileObj.preview} alt="New Preview" />
+                        <button
+                          type="button"
+                          className={styles["btn-delete-preview"]}
+                          onClick={() => {
+                            setFileList((prev) => prev.filter((_, i) => i !== index));
+                            URL.revokeObjectURL(fileObj.preview);
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className={styles["social-form-btns"]} style={{ marginTop: 24 }}>
-        <button className="btn-primary" type="submit" disabled={bloqueado}>
-          {editId ? "Actualizar Publicación" : "Crear Publicación"}
-        </button>
-        <button
-          className="btn-secondary"
-          type="button"
-          onClick={onCancel}
-          disabled={bloqueado}
-        >
-          Cancelar
-        </button>
-      </div>
-      {mensaje && (
-        <div
-          className={styles["mensaje"]}
-          style={{
-            marginTop: 15,
-            color: mensaje.includes("Error") ? "#e53935" : "#1976d2",
-            fontWeight: "bold",
-          }}
-        >
-          {mensaje}
+      <div className={styles["form-actions-bar"]}>
+        <div className={styles["messages-container"]}>
+          {mensaje && (
+            <div className={`${styles["status-badge"]} ${mensaje.includes("Error") ? styles["error-msg"] : styles["success-msg"]}`}>
+              {mensaje}
+            </div>
+          )}
         </div>
-      )}
+        <div className={styles["btns-container"]}>
+          <button className={styles["btn-cancel"]} type="button" onClick={onCancel} disabled={bloqueado}>
+            Cancelar
+          </button>
+          <button className={styles["btn-submit"]} type="submit" disabled={bloqueado}>
+            {bloqueado ? (
+              <>
+                <span className={styles["spinner"]}></span> procesando...
+              </>
+            ) : (
+              editId ? "Actualizar Publicación" : "Crear Publicación"
+            )}
+          </button>
+        </div>
+      </div>
     </form>
   );
 }

@@ -6,6 +6,9 @@ import { getImageUrl } from "./utils/imageUtils";
 // Importar componentes comunes del Admin
 import Notification from "./roles/Admin/components/Notification";
 import QRFullscreen from "./roles/Admin/components/QRFullscreen";
+import PerfilUsuario from "./PerfilUsuario";
+import ConfiguracionUsuario from "./ConfiguracionUsuario";
+import UserMenu from "./components/UI/UserMenu";
 
 // Importar Vistas del Admin
 import MainMenu from "./roles/Admin/views/MainMenu";
@@ -26,9 +29,17 @@ function AdminDashboard({ nombre, token, rol, onLogout }) {
   const [qrUrl, setQrUrl] = useState(null);
   const [showQRFullscreen, setShowQRFullscreen] = useState(false);
   const [usuarioEditar, setUsuarioEditar] = useState(null);
+  const [usuario, setUsuario] = useState(null);
 
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Obtener datos completos del usuario autenticado
+  useEffect(() => {
+    api.get(`/usuario/actual`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).then(res => setUsuario(res.data)).catch(err => console.error("Error cargando usuario:", err));
+  }, [token]);
 
   // Cargar vistas disponibles para este admin
   const cargarVistasDisponibles = useCallback(async () => {
@@ -48,7 +59,8 @@ function AdminDashboard({ nombre, token, rol, onLogout }) {
 
   // Verificar si una vista está disponible
   const isVistaDisponible = (nombreVista) => {
-    if (!vistasDisponibles || vistasDisponibles.length === 0) return true;
+    if (nombreVista === 'perfil' || nombreVista === 'config' || nombreVista === 'configuracion') return true;
+    if (!vistasDisponibles || vistasDisponibles.length === 0) return false;
     if (rol === 'admin_residencial') return true;
     
     const mapping = {
@@ -93,15 +105,42 @@ function AdminDashboard({ nombre, token, rol, onLogout }) {
         'solicitudes': '/solicitudes',
         'mis_visitas': '/mis-visitas',
         'tickets': '/tickets',
-        'social': '/social'
+        'social': '/social',
+        'perfil': '/perfil',
+        'config': '/configuracion'
       };
       const targetRoute = routeMap[nuevaVista] || `/${nuevaVista}`;
       navigate(targetRoute);
     }
   };
 
+  const getSelectedVista = () => {
+    const path = location.pathname;
+    if (path === '/') return 'menu';
+    if (path === '/usuarios') return 'usuarios';
+    if (path === '/crear-usuario') return 'crear';
+    if (path === '/estadisticas') return 'estadisticas';
+    if (path === '/escaneos') return 'escaneos';
+    if (path === '/historial') return 'historial';
+    if (path === '/crear-visita') return 'crear_visita';
+    if (path === '/mis-visitas') return 'mis_visitas';
+    if (path === '/social') return 'social';
+    if (path === '/tickets') return 'tickets';
+    if (path === '/solicitudes') return 'solicitudes';
+    if (path === '/perfil') return 'perfil';
+    if (path === '/configuracion') return 'config';
+    return '';
+  };
+
   return (
     <div className="admin-dashboard">
+      <UserMenu
+        usuario={usuario || { nombre, rol }}
+        ultimaConexion={usuario?.ult_conexion}
+        onLogout={onLogout}
+        onSelect={handleSelectVista}
+        selected={getSelectedVista()}
+      />
       {notificacion && (
         <Notification
           message={notificacion.message}
@@ -110,7 +149,7 @@ function AdminDashboard({ nombre, token, rol, onLogout }) {
         />
       )}
 
-      <div className="admin-content">
+      <div className="admin-content" style={{ marginTop: 60 }}>
         <Routes>
           <Route path="/" element={
             <MainMenu
@@ -251,6 +290,14 @@ function AdminDashboard({ nombre, token, rol, onLogout }) {
                 onCancel={() => navigate("/")}
               />
             ) : <Navigate to="/" />
+          } />
+
+          <Route path="/perfil" element={
+             <PerfilUsuario usuario={usuario || { nombre, rol }} onRegresar={() => navigate('/')} />
+          } />
+
+          <Route path="/configuracion" element={
+             <ConfiguracionUsuario onRegresar={() => navigate('/')} usuario={usuario || { rol: 'admin' }} token={token} />
           } />
 
           <Route path="*" element={<Navigate to="/" />} />

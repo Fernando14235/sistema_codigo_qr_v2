@@ -9,9 +9,21 @@ from app.models.notificacion import Notificacion
 from app.schemas.usuario_schema import UsuarioCreate
 from app.utils.notificaciones import enviar_correo
 from app.utils.time import get_honduras_time
+from app.utils.push_helpers import (
+    enviar_push_nueva_visita_guardia,
+    enviar_push_escaneo_visita,
+    enviar_push_visita_actualizada,
+    enviar_push_solicitud_visita,
+    enviar_push_nueva_publicacion,
+    enviar_push_ticket_creado,
+    enviar_push_ticket_actualizado
+)
 import traceback
+import logging
 from app.models import Usuario, Residente, Ticket
 from typing import List
+
+logger = logging.getLogger(__name__)
 
 def enviar_notificacion_usuario_creado(usuario: Usuario, datos_creacion: UsuarioCreate, db: Session = None):
     # DEPRECATED: Usar enviar_notificacion_usuario_creado_async para mejor rendimiento
@@ -258,6 +270,18 @@ def enviar_notificacion_guardia(db: Session, visita):
         else:
             residencial_id = None
         
+        # 🔔 ENVIAR NOTIFICACIÓN PUSH PRIMERO
+        resultado_push = enviar_push_nueva_visita_guardia(db, visita, residencial_id)
+        logger.info(f"Push a guardias: {resultado_push['usuarios_notificados']} notificados")
+        
+        # Si se enviaron notificaciones push exitosamente, no enviar emails
+        if resultado_push.get('usuarios_notificados', 0) > 0:
+            logger.info(f"✅ Notificaciones push enviadas a guardias, omitiendo emails")
+            return
+        
+        # FALLBACK: Si no hay suscripciones push, enviar emails
+        logger.warning("⚠️ No se enviaron push notifications, usando fallback a email")
+        
         # Filtrar guardias por residencial_id
         guardia_query = db.query(Guardia)
         if residencial_id:
@@ -314,7 +338,7 @@ def enviar_notificacion_guardia(db: Session, visita):
                 enviar_correo(guardia.usuario.email, asunto, mensaje_html)
     except Exception as e:
         db.rollback()
-        print(f"Error al enviar notificación: {str(e)}")
+        logger.error(f"Error al enviar notificación: {str(e)}")
         print(traceback.format_exc())
 
 def enviar_notificacion_escaneo(db: Session, visita, guardia_nombre: str, es_salida: bool = False):
@@ -323,6 +347,29 @@ def enviar_notificacion_escaneo(db: Session, visita, guardia_nombre: str, es_sal
         visitante = db.query(Visitante).filter(Visitante.id == visita.visitante_id).first()
         if not visitante:
             return
+
+        # 🔔 ENVIAR NOTIFICACIÓN PUSH PRIMERO
+        resultado_push = enviar_push_escaneo_visita(db, visita, guardia_nombre, es_salida)
+        logger.info(f"Push de escaneo: {resultado_push.get('enviados', 0)} enviados")
+        
+        # Si se envió push exitosamente, no enviar email
+        if resultado_push.get('enviados', 0) > 0:
+            logger.info(f"✅ Notificación push de escaneo enviada, omitiendo email")
+            # Registrar notificación en BD
+            mensaje_notificacion = f"Visitante {visitante.nombre_conductor} ha {'salido' if es_salida else 'ingresado'} - registrado por operador {guardia_nombre}"
+            notificacion = Notificacion(
+                visita_id=visita.id,
+                mensaje=mensaje_notificacion,
+                fecha_envio=get_honduras_time(),
+                estado="enviado",
+                tipo_notificacion="visita"
+            )
+            db.add(notificacion)
+            db.commit()
+            return
+        
+        # FALLBACK: Si no hay suscripciones push, enviar email
+        logger.warning("⚠️ No se envió push notification de escaneo, usando fallback a email")
 
         # Determinar destinatario según tipo_creador
         email_destinatario = None
@@ -378,7 +425,8 @@ def enviar_notificacion_escaneo(db: Session, visita, guardia_nombre: str, es_sal
             visita_id=visita.id,
             mensaje=mensaje_notificacion,
             fecha_envio=get_honduras_time(),
-            estado=estado
+            estado=estado,
+            tipo_notificacion="visita"
         )
         
         db.add(notificacion)
@@ -386,11 +434,35 @@ def enviar_notificacion_escaneo(db: Session, visita, guardia_nombre: str, es_sal
         
     except Exception as e:
         db.rollback()
-        print(f"Error al enviar notificación de escaneo: {str(e)}")
+        logger.error(f"Error al enviar notificación de escaneo: {str(e)}")
         print(traceback.format_exc())
 
 def enviar_notificacion_visita_actualizada(db: Session, visita):
     try:
+        # 🔔 ENVIAR NOTIFICACIÓN PUSH PRIMERO
+        resultado_push = enviar_push_visita_actualizada(db, visita)
+        logger.info(f"Push de actualización: {resultado_push.get('enviados', 0)} enviados")
+        
+        # Si se envió push exitosamente, no enviar email
+        if resultado_push.get('enviados', 0) > 0:
+            logger.info(f"✅ Notificación push de actualización enviada, omitiendo email")
+            # Registrar notificación en BD
+            visitante = db.query(Visitante).filter(Visitante.id == visita.visitante_id).first()
+            if visitante:
+                notificacion = Notificacion(
+                    visita_id=visita.id,
+                    mensaje="La visita fue actualizada exitosamente.",
+                    fecha_envio=get_honduras_time(),
+                    estado="enviado",
+                    tipo_notificacion="visita"
+                )
+                db.add(notificacion)
+                db.commit()
+            return
+        
+        # FALLBACK: Si no hay suscripciones push, enviar email
+        logger.warning("⚠️ No se envió push notification de actualización, usando fallback a email")
+        
         # Notificar al creador correcto según tipo_creador
         if visita.tipo_creador == "admin":
             admin = db.query(Administrador).filter(Administrador.id == visita.admin_id).first()
@@ -442,17 +514,40 @@ def enviar_notificacion_visita_actualizada(db: Session, visita):
             visita_id=visita.id,
             mensaje="La visita fue actualizada exitosamente.",
             fecha_envio=get_honduras_time(),
-            estado=estado
+            estado=estado,
+            tipo_notificacion="visita"
         )
         db.add(notificacion)
         db.commit()
     except Exception as e:
         db.rollback()
-        print(f"Error al enviar notificación de visita actualizada: {str(e)}")
+        logger.error(f"Error al enviar notificación de visita actualizada: {str(e)}")
         print(traceback.format_exc())
 
 def enviar_notificacion_solicitud_visita(db: Session, visita, residente):
     try:
+        # 🔔 ENVIAR NOTIFICACIÓN PUSH PRIMERO
+        resultado_push = enviar_push_solicitud_visita(db, visita, residente, residente.residencial_id)
+        logger.info(f"Push de solicitud: {resultado_push.get('usuarios_notificados', 0)} admins notificados")
+        
+        # Si se enviaron notificaciones push exitosamente, no enviar emails
+        if resultado_push.get('usuarios_notificados', 0) > 0:
+            logger.info(f"✅ Notificaciones push de solicitud enviadas, omitiendo emails")
+            # Registrar notificación en BD
+            notificacion = Notificacion(
+                visita_id=visita.id,
+                mensaje=f"Solicitud de visita enviada por {residente.usuario.nombre} - Pendiente de aprobación",
+                fecha_envio=get_honduras_time(),
+                estado="enviado",
+                tipo_notificacion="visita"
+            )
+            db.add(notificacion)
+            db.commit()
+            return
+        
+        # FALLBACK: Si no hay suscripciones push, enviar emails
+        logger.warning("⚠️ No se enviaron push notifications de solicitud, usando fallback a email")
+        
         # Obtener administradores de la misma residencial
         admins = db.query(Administrador).filter(Administrador.residencial_id == residente.residencial_id).all()
         
@@ -545,13 +640,14 @@ def enviar_notificacion_solicitud_visita(db: Session, visita, residente):
                     visita_id=visita.id,
                     mensaje=f"Solicitud de visita enviada por {residente.usuario.nombre} - Pendiente de aprobación",
                     fecha_envio=get_honduras_time(),
-                    estado=estado
+                    estado=estado,
+                    tipo_notificacion="visita"
                 )
                 db.add(notificacion)
                 
     except Exception as e:
         db.rollback()
-        print(f"Error al enviar notificación de solicitud de visita: {str(e)}")
+        logger.error(f"Error al enviar notificación de solicitud de visita: {str(e)}")
         print(traceback.format_exc())
 
 def enviar_notificacion_solicitud_aprobada(db: Session, visita, qr_img_b64: str):
@@ -668,9 +764,26 @@ def enviar_notificacion_nueva_publicacion(
     creador: str,
     notificar_a: str = 'todos',
     residencial_id: int = None,
-    residentes_especificos: List[int] = None
+    residentes_especificos: List[int] = None,
+    publicacion_id: int = None
 ):
     try:
+        # 🔔 ENVIAR NOTIFICACIÓN PUSH PRIMERO
+        if publicacion_id and residencial_id:
+            resultado_push = enviar_push_nueva_publicacion(
+                db, titulo_publicacion, creador, residencial_id, 
+                publicacion_id, notificar_a
+            )
+            logger.info(f"Push de publicación: {resultado_push.get('usuarios_notificados', 0)} usuarios notificados")
+            
+            # Si se enviaron notificaciones push exitosamente, no enviar emails
+            if resultado_push.get('usuarios_notificados', 0) > 0:
+                logger.info(f"✅ Notificaciones push de publicación enviadas, omitiendo emails")
+                return
+        
+        # FALLBACK: Si no hay suscripciones push o no se proporcionó publicacion_id, enviar emails
+        logger.warning("⚠️ No se enviaron push notifications de publicación, usando fallback a email")
+        
         asunto = "Nueva Publicación"
         mensaje_html = f"""
             <html>
@@ -726,52 +839,89 @@ def enviar_notificacion_nueva_publicacion(
                         if exito:
                             usuarios_notificados.append(residente.usuario.email)
 
-        print(f"Alertas de nueva publicación enviadas a: {usuarios_notificados}")
+        logger.info(f"Alertas de nueva publicación enviadas a: {usuarios_notificados}")
     except Exception as e:
-        print(f"Error al enviar alerta de nueva publicación: {str(e)}")
+        logger.error(f"Error al enviar alerta de nueva publicación: {str(e)}")
         print(traceback.format_exc())
 
 def notificar_admin_ticket_creado_email(db: Session, ticket: Ticket, residente_nombre: str):
-    # Obtener el residente que creó el ticket para filtrar por residencial
-    residente = db.query(Residente).filter(Residente.id == ticket.residente_id).first()
-    if not residente:
-        print(f"Error: Residente no encontrado para ticket {ticket.id}")
-        return
-    
-    # Obtener solo los administradores de la misma residencial
-    admins = db.query(Administrador).filter(
-        Administrador.residencial_id == residente.residencial_id
-    ).all()
-    
-    if not admins:
-        print(f"No hay administradores en la residencial {residente.residencial_id} para notificar")
-        return
-    
-    asunto = "Nuevo ticket de soporte creado"
-    mensaje_html = f"""
-        <h2>Nuevo ticket creado</h2>
-        <p>El residente <b>{residente_nombre}</b> ha creado un ticket:</p>
-        <ul>
-            <li><b>Título:</b> {ticket.titulo}</li>
-            <li><b>Descripción:</b> {ticket.descripcion}</li>
-            <li><b>Fecha:</b> {ticket.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S')}</li>
-        </ul>
-    """
-    for admin in admins:
-        if admin.usuario and admin.usuario.email:
-            enviar_correo(admin.usuario.email, asunto, mensaje_html)
+    try:
+        # Obtener el residente que creó el ticket para filtrar por residencial
+        residente = db.query(Residente).filter(Residente.id == ticket.residente_id).first()
+        if not residente:
+            logger.error(f"Error: Residente no encontrado para ticket {ticket.id}")
+            return
+        
+        # 🔔 ENVIAR NOTIFICACIÓN PUSH PRIMERO
+        resultado_push = enviar_push_ticket_creado(
+            db, ticket, residente_nombre, residente.residencial_id
+        )
+        logger.info(f"Push de ticket creado: {resultado_push.get('usuarios_notificados', 0)} admins notificados")
+        
+        # Si se enviaron notificaciones push exitosamente, no enviar emails
+        if resultado_push.get('usuarios_notificados', 0) > 0:
+            logger.info(f"✅ Notificaciones push de ticket creado enviadas, omitiendo emails")
+            return
+        
+        # FALLBACK: Si no hay suscripciones push, enviar emails
+        logger.warning("⚠️ No se enviaron push notifications de ticket creado, usando fallback a email")
+        
+        # Obtener solo los administradores de la misma residencial
+        admins = db.query(Administrador).filter(
+            Administrador.residencial_id == residente.residencial_id
+        ).all()
+        
+        if not admins:
+            logger.warning(f"No hay administradores en la residencial {residente.residencial_id} para notificar")
+            return
+        
+        asunto = "Nuevo ticket de soporte creado"
+        mensaje_html = f"""
+            <h2>Nuevo ticket creado</h2>
+            <p>El residente <b>{residente_nombre}</b> ha creado un ticket:</p>
+            <ul>
+                <li><b>Título:</b> {ticket.titulo}</li>
+                <li><b>Descripción:</b> {ticket.descripcion}</li>
+                <li><b>Fecha:</b> {ticket.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S')}</li>
+            </ul>
+        """
+        for admin in admins:
+            if admin.usuario and admin.usuario.email:
+                enviar_correo(admin.usuario.email, asunto, mensaje_html)
+                
+    except Exception as e:
+        logger.error(f"Error al notificar admins de ticket creado: {str(e)}")
+        print(traceback.format_exc())
 
 def notificar_residente_ticket_actualizado_email(db: Session, ticket: Ticket):
-    residente = db.query(Residente).filter(Residente.id == ticket.residente_id).first()
-    if not residente or not residente.usuario or not residente.usuario.email:
-        return
-    asunto = f"Actualización de tu ticket: {ticket.titulo}"
-    mensaje_html = f"""
-        <h2>Tu ticket ha sido actualizado</h2>
-        <ul>
-            <li><b>Estado:</b> {ticket.estado}</li>
-            <li><b>Respuesta del administrador:</b> {ticket.respuesta_admin or 'Sin respuesta'}</li>
-            <li><b>Fecha de respuesta:</b> {ticket.fecha_respuesta.strftime('%Y-%m-%d %H:%M:%S') if ticket.fecha_respuesta else 'N/A'}</li>
-        </ul>
-    """
-    enviar_correo(residente.usuario.email, asunto, mensaje_html)
+    try:
+        residente = db.query(Residente).filter(Residente.id == ticket.residente_id).first()
+        if not residente or not residente.usuario or not residente.usuario.email:
+            return
+        
+        # 🔔 ENVIAR NOTIFICACIÓN PUSH PRIMERO
+        resultado_push = enviar_push_ticket_actualizado(db, ticket, ticket.residente_id)
+        logger.info(f"Push de ticket actualizado: {resultado_push.get('enviados', 0)} enviados")
+        
+        # Si se envió push exitosamente, no enviar email
+        if resultado_push.get('enviados', 0) > 0:
+            logger.info(f"✅ Notificación push de ticket actualizado enviada, omitiendo email")
+            return
+        
+        # FALLBACK: Si no hay suscripciones push, enviar email
+        logger.warning("⚠️ No se envió push notification de ticket actualizado, usando fallback a email")
+        
+        asunto = f"Actualización de tu ticket: {ticket.titulo}"
+        mensaje_html = f"""
+            <h2>Tu ticket ha sido actualizado</h2>
+            <ul>
+                <li><b>Estado:</b> {ticket.estado}</li>
+                <li><b>Respuesta del administrador:</b> {ticket.respuesta_admin or 'Sin respuesta'}</li>
+                <li><b>Fecha de respuesta:</b> {ticket.fecha_respuesta.strftime('%Y-%m-%d %H:%M:%S') if ticket.fecha_respuesta else 'N/A'}</li>
+            </ul>
+        """
+        enviar_correo(residente.usuario.email, asunto, mensaje_html)
+        
+    except Exception as e:
+        logger.error(f"Error al notificar residente de ticket actualizado: {str(e)}")
+        print(traceback.format_exc())

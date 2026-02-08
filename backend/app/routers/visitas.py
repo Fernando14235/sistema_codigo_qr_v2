@@ -17,6 +17,7 @@ from app.utils.time import extraer_modelo_dispositivo
 from app.schemas.auth_schema import TokenData
 from datetime import datetime, timezone
 import logging
+import pytz
 from app.utils.cloudinary_utils import save_upload_to_temp
 from app.services.cloudinary_service import upload_image
 import os
@@ -457,4 +458,181 @@ def obtener_escaneos_guardia_admin(
         raise HTTPException(
             status_code=500,
             detail=f"Error al obtener escaneos: {str(e)}"
+        )
+
+
+@router.get("/guardia/visitas-del-dia", dependencies=[Depends(verify_role(["admin", "guardia"]))])
+def obtener_visitas_del_dia(
+    fecha: Optional[str] = Query(None, description="Fecha en formato YYYY-MM-DD (por defecto hoy)"),
+    estado: Optional[str] = Query(None, description="Filtrar por estado: pendiente, aceptado, rechazado, completado"),
+    busqueda: Optional[str] = Query(None, description="Buscar por nombre de visitante o placa"),
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user)
+):
+    """
+    Obtiene todas las visitas del día para el guardia.
+    
+    - **fecha**: Fecha específica (YYYY-MM-DD), por defecto hoy
+    - **estado**: Filtrar por estado de la visita
+    - **busqueda**: Buscar por nombre de visitante o placa de vehículo
+    
+    Retorna lista de visitas con información completa del visitante y residente.
+    """
+    from app.utils.time import get_honduras_time
+    from datetime import date, timedelta
+    
+    try:
+        # Obtener el guardia actual
+        guardia = None
+        residencial_id = None
+        
+        if usuario.rol == "guardia":
+            guardia = db.query(Guardia).filter(Guardia.usuario_id == usuario.id).first()
+            if not guardia:
+                raise HTTPException(status_code=404, detail="Guardia no encontrado")
+            residencial_id = guardia.residencial_id
+        elif usuario.rol == "admin":
+            admin = db.query(Administrador).filter(Administrador.usuario_id == usuario.id).first()
+            if admin:
+                residencial_id = admin.residencial_id
+        
+        # Determinar la fecha a consultar
+        if fecha:
+            try:
+                # Si viene una fecha, asumimos que es en la zona horaria de Honduras
+                honduras_tz = pytz.timezone('America/Tegucigalpa')
+                fecha_dt = datetime.strptime(fecha, "%Y-%m-%d")
+                fecha_inicio = honduras_tz.localize(datetime.combine(fecha_dt.date(), datetime.min.time()))
+                fecha_fin = honduras_tz.localize(datetime.combine(fecha_dt.date(), datetime.max.time()))
+                fecha_consulta = fecha_dt.date()
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Formato de fecha inválido. Use YYYY-MM-DD")
+        else:
+            ahora_honduras = get_honduras_time()
+            fecha_consulta = ahora_honduras.date()
+            fecha_inicio = ahora_honduras.replace(hour=0, minute=0, second=0, microsecond=0)
+            fecha_fin = ahora_honduras.replace(hour=23, minute=59, second=59, microsecond=999999)
+        
+        # Query base
+        query = db.query(Visita).join(Visitante).filter(
+            Visita.fecha_entrada >= fecha_inicio,
+            Visita.fecha_entrada <= fecha_fin
+        )
+        
+        # Filtrar por residencial si es guardia
+        if residencial_id:
+            # Filtrar visitas del residencial del guardia
+            query = query.outerjoin(Residente, Visita.residente_id == Residente.id)
+            query = query.outerjoin(Administrador, Visita.admin_id == Administrador.id)
+            query = query.filter(
+                (Residente.residencial_id == residencial_id) | 
+                (Administrador.residencial_id == residencial_id)
+            )
+        
+        # Filtrar por estado si se especifica
+        if estado:
+            if estado not in ['pendiente', 'aceptado', 'rechazado', 'completado']:
+                raise HTTPException(status_code=400, detail="Estado inválido")
+            query = query.filter(Visita.estado == estado)
+        
+        # Filtrar por búsqueda (nombre o placa)
+        if busqueda:
+            busqueda_lower = f"%{busqueda.lower()}%"
+            query = query.filter(
+                (Visitante.nombre_conductor.ilike(busqueda_lower)) |
+                (Visitante.placa_vehiculo.ilike(busqueda_lower))
+            )
+        
+        # Ordenar por fecha de entrada (más recientes primero)
+        visitas = query.order_by(Visita.fecha_entrada.desc()).all()
+        
+        # Formatear respuesta
+        resultado = []
+        for visita in visitas:
+            # Obtener visitante
+            visitante = db.query(Visitante).filter(Visitante.id == visita.visitante_id).first()
+            
+            # Obtener información del creador
+            creador_info = {
+                "tipo": "desconocido",
+                "nombre": "N/A",
+                "email": "N/A",
+                "telefono": "N/A",
+                "unidad_residencial": "N/A"
+            }
+            
+            if visita.tipo_creador == "admin" and visita.admin_id:
+                admin = db.query(Administrador).join(Usuario).filter(Administrador.id == visita.admin_id).first()
+                if admin and admin.usuario:
+                    creador_info = {
+                        "tipo": "admin",
+                        "nombre": admin.usuario.nombre or "Admin sin nombre",
+                        "email": admin.usuario.email or "N/A",
+                        "telefono": admin.telefono or "N/A",
+                        "unidad_residencial": admin.unidad_residencial or "N/A"
+                    }
+            elif visita.tipo_creador == "residente" and visita.residente_id:
+                residente = db.query(Residente).join(Usuario).filter(Residente.id == visita.residente_id).first()
+                if residente and residente.usuario:
+                    creador_info = {
+                        "tipo": "residente",
+                        "nombre": residente.usuario.nombre or "Residente sin nombre",
+                        "email": residente.usuario.email or "N/A",
+                        "telefono": residente.telefono or "N/A",
+                        "unidad_residencial": residente.unidad_residencial or "N/A"
+                    }
+            
+            # Obtener imágenes si existen
+            from app.models.visita_imagen import VisitaImagen
+            imagenes_db = db.query(VisitaImagen).filter(VisitaImagen.visita_id == visita.id).all()
+            imagenes = [{"imagen_url": img.url} for img in imagenes_db] if imagenes_db else []
+            
+            # Determinar indicador visual según estado
+            indicador = "🟢"  # Verde por defecto
+            if visita.estado == "pendiente":
+                indicador = "🟡"  # Amarillo
+            elif visita.estado == "rechazado":
+                indicador = "🔴"  # Rojo
+            elif visita.estado == "completado":
+                indicador = "⚫"  # Gris
+            elif visita.qr_expiracion and visita.qr_expiracion < get_honduras_time():
+                indicador = "🔴"  # Rojo si expiró
+            
+            resultado.append({
+                "id": visita.id,
+                "fecha_entrada": visita.fecha_entrada,
+                "hora_entrada": visita.fecha_entrada.strftime("%H:%M"),
+                "estado": visita.estado,
+                "indicador": indicador,
+                "notas": visita.notas,
+                "qr_expiracion": visita.qr_expiracion,
+                "fecha_salida": visita.fecha_salida,
+                "visitante": {
+                    "nombre_conductor": visitante.nombre_conductor,
+                    "dni_conductor": visitante.dni_conductor,
+                    "telefono": visitante.telefono,
+                    "tipo_vehiculo": visitante.tipo_vehiculo,
+                    "marca_vehiculo": visitante.marca_vehiculo or "N/A",
+                    "color_vehiculo": visitante.color_vehiculo or "N/A",
+                    "placa_vehiculo": visitante.placa_vehiculo or "N/A",
+                    "motivo": visitante.motivo_visita
+                },
+                "destino_visita": visitante.destino_visita or "N/A",
+                "creador": creador_info,
+                "imagenes": imagenes
+            })
+        
+        return {
+            "fecha": fecha_consulta.isoformat(),
+            "total": len(resultado),
+            "visitas": resultado
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error obteniendo visitas del día: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al obtener visitas del día: {str(e)}"
         )

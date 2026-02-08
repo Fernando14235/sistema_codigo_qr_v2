@@ -473,10 +473,10 @@ def registrar_salida_visita(db: Session, qr_code: str, guardia_id: int, observac
 
 def obtener_historial_escaneos_dia(db: Session, guardia_id: int = None, residencial_id: int = None, nombre_guardia: str = None, page: int = 1, limit: int = 15) -> dict:
     try:
-        # Obtener fecha actual en UTC
-        now_utc = datetime.now(timezone.utc)
-        fecha_inicio = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
-        fecha_fin = now_utc.replace(hour=23, minute=59, second=59, microsecond=999999)
+        # Obtener fecha actual en Honduras
+        ahora_honduras = get_honduras_time()
+        fecha_inicio = ahora_honduras.replace(hour=0, minute=0, second=0, microsecond=0)
+        fecha_fin = ahora_honduras.replace(hour=23, minute=59, second=59, microsecond=999999)
         
         # Consultas base
         query_residentes = db.query(
@@ -566,7 +566,8 @@ def obtener_historial_escaneos_dia(db: Session, guardia_id: int = None, residenc
                 "estado_visita": visita.estado,
                 "tipo_escaneo": tipo_escaneo,
                 "tipo_creador": "admin" if unidad_residencial == 'Admin' else "residente",
-                "entrada_anticipada": entrada_anticipada
+                "entrada_anticipada": entrada_anticipada,
+                "placa_chasis": visitante.placa_chasis
             })
             
         return {
@@ -737,7 +738,8 @@ def obtener_historial_escaneos_totales(db: Session, residencial_id: int = None, 
                 "nombre_residente": f"{creador_nombre}{' (Admin)' if unidad_residencial == 'Admin' else ''}",
                 "unidad_residencial": unidad_residencial,
                 "estado_visita": visita.estado,
-                "tipo_escaneo": tipo_escaneo_val
+                "tipo_escaneo": tipo_escaneo_val,
+                "placa_chasis": visitante.placa_chasis
             })
 
         return {
@@ -754,40 +756,6 @@ def obtener_historial_escaneos_totales(db: Session, residencial_id: int = None, 
             "error": str(e)
         }
 
-    if nombre_guardia:
-        query = query.filter(Usuario.nombre.ilike(f"%{nombre_guardia}%"))
-    if estado_visita:
-        query = query.filter(Visita.estado == estado_visita)
-
-    resultados = query.order_by(EscaneoQR.fecha_escaneo.desc()).all()
-
-    escaneos = []
-    for escaneo, visita, visitante, residente, usuario_guardia, guardia in resultados:
-        fecha_escaneo_utc = escaneo.fecha_escaneo
-        tipo_escaneo_val = "salida" if visita.fecha_salida and fecha_escaneo_utc >= visita.fecha_salida else "entrada"
-        if tipo_escaneo and tipo_escaneo_val != tipo_escaneo:
-            continue
-        escaneos.append({
-            "id_escaneo": escaneo.id,
-            "fecha_escaneo": fecha_escaneo_utc,
-            "dispositivo": escaneo.dispositivo or "No especificado",
-            "nombre_guardia": usuario_guardia.nombre if usuario_guardia else f"Guardia {guardia.id}",
-            "nombre_visitante": visitante.nombre_conductor,
-            "dni_visitante": visitante.dni_conductor,
-            "tipo_vehiculo": visitante.tipo_vehiculo,
-            "placa_vehiculo": visitante.placa_vehiculo,
-            "motivo_visita": visitante.motivo_visita,
-            "nombre_residente": residente.usuario.nombre if hasattr(residente, "usuario") else "",
-            "unidad_residencial": residente.unidad_residencial,
-            "estado_visita": visita.estado,
-            "tipo_escaneo": tipo_escaneo_val
-        })
-
-    return {
-        "escaneos": escaneos,
-        "total_escaneos": len(escaneos),
-        "fecha_consulta": datetime.now()
-    }
 
 def obtener_visitas_residente(db: Session, usuario_id: int, page: int = 1, limit: int = 15):
     residente = db.query(Residente).filter(Residente.usuario_id == usuario_id).first()

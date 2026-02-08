@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     EMAIL_USE_SSL: bool
     BREVO_API_KEY: str
     
+    # claves vapid (notificaciones push)
+    VAPID_PUBLIC_KEY: str
+    VAPID_PRIVATE_KEY: str
+    VAPID_EMAIL: str
+    
     #cloudinary
     CLOUDINARY_CLOUD_NAME: str
     CLOUDINARY_API_KEY: str

@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.database import SessionLocal, get_db
 from typing import Optional, List
-from app.routers import auth, usuarios, visitas, notificaciones, historial_visitas, estadisticas, sociales, tickets, residenciales, super_admin, vistas
+from app.routers import auth, usuarios, visitas, notificaciones, historial_visitas, estadisticas, sociales, tickets, residenciales, super_admin, vistas, push_notifications
 from app.middleware import cleanup
 from app.services.user_service import crear_usuario, eliminar_usuario, obtener_usuario, obtener_usuario_por_id, actualizar_usuario
 from app.schemas.usuario_schema import Usuario, UsuarioCreate, UsuarioUpdate, UsuarioCreateSuperAdmin, UsuarioCreateAdmin
@@ -18,8 +18,16 @@ from app.models.guardia import Guardia
 from app.models.admin import Administrador
 from app.models.refresh_token import RefreshToken
 from app.core.config import settings
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+# Configurar rate limiter
+limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 
 app = FastAPI()
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 add_cors(app)
 app.include_router(auth.router)
 app.include_router(usuarios.router)
@@ -32,6 +40,7 @@ app.include_router(notificaciones.router)
 app.include_router(residenciales.router)
 app.include_router(super_admin.router)
 app.include_router(vistas.router)
+app.include_router(push_notifications.router)
 
 # Llamada a la función de expiración de visitas
 def actu_visita_expiracion():
@@ -45,13 +54,15 @@ scheduler.add_job(actu_visita_expiracion, "interval", minutes=5)
 scheduler.start()
 
 @app.get('/', tags=["Inicio"])
-def home():
+@limiter.limit("30/minute")
+def home(request: Request):
     return HTMLResponse('''
                         <h1>Porto Pass - Sistema de Control de Acceso</h1>
                         <style>width: 100%</style>
                         ''')
 
 @app.get('/debug/cookies', tags=["Debug"])
+@limiter.limit("10/minute")
 def debug_cookies(request: Request):
     """Endpoint para debug de cookies en producción"""
     from fastapi import Request
@@ -80,7 +91,8 @@ def debug_cookies(request: Request):
     }
 
 @app.get('/health', tags=["Salud"])
-def health_check():
+@limiter.limit("60/minute")
+def health_check(request: Request):
     try:
         from app.utils.async_notifications import email_executor
         return {
@@ -99,7 +111,9 @@ def health_check():
 
 # obtener todos los usuarios
 @app.get('/usuarios/admin', tags=["Usuarios"])
+@limiter.limit("30/minute")
 def obtener_todos_usuarios(
+    request: Request,
     usuario_actual=Depends(verify_role(["admin", "super_admin"])), 
     id: Optional[int] = Query(None, description="Filtro por ID"),
     nombre: Optional[str] = Query(None, description="Filtro por nombre"),
@@ -118,7 +132,8 @@ def obtener_todos_usuarios(
         )
 
 @app.get('/usuario/actual', tags=["Usuarios"])
-def obtener_usuario_actual(usuario_actual: UsuarioModel = Depends(get_current_user), db: Session = Depends(get_db)):
+@limiter.limit("60/minute")
+def obtener_usuario_actual(request: Request, usuario_actual: UsuarioModel = Depends(get_current_user), db: Session = Depends(get_db)):
     try:
         data = {
             "id": usuario_actual.id,
@@ -159,7 +174,8 @@ def obtener_usuario_actual(usuario_actual: UsuarioModel = Depends(get_current_us
 
 # Obtener usuario por ID
 @app.get('/usuarios/admin/{id}', response_model=Usuario, tags=["Usuarios"])
-def obtener_usuario_por_id_endpoint(id: int, usuario_actual=Depends(verify_role(["admin", "super_admin"])), db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+def obtener_usuario_por_id_endpoint(id: int, request: Request, usuario_actual=Depends(verify_role(["admin", "super_admin"])), db: Session = Depends(get_db)):
     try:
         # The obtener_usuario_por_id function already returns a dict with all the necessary data
         usuario_data = obtener_usuario_por_id(db, id, usuario_actual=usuario_actual)
@@ -169,7 +185,8 @@ def obtener_usuario_por_id_endpoint(id: int, usuario_actual=Depends(verify_role(
 
 # Crear un nuevo usuario
 @app.post('/create_usuarios/admin', response_model=Usuario, tags=["Usuarios"])
-def crear_nuevo_usuario(usuario: UsuarioCreateAdmin, usuario_actual=Depends(verify_role(["super_admin","admin"])), db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def crear_nuevo_usuario(usuario: UsuarioCreateAdmin, request: Request, usuario_actual=Depends(verify_role(["super_admin","admin"])), db: Session = Depends(get_db)):
     # Convertir UsuarioCreateAdmin a UsuarioCreate agregando el residencial_id
     if usuario_actual.rol == "admin":
         # Obtener el residencial_id del admin actual
@@ -200,9 +217,10 @@ def crear_nuevo_usuario(usuario: UsuarioCreateAdmin, usuario_actual=Depends(veri
     
     return crear_usuario(db, usuario_create, usuario_actual)
 
-# Crear super admin (sin autenticación - solo para setup inicial)
+# Crear super admin 
 @app.post('/create_usuarios/super_admin', response_model=Usuario, tags=["Usuarios"])
-def crear_super_admin_endpoint(usuario: UsuarioCreateSuperAdmin, db: Session = Depends(get_db)):
+@limiter.limit("3/hour")  # Límite muy restrictivo para seguridad
+def crear_super_admin_endpoint(usuario: UsuarioCreateSuperAdmin, request: Request, db: Session = Depends(get_db), usuario_actual=Depends(verify_role(["admin", "super_admin"]))):
     count_super_admins = db.query(UsuarioModel).filter(UsuarioModel.rol == "super_admin").count()
     # Validar que no existan más de 1 (para permitir crear el segundo)
     if count_super_admins >= 2:
@@ -222,10 +240,12 @@ def crear_super_admin_endpoint(usuario: UsuarioCreateSuperAdmin, db: Session = D
 
 # Actualizar usuario
 @app.put('/update_usuarios/admin/{user_id}', response_model=Usuario, tags=["Usuarios"])
-def actualizar_usuario_endpoint(user_id: int, usuario_data: UsuarioUpdate, usuario_actual=Depends(verify_role(["admin", "super_admin"])), db: Session = Depends(get_db)):
+@limiter.limit("20/minute")
+def actualizar_usuario_endpoint(user_id: int, usuario_data: UsuarioUpdate, request: Request, usuario_actual=Depends(verify_role(["admin", "super_admin"])), db: Session = Depends(get_db)):
     return actualizar_usuario(db, user_id, usuario_data, usuario_actual=usuario_actual)
 
 # Eliminar usuario
 @app.delete('/delete_usuarios/admin/{id}', tags=["Usuarios"])
-def eliminar_usuario_endpoint(id: int, usuario_actual=Depends(verify_role(["admin", "super_admin"])), db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def eliminar_usuario_endpoint(id: int, request: Request, usuario_actual=Depends(verify_role(["admin", "super_admin"])), db: Session = Depends(get_db)):
     return eliminar_usuario(db, id, usuario_actual=usuario_actual)

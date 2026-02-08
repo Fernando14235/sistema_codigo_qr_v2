@@ -6,22 +6,11 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 // 2. Crear la instancia de Axios con la configuración CRÍTICA
 const api = axios.create({
     baseURL: API_URL,
-    withCredentials: true,
-    headers: {
-        'Content-Type': 'application/json',
-    }
+    withCredentials: true
 });
 
-api.interceptors.response.use(
-    (response) => response,
-    (error) => {
-        if (error.response && error.response.status === 401) {
-            console.log("Sesión expirada o no autorizada");
-            // Aquí podrías redirigir al login si quisieras
-        }
-        return Promise.reject(error);
-    }
-);
+// Interceptor eliminado para evitar conflictos con App.jsx
+// La lógica de manejo de errores 401 se centraliza en App.jsx
 
 export { API_URL };
 export default api;

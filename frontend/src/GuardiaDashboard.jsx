@@ -11,6 +11,7 @@ import MainMenu from "./roles/Guardia/views/MainMenu";
 import RegistrarEntrada from "./roles/Guardia/views/RegistrarEntrada";
 import RegistrarSalida from "./roles/Guardia/views/RegistrarSalida";
 import Escaneos from "./roles/Guardia/views/Escaneos";
+import VisitasDelDia from "./roles/Guardia/views/VisitasDelDia";
 
 function GuardiaDashboard({ nombre, token, onLogout }) {
   const [usuario, setUsuario] = useState(null);
@@ -29,6 +30,7 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
       'menu': '/',
       'entrada': '/entrada',
       'salida': '/salida',
+      'visitas-dia': '/visitas-dia',
       'escaneos': '/escaneos',
       'perfil': '/perfil',
       'config': '/configuracion'
@@ -41,6 +43,7 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
     if (path === '/') return 'menu';
     if (path === '/entrada') return 'entrada';
     if (path === '/salida') return 'salida';
+    if (path === '/visitas-dia') return 'visitas-dia';
     if (path === '/escaneos') return 'escaneos';
     if (path === '/perfil') return 'perfil';
     if (path === '/configuracion') return 'config';
@@ -74,6 +77,10 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
              <RegistrarSalida token={token} onCancel={() => navigate('/')}/>
           } />
 
+          <Route path="/visitas-dia" element={
+             <VisitasDelDia token={token} onCancel={() => navigate('/')}/>
+          } />
+
           <Route path="/escaneos" element={
              <Escaneos token={token} onCancel={() => navigate('/')}/>
           } />
@@ -83,7 +90,7 @@ function GuardiaDashboard({ nombre, token, onLogout }) {
           } />
 
           <Route path="/configuracion" element={
-             <ConfiguracionUsuario onRegresar={() => navigate('/')} usuario={{ id: usuario?.id || 2, rol: 'guardia' }}/>
+             <ConfiguracionUsuario onRegresar={() => navigate('/')} usuario={usuario || { id: 2, rol: 'guardia' }} token={token} />
           } />
 
           <Route path="*" element={<Navigate to="/" />} />

@@ -118,6 +118,7 @@ class HistorialVisitaItem(BaseModel):
     fecha_salida: Optional[datetime] = None
     estado: str
     placa_chasis: Optional[str] = None
+    dni_conductor: Optional[str] = None
     destino_visita: Optional[str] = None
 
 class HistorialVisitaResponse(BaseModel):
@@ -170,7 +171,7 @@ class EscaneoDiaItem(BaseModel):
     unidad_residencial: str
     estado_visita: str
     tipo_escaneo: str 
-
+    placa_chasis: Optional[str] = None
     class Config:
         from_attributes = True
 
@@ -201,3 +202,30 @@ class VisitaUpdate(BaseModel):
         if v == "" or v is None:
             return None
         return v
+
+
+# Schema para visitas del día (guardia)
+class VisitaDelDiaResponse(BaseModel):
+    """Schema para respuesta de visitas del día para guardias"""
+    id: int
+    fecha_entrada: datetime
+    hora_entrada: str
+    estado: str
+    notas: Optional[str]
+    qr_expiracion: datetime
+    fecha_salida: Optional[datetime]
+    
+    # Información del visitante
+    visitante: dict = Field(..., description="Datos del visitante")
+    
+    # Información del residente/admin que creó la visita
+    creador: dict = Field(..., description="Datos del creador de la visita")
+    
+    # Acompañantes si existen
+    acompanantes: Optional[List[str]] = Field(default=None, description="Lista de acompañantes")
+    
+    # Imágenes si existen
+    imagenes: Optional[List[str]] = Field(default=None, description="URLs de imágenes")
+    
+    class Config:
+        from_attributes = True

@@ -2,83 +2,65 @@ import React, { useState, useRef, useEffect } from "react";
 import api from "../../../api";
 import { getImageUrl } from "../../../utils/imageUtils";
 import PaginationControls from "../../../components/PaginationControls";
+import cardStyles from "../../../css/Cards.module.css";
 
-// Componente para listar tickets del residente
-function TablaTicketsResidente({ tickets, onVerDetalle, onEliminar }) {
-  // Detectar si la pantalla es pequeña
-  const isMobile = window.innerWidth < 700;
-
+// Componente para listar tickets del residente (Diseño Moderno de Tarjetas)
+function TicketsList({ tickets, onVerDetalle }) {
   if (!tickets || tickets.length === 0) {
-    return <p style={{ textAlign: 'center', color: '#888' }}>No tienes tickets registrados.</p>;
-  }
-
-  if (isMobile) {
     return (
-      <div style={{ width: '100%', marginBottom: 20 }}>
-        <h3 style={{ marginTop: 0, color: '#1976d2' }}>Mis Tickets</h3>
-        <div className="tickets-cards-mobile">
-          {tickets.map(ticket => (
-            <div className="ticket-card-mobile" key={ticket.id}>
-              <div className="ticket-card-mobile-info">
-                <div><b>ID:</b> #{ticket.id}</div>
-                <div><b>Título:</b> {ticket.titulo}</div>
-                <div><b>Estado:</b> <span className={`ticket-estado-badge ${ticket.estado}`}>{ticket.estado}</span></div>
-                <div><b>Fecha:</b> {new Date(ticket.fecha_creacion).toLocaleString()}</div>
-              </div>
-              <div className="ticket-card-mobile-action">
-                <span
-                  onClick={() => onVerDetalle(ticket)}
-                  style={{ color: '#1976d2', cursor: 'pointer', fontSize: 28 }}
-                  title="Ver detalle"
-                >
-                  👁️
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <p style={{ textAlign: "center", color: "#888", padding: "40px" }}>
+        No tienes tickets registrados.
+      </p>
     );
   }
 
   return (
-    <div style={{ width: '100%', marginBottom: 20 }}>
-      <h3 style={{ marginTop: 0, color: '#1976d2' }}>Mis Tickets</h3>
-      <div style={{ overflowX: 'auto' }}>
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Título</th>
-              <th>Estado</th>
-              <th>Fecha Creación</th>
-              <th>Acción</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tickets.map(ticket => (
-              <tr key={ticket.id}>
-                <td>#{ticket.id}</td>
-                <td>{ticket.titulo}</td>
-                <td>{ticket.estado}</td>
-                <td>{new Date(ticket.fecha_creacion).toLocaleString()}</td>
-                <td>
-                  <span
-                    onClick={() => onVerDetalle(ticket)}
-                    style={{ color: '#1976d2', cursor: 'pointer', fontSize: 20 }}
-                    title="Ver detalle"
-                  >
-                    👁️
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+    <div className={cardStyles["cards-container"]}>
+      {tickets.map((ticket) => (
+        <div className={cardStyles["horizontal-card"]} key={ticket.id}>
+          <div className={`${cardStyles["status-stripe"]} ${cardStyles[ticket.estado] || cardStyles["primary"]}`}></div>
+          
+          <div className={cardStyles["card-main-content"]}>
+            <div className={cardStyles["card-section"]}>
+              <span className={cardStyles["section-label"]}>Ticket ID</span>
+              <span className={cardStyles["section-value"]}>#{ticket.id}</span>
+            </div>
+
+            <div className={cardStyles["card-section"]}>
+              <span className={cardStyles["section-label"]}>Asunto</span>
+              <h4 className={cardStyles["card-title"]}>{ticket.titulo}</h4>
+            </div>
+
+            <div className={cardStyles["card-section"]}>
+              <span className={cardStyles["section-label"]}>Estado / Fecha</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span className={`${cardStyles["badge"]} ${cardStyles["badge-" + ticket.estado]}`}>
+                  {ticket.estado === 'pendiente' ? '⏳ Pendiente' : 
+                   ticket.estado === 'en_proceso' ? '⚙️ En Proceso' : 
+                   ticket.estado === 'resuelto' ? '✅ Resuelto' : '❌ Rechazado'}
+                </span>
+                <span className={cardStyles["section-value"]} style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                  {new Date(ticket.fecha_creacion).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className={cardStyles["card-actions"]}>
+            <button 
+              className={`${cardStyles["action-btn"]} ${cardStyles["view"]}`}
+              onClick={() => onVerDetalle(ticket)}
+              title="Ver detalle"
+            >
+              👁️
+            </button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
+
 
 // Vista de detalle de ticket para residente
 function TicketDetalleResidente({ ticket, onRegresar }) {
@@ -198,6 +180,8 @@ function TicketDetalleResidente({ ticket, onRegresar }) {
   );
 }
 
+import styles from "./Tickets.module.css";
+
 // Formulario para crear ticket
 function FormCrearTicketResidente({ token, onSuccess, onCancel }) {
   const [titulo, setTitulo] = useState("");
@@ -219,22 +203,16 @@ function FormCrearTicketResidente({ token, onSuccess, onCancel }) {
   const handleImagenChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validar que sea una imagen
       if (!file.type.startsWith('image/')) {
         setError("Por favor selecciona un archivo de imagen válido");
         return;
       }
-      
-      // Validar tamaño (máximo 5MB)
       if (file.size > 5 * 1024 * 1024) {
         setError("La imagen no debe superar los 5MB");
         return;
       }
-      
       setImagen(file);
       setError("");
-      
-      // Crear preview
       const reader = new FileReader();
       reader.onloadend = () => {
         if (isMountedRef.current) {
@@ -262,11 +240,11 @@ function FormCrearTicketResidente({ token, onSuccess, onCancel }) {
       formData.append("titulo", titulo);
       formData.append("descripcion", descripcion);
       if (imagen) formData.append("imagen", imagen);
+
       await api.post(`/tickets/crear_ticket/residente`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      // Solo actualizar estado si el componente sigue montado
       if (isMountedRef.current) {
         setTitulo("");
         setDescripcion("");
@@ -274,11 +252,14 @@ function FormCrearTicketResidente({ token, onSuccess, onCancel }) {
         setImagenPreview(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
-      
       onSuccess && onSuccess();
     } catch (err) {
       if (isMountedRef.current) {
-        setError(err.response?.data?.detail || "Error al crear el ticket");
+        const detail = err.response?.data?.detail;
+        const msg = Array.isArray(detail) 
+          ? detail.map(d => d.msg).join(", ") 
+          : (typeof detail === 'string' ? detail : "Error al crear el ticket");
+        setError(msg);
       }
     } finally {
       if (isMountedRef.current) {
@@ -288,176 +269,102 @@ function FormCrearTicketResidente({ token, onSuccess, onCancel }) {
   };
 
   return (
-    <form className="form-visita form-visita-residente" onSubmit={handleSubmit} style={{maxWidth:480,margin:'0 auto'}}>
-      <h2 className="crear-visita-title">Crear Ticket de Soporte</h2>
-      <div className="form-row">
-        <label>Título:</label>
-        <input type="text" value={titulo} onChange={e => setTitulo(e.target.value)} required disabled={cargando} />
+    <form className={styles["ticket-form-revamped"]} onSubmit={handleSubmit}>
+      <div className={styles["form-header"]}>
+        <h2>Crear Ticket de Soporte</h2>
       </div>
-      <div className="form-row">
-        <label>Descripción:</label>
-        <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} required rows={4} disabled={cargando} style={{resize:'vertical'}} />
-      </div>
-      <div className="form-row">
-        <label>Imagen (opcional - máximo 1):</label>
-        {!imagenPreview ? (
-          <div style={{position:'relative'}}>
-            <input 
-              type="file" 
-              accept="image/*" 
-              ref={fileInputRef} 
-              onChange={handleImagenChange} 
-              disabled={cargando}
-              style={{
-                padding: '10px',
-                border: '2px dashed #1976d2',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                width: '100%'
-              }}
-            />
-            <p style={{fontSize:'12px',color:'#666',marginTop:'5px'}}>
-              Formatos: JPG, PNG. Tamaño máximo: 5MB
-            </p>
-          </div>
-        ) : (
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            marginTop: '10px',
-            marginBottom: '20px'
-          }}>
-            <div style={{
-              position: 'relative',
-              display: 'inline-block'
-            }}>
-              <img 
-                src={imagenPreview} 
-                alt="Vista previa" 
-                style={{
-                  width: '100%',
-                  maxWidth: '300px',
-                  height: 'auto',
-                  maxHeight: '300px',
-                  objectFit: 'contain',
-                  borderRadius: '12px',
-                  border: '2px solid #e3eafc',
-                  boxShadow: '0 4px 12px rgba(25, 118, 210, 0.2)',
-                  display: 'block'
-                }}
+
+      <div className={styles["ticket-grid"]}>
+        <div className={styles["field-group"]}>
+          <label>Título:</label>
+          <input 
+            type="text" 
+            placeholder="Ej: Problemas con el intercomunicador"
+            value={titulo} 
+            onChange={e => setTitulo(e.target.value)} 
+            required 
+            disabled={cargando}
+            className={styles["form-input"]}
+          />
+        </div>
+
+        <div className={styles["field-group"]}>
+          <label>Descripción:</label>
+          <textarea 
+            placeholder="Describe detalladamente el problema..."
+            value={descripcion} 
+            onChange={e => setDescripcion(e.target.value)} 
+            required 
+            rows={5} 
+            disabled={cargando} 
+            style={{resize:'vertical'}} 
+            className={styles["form-textarea"]}
+          />
+        </div>
+
+        <div className={styles["media-section"]}>
+          <label className={styles["media-title"]}>Imagen (opcional - máximo 1):</label>
+          {!imagenPreview ? (
+            <div className={styles["file-upload-box"]}>
+              <input 
+                type="file" 
+                accept="image/*" 
+                id="ticket-image-input"
+                ref={fileInputRef} 
+                onChange={handleImagenChange} 
+                className={styles["hidden-input"]}
+                disabled={cargando}
               />
+              <label htmlFor="ticket-image-input" className={styles["file-drop-area"]}>
+                <span className={styles["upload-icon"]}>📸</span>
+                <span className={styles["upload-text"]}>Adjuntar foto</span>
+                <span className={styles["upload-hint"]}>JPG, PNG (Máx 5MB)</span>
+              </label>
+            </div>
+          ) : (
+            <div className={styles["preview-container"]}>
+              <div className={styles["image-preview-wrapper"]}>
+                <img src={imagenPreview} alt="Vista previa" className={styles["preview-image"]} />
+                <button
+                  type="button"
+                  onClick={handleRemoveImage}
+                  disabled={cargando}
+                  className={styles["btn-remove-preview"]}
+                  title="Eliminar imagen"
+                >
+                  ×
+                </button>
+              </div>
+              <div className={styles["file-name-info"]}>{imagen?.name}</div>
               <button
                 type="button"
                 onClick={handleRemoveImage}
                 disabled={cargando}
-                style={{
-                  position: 'absolute',
-                  top: '5px',
-                  right: '5px',
-                  background: '#f44336',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: '32px',
-                  height: '32px',
-                  cursor: 'pointer',
-                  fontSize: '18px',
-                  fontWeight: 'bold',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.3s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.background = '#d32f2f';
-                  e.target.style.transform = 'scale(1.1)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = '#f44336';
-                  e.target.style.transform = 'scale(1)';
-                }}
-                title="Eliminar imagen"
-              >
-                ×
-              </button>
-              <p style={{fontSize:'12px',color:'#666',marginTop:'8px',textAlign:'center'}}>
-                {imagen?.name}
-              </p>
-              <button
-                type="button"
-                onClick={handleRemoveImage}
-                disabled={cargando}
-                style={{
-                  marginTop: '8px',
-                  padding: '6px 12px',
-                  background: '#ff9800',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  width: '100%',
-                  transition: 'background 0.3s ease'
-                }}
-                onMouseEnter={(e) => e.target.style.background = '#f57c00'}
-                onMouseLeave={(e) => e.target.style.background = '#ff9800'}
+                className={styles["btn-change-media"]}
               >
                 🔄 Cambiar imagen
               </button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-      {error && <div className="qr-error">{error}</div>}
-      <div className="create-ticket-actions" style={{ marginTop: imagenPreview ? '10px' : '20px', display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-        <button className="btn-primary" type="submit" disabled={cargando}>
-          {cargando ? "Creando..." : "Crear Ticket"}
-        </button>
-        <button className="btn-regresar" type="button" onClick={onCancel} disabled={cargando}>
-          Cancelar
-        </button>
+
+      <div className={styles["form-actions"]}>
+        {error && <div className={styles["error-badge"]}>{error}</div>}
+        <div className={styles["btns-group"]}>
+          <button className={styles["btn-submit"]} type="submit" disabled={cargando}>
+            {cargando ? <span className={styles["spinner"]}></span> : "Crear Ticket"}
+          </button>
+          <button className={styles["btn-cancel"]} type="button" onClick={onCancel} disabled={cargando}>
+            Cancelar
+          </button>
+        </div>
       </div>
     </form>
   );
 }
 
-// Tarjetas responsivas para tickets del residente
-function TicketsCardsMobileResidente({ tickets, onVerDetalle, onEliminar }) {
-  return (
-    <div className="tickets-cards-mobile">
-      {tickets.map(ticket => (
-        <div className="ticket-card-mobile" key={ticket.id} style={{marginBottom:18,background:'#fff',borderRadius:12,boxShadow:'0 2px 8px #1976d220',padding:18}}>
-          <div className="ticket-card-mobile-info">
-            <div className="ticket-header-mobile">
-              <b>Título: </b><span className="ticket-titulo-mobile">{ticket.titulo}</span>
-              <br />
-              <b>Estado: </b><span className={`ticket-estado-mobile ${ticket.estado}`}>{ticket.estado}</span>
-            </div>
-            <div><b>Fecha:</b> {new Date(ticket.fecha_creacion).toLocaleString()}</div>
-            {ticket.imagen_url && (
-              <div><b>Imagen:</b> <span style={{color: '#1976d2'}}>📎 Imagen Adjunta</span></div>
-            )}
-            {ticket.respuesta_admin && (
-              <div><b>Respuesta:</b> {ticket.respuesta_admin}</div>
-            )}
-          </div>
-          <br />
-          <div className="ticket-card-mobile-actions">
-            <span 
-              onClick={() => onVerDetalle(ticket)}
-              style={{ color: '#1976d2', cursor: 'pointer', fontSize: 30 }}
-              title="Ver ticket"
-            >
-              👁️
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+
 
 function Tickets({ 
   tickets, 
@@ -506,11 +413,7 @@ function Tickets({
           {cargandoTickets ? (
             <div style={{ textAlign: 'center', padding: '20px' }}>Cargando tickets...</div>
           ) : (
-            window.innerWidth < 750 ? (
-              <TicketsCardsMobileResidente tickets={tickets} onVerDetalle={verTicketDetalle} onEliminar={eliminarTicket} />
-            ) : (
-              <TablaTicketsResidente tickets={tickets} onVerDetalle={verTicketDetalle} onEliminar={eliminarTicket} />
-            )
+            <TicketsList tickets={tickets} onVerDetalle={verTicketDetalle} />
           )}
           <PaginationControls
             currentPage={page}

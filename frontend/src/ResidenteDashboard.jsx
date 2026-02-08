@@ -232,7 +232,7 @@ function ResidenteDashboard({ token, nombre, onLogout }) {
           } />
 
           <Route path="/configuracion" element={
-            <ConfiguracionUsuario onRegresar={() => navigate('/')} usuario={{ id: usuario?.id || 3, rol: 'residente' }} />
+            <ConfiguracionUsuario onRegresar={() => navigate('/')} usuario={usuario || { id: 3, rol: 'residente' }} token={token} />
           } />
 
           <Route path="/visitas" element={

@@ -17,7 +17,8 @@ def add_cors(app):
         "http://localhost:5173", 
         "http://127.0.0.1:5173", 
         "http://192.168.1.35:5173", 
-        "http://localhost:8000"
+        "http://localhost:8000",
+        "http://192.168.1.41:8000",
     ]
     
     # Determinar orígenes según el ambiente

@@ -1,5 +1,5 @@
 import React from "react";
-import styles from "../../../../SocialDashboard.module.css";
+import cardStyles from "../../../../css/Cards.module.css";
 
 function SocialList({
   publicaciones,
@@ -9,174 +9,99 @@ function SocialList({
   isAdmin,
   isOwnTab,
 }) {
-  const isMobile = window.innerWidth < 700;
-
-  const IconVer = () => (
-    <span title="Ver" style={{ cursor: "pointer", fontSize: 20 }} role="img" aria-label="ver">
-      🔍
-    </span>
-  );
-  const IconEditar = () => (
-    <span title="Editar" style={{ cursor: "pointer", fontSize: 20 }} role="img" aria-label="editar">
-      ✏️
-    </span>
-  );
-  const IconEliminar = () => (
-    <span
-      title="Eliminar"
-      style={{ cursor: "pointer", color: "#e53935", fontSize: 20 }}
-      role="img"
-      aria-label="eliminar"
-    >
-      🗑️
-    </span>
-  );
-
   if (!publicaciones || publicaciones.length === 0) {
     return (
-      <p
-        style={{
-          textAlign: "center",
-          color: "#888",
-          fontWeight: "bold",
-          fontSize: "1.1em",
-          marginTop: 32,
-        }}
-      >
+      <p style={{ textAlign: "center", color: "#888", fontWeight: "bold", fontSize: "1.1em", marginTop: 32 }}>
         No hay publicaciones
       </p>
     );
   }
 
-  if (isMobile) {
-    return (
-      <div className="social-cards-mobile">
-        {publicaciones.map((pub) => (
-          <div
-            className="social-card-mobile"
-            key={pub.id}
-            style={pub.estado === "fallido" ? { backgroundColor: "#ffebee" } : {}}
-          >
-            <div className="social-card-mobile-info">
-              <div>
-                <b>Título:</b> {pub.titulo}
-              </div>
-              <div>
-                <b>Tipo:</b> {pub.tipo_publicacion}
-              </div>
-              <div>
-                <b>Estado:</b>{" "}
-                <span
-                  style={{
-                    color:
-                      pub.estado === "fallido"
-                        ? "#d32f2f"
-                        : pub.estado === "publicado"
-                        ? "#2e7d32"
-                        : "#f57c00",
-                    fontWeight: "bold",
-                  }}
-                >
-                  {pub.estado}
-                </span>
-              </div>
-              <div>
-                <b>Fecha Creación:</b>{" "}
-                {new Date(pub.fecha_creacion).toLocaleDateString()}
-              </div>
-              <div>
-                <b>Hora Creación:</b>{" "}
-                {new Date(pub.fecha_creacion).toLocaleTimeString()}
-              </div>
-            </div>
-            <div
-              className="social-card-mobile-actions"
-              style={{
-                marginLeft: "auto",
-                display: "flex",
-                alignItems: "center",
-                gap: 15,
-              }}
-            >
-              <span onClick={() => onVerDetalle(pub)}>
-                <IconVer />
-              </span>
-              {isAdmin && isOwnTab && (
-                <>
-                  <span onClick={() => onEditar(pub)}>
-                    <IconEditar />
-                  </span>
-                  <span onClick={() => onEliminar(pub.id)}>
-                    <IconEliminar />
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
+  const getTypeIcon = (tipo) => {
+    switch (tipo) {
+      case "comunicado": return "📢";
+      case "encuesta": return "📊";
+      case "publicacion": return "📝";
+      default: return "📄";
+    }
+  };
 
   return (
-    <table className={styles["social-table"]}>
-      <thead>
-        <tr>
-          <th>Título</th>
-          <th>Tipo</th>
-          <th>Estado</th>
-          <th>Fecha</th>
-          <th>Hora</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        {publicaciones.map((pub) => (
-          <tr
-            key={pub.id}
-            style={pub.estado === "fallido" ? { backgroundColor: "#ffebee" } : {}}
-          >
-            <td>{pub.titulo}</td>
-            <td>{pub.tipo_publicacion}</td>
-            <td>
-              <span
-                style={{
-                  color:
-                    pub.estado === "fallido"
-                      ? "#d32f2f"
-                      : pub.estado === "publicado"
-                      ? "#2e7d32"
-                      : "#f57c00",
-                  fontWeight: "bold",
-                }}
-              >
-                {pub.estado}
-              </span>
-            </td>
-            <td>{new Date(pub.fecha_creacion).toLocaleDateString()}</td>
-            <td>{new Date(pub.fecha_creacion).toLocaleTimeString()}</td>
-            <td
-              className={styles["social-table-actions"]}
-              style={{ display: "flex", gap: 15, justifyContent: "center" }}
+    <div className={cardStyles["cards-container"]}>
+      {publicaciones.map((pub) => (
+        <div 
+          className={cardStyles["horizontal-card"]} 
+          key={pub.id}
+          style={pub.estado === "fallido" ? { borderColor: "#ffcdd2" } : {}}
+        >
+          <div className={`${cardStyles["status-stripe"]} ${
+            pub.estado === "publicado" ? cardStyles["success"] : 
+            pub.estado === "fallido" ? cardStyles["danger"] : cardStyles["warning"]
+          }`}></div>
+          
+          <div className={cardStyles["card-main-content"]}>
+            <div className={cardStyles["card-section"]}>
+              <span className={cardStyles["section-label"]}>Tipo</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '1.2rem' }}>{getTypeIcon(pub.tipo_publicacion)}</span>
+                <span className={cardStyles["section-value"]} style={{ textTransform: 'capitalize' }}>
+                  {pub.tipo_publicacion}
+                </span>
+              </div>
+            </div>
+
+            <div className={cardStyles["card-section"]}>
+              <span className={cardStyles["section-label"]}>Título</span>
+              <h4 className={cardStyles["card-title"]}>{pub.titulo}</h4>
+            </div>
+
+            <div className={cardStyles["card-section"]}>
+              <span className={cardStyles["section-label"]}>Estado / Fecha</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span className={`${cardStyles["badge"]} ${
+                  pub.estado === "publicado" ? cardStyles["badge-resuelto"] : 
+                  pub.estado === "fallido" ? cardStyles["badge-rechazado"] : cardStyles["badge-pendiente"]
+                }`}>
+                  {pub.estado === "publicado" ? "✅ Publicado" : 
+                   pub.estado === "fallido" ? "❌ Fallido" : "⏳ Pendiente"}
+                </span>
+                <span className={cardStyles["section-value"]} style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                  {new Date(pub.fecha_creacion).toLocaleDateString()} {new Date(pub.fecha_creacion).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className={cardStyles["card-actions"]}>
+            <button 
+              className={`${cardStyles["action-btn"]} ${cardStyles["view"]}`}
+              onClick={() => onVerDetalle(pub)}
+              title="Ver detalle"
             >
-              <span onClick={() => onVerDetalle(pub)}>
-                <IconVer />
-              </span>
-              {isAdmin && isOwnTab && (
-                <>
-                  <span onClick={() => onEditar(pub)}>
-                    <IconEditar />
-                  </span>
-                  <span onClick={() => onEliminar(pub.id)}>
-                    <IconEliminar />
-                  </span>
-                </>
-              )}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+              🔍
+            </button>
+            {isAdmin && isOwnTab && (
+              <>
+                <button 
+                  className={`${cardStyles["action-btn"]} ${cardStyles["edit"]}`}
+                  onClick={() => onEditar(pub)}
+                  title="Editar"
+                >
+                  ✏️
+                </button>
+                <button 
+                  className={`${cardStyles["action-btn"]} ${cardStyles["delete"]}`}
+                  onClick={() => onEliminar(pub.id)}
+                  title="Eliminar"
+                >
+                  🗑️
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 

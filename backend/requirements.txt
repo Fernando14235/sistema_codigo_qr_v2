@@ -46,3 +46,6 @@ pytz==2024.1
 # Push Notifications
 pywebpush==2.0.3
 py-vapid==1.9.0
+
+# Rate Limiting
+slowapi==0.1.9

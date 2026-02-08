@@ -1,5 +1,5 @@
 // Service Worker para Residencial Access PWA
-const CACHE_NAME = 'porto-pass-v3.1.6';
+const CACHE_NAME = 'porto-pass-v3.2.0';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -134,7 +134,9 @@ self.addEventListener('push', (event) => {
     data: {
       url: '/',
       timestamp: Date.now()
-    }
+    },
+    tag: 'portopass-notification',
+    requireInteraction: false
   };
 
   // Si hay datos en el evento push, usarlos
@@ -149,7 +151,18 @@ self.addEventListener('push', (event) => {
           ...pushData.data
         }
       };
+      
+      // Configurar requireInteraction según el tipo
+      if (pushData.requireInteraction !== undefined) {
+        notificationData.requireInteraction = pushData.requireInteraction;
+      }
+      
+      // Usar tag personalizado si existe
+      if (pushData.tag) {
+        notificationData.tag = pushData.tag;
+      }
     } catch (error) {
+      console.error('Error parseando datos de push:', error);
     }
   }
 
@@ -161,7 +174,9 @@ self.addEventListener('push', (event) => {
         badge: notificationData.badge,
         vibrate: notificationData.vibrate,
         data: notificationData.data,
-        requireInteraction: false,
+        requireInteraction: notificationData.requireInteraction,
+        tag: notificationData.tag,
+        renotify: true,
         actions: [
           {
             action: 'view',
@@ -173,13 +188,15 @@ self.addEventListener('push', (event) => {
             title: 'Cerrar',
             icon: '/genfavicon-32-v3.png'
           }
-        ],
-        tag: 'residencial-notification',
-        renotify: true
+        ]
       }),
+      // Notificar a todos los clientes abiertos
       self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clients) {
         clients.forEach(function(client) {
-          client.postMessage({ type: 'PUSH_NOTIFICATION', data: notificationData });
+          client.postMessage({ 
+            type: 'PUSH_NOTIFICATION', 
+            data: notificationData 
+          });
         });
       })
     ])
@@ -193,17 +210,28 @@ self.addEventListener('notificationclick', (event) => {
     return;
   }
 
+  // Obtener URL de la notificación
+  const urlToOpen = event.notification.data?.url || '/';
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
+        // Buscar si ya hay una ventana abierta
         for (const client of clientList) {
           if (client.url.includes(self.location.origin) && 'focus' in client) {
+            // Si hay una ventana abierta, enfocarla y navegar
+            client.postMessage({
+              type: 'NOTIFICATION_CLICK',
+              url: urlToOpen,
+              data: event.notification.data
+            });
             return client.focus();
           }
         }
         
+        // Si no hay ventana abierta, abrir una nueva
         if (clients.openWindow) {
-          return clients.openWindow('/');
+          return clients.openWindow(urlToOpen);
         }
       })
   );

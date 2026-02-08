@@ -374,20 +374,8 @@ def determinar_vistas_admin(db: Session, admin_id: int) -> List[VistaConfigItem]
         
     except Exception as e:
         print(f"Error en determinar_vistas_admin: {str(e)}")
-        # En caso de error, intentar devolver todas las vistas de la base de datos
-        try:
-            todas_vistas = db.query(Vista).all()
-            return [
-                VistaConfigItem(
-                    id=vista.id,
-                    nombre=vista.nombre,
-                    descripcion=vista.descripcion or "",
-                    activa=True
-                ) for vista in todas_vistas
-            ]
-        except:
-            # Si todo falla, devolver lista vacía
-            return []
+        # En caso de error, devolver lista vacía para seguridad
+        return []
 
 def obtener_vistas_admin_con_restricciones(db: Session, admin_id: int) -> List[dict]:
     """Obtener todas las vistas para un administrador, incluyendo las bloqueadas por residencial"""

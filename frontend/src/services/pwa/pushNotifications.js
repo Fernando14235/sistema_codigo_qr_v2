@@ -42,7 +42,7 @@ class PushNotificationService {
   }
 
   // Suscribirse a notificaciones push
-  async subscribeToPush(userId, userRole) {
+  async subscribeToPush(token) {
     if (!this.isSupported) {
       console.log('Push notifications no están soportadas');
       return false;
@@ -56,15 +56,19 @@ class PushNotificationService {
     try {
       // Registrar service worker si no está registrado
       const registration = await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
+      
+      // Obtener VAPID key del backend
+      const vapidKey = await this.getVapidPublicKey();
       
       // Suscribirse a push
       this.subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: this.urlBase64ToUint8Array(this.getVapidPublicKey())
+        applicationServerKey: this.urlBase64ToUint8Array(vapidKey)
       });
 
       // Enviar suscripción al servidor
-      await this.sendSubscriptionToServer(userId, userRole);
+      await this.sendSubscriptionToServer(token);
       
       console.log('✅ Suscrito a notificaciones push');
       return true;
@@ -75,15 +79,16 @@ class PushNotificationService {
   }
 
   // Desuscribirse de notificaciones push
-  async unsubscribeFromPush() {
+  async unsubscribeFromPush(token) {
     if (!this.subscription) return false;
 
     try {
+      // Notificar al servidor primero
+      await this.removeSubscriptionFromServer(token);
+      
+      // Luego desuscribirse localmente
       await this.subscription.unsubscribe();
       this.subscription = null;
-      
-      // Notificar al servidor
-      await this.removeSubscriptionFromServer();
       
       console.log('✅ Desuscrito de notificaciones push');
       return true;
@@ -94,18 +99,19 @@ class PushNotificationService {
   }
 
   // Enviar suscripción al servidor
-  async sendSubscriptionToServer(userId, userRole) {
+  async sendSubscriptionToServer(token) {
     try {
-      const response = await fetch('/api/push/subscribe', {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      
+      const response = await fetch(`${API_URL}/push/subscribe`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          userId,
-          userRole,
           subscription: this.subscription,
-          userAgent: navigator.userAgent
+          user_agent: navigator.userAgent
         })
       });
 
@@ -113,7 +119,8 @@ class PushNotificationService {
         console.log('✅ Suscripción enviada al servidor');
         return true;
       } else {
-        console.error('Error enviando suscripción al servidor');
+        const error = await response.json();
+        console.error('Error enviando suscripción al servidor:', error);
         return false;
       }
     } catch (error) {
@@ -123,15 +130,18 @@ class PushNotificationService {
   }
 
   // Remover suscripción del servidor
-  async removeSubscriptionFromServer() {
+  async removeSubscriptionFromServer(token) {
     try {
-      const response = await fetch('/api/push/unsubscribe', {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      
+      const response = await fetch(`${API_URL}/push/unsubscribe`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          subscription: this.subscription
+          endpoint: this.subscription.endpoint
         })
       });
 
@@ -208,62 +218,95 @@ class PushNotificationService {
     return outputArray;
   }
 
-  // Obtener VAPID public key (esto debería venir del servidor)
-  getVapidPublicKey() {
-    // Esta key debería ser configurada en el backend
+  // Obtener VAPID public key desde el backend
+  async getVapidPublicKey() {
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      // Intentar obtener la key del backend
+      const response = await fetch(`${API_URL}/push/vapid-public-key`);
+      if (response.ok) {
+        const data = await response.json();
+        return data.publicKey;
+      }
+    } catch (error) {
+      console.warn('No se pudo obtener VAPID key del backend, usando key por defecto');
+    }
+    
+    // Fallback a key hardcodeada (debería ser la misma del backend)
     return 'BEl62iUYgUivxIkv69yViEuiBIa1qkS3qgRupZW2oONf_3j8gZmxbDnEY_4zJPKNBmhoXV0d2D4R49sJqYoLtEWY';
   }
 
-  // Configurar tipos de notificación por rol
+  // Configurar tipos de notificación por rol (actualizados con los nuevos tipos del backend)
   getNotificationTypes(role) {
     const types = {
       admin: [
-        'publicacion_creada',
         'visita_creada',
-        'escaneo_registrado'
-      ],
-      guardia: [
-        'visita_creada',
+        'solicitud_pendiente',
+        'ticket_creado',
         'publicacion_creada'
       ],
+      guardia: [
+        'visita_creada'
+      ],
       residente: [
-        'visita_creada',
-        'publicacion_creada',
         'escaneo_entrada',
-        'escaneo_salida'
+        'escaneo_salida',
+        'visita_actualizada',
+        'ticket_actualizado',
+        'publicacion_creada'
       ]
     };
 
     return types[role] || [];
   }
 
-  // Obtener título y mensaje según tipo de notificación
+  // Obtener título y mensaje según tipo de notificación (actualizados con los nuevos tipos del backend)
   getNotificationContent(type, data = {}) {
     const content = {
-      publicacion_creada: {
-        title: '📢 Nueva Publicación',
-        body: data.titulo || 'Se ha creado una nueva publicación',
-        icon: '📢'
-      },
+      // Notificaciones de visitas
       visita_creada: {
-        title: '👥 Nueva Visita',
+        title: '🚨 Nueva visita programada',
         body: data.visitante || 'Se ha creado una nueva visita',
-        icon: '👥'
+        icon: '🚨'
       },
       escaneo_entrada: {
-        title: '🚪 Entrada Registrada',
+        title: '🚪 Visitante ha ingresado',
         body: data.visitante || 'Un visitante ha ingresado',
         icon: '🚪'
       },
       escaneo_salida: {
-        title: '🚗 Salida Registrada',
+        title: '🚗 Visitante ha salido',
         body: data.visitante || 'Un visitante ha salido',
         icon: '🚗'
       },
-      escaneo_registrado: {
-        title: '📱 Escaneo Registrado',
-        body: data.tipo || 'Se ha registrado un nuevo escaneo',
-        icon: '📱'
+      visita_actualizada: {
+        title: '✏️ Visita actualizada',
+        body: data.visitante || 'Se actualizó una visita',
+        icon: '✏️'
+      },
+      solicitud_pendiente: {
+        title: '📋 Nueva solicitud de visita',
+        body: data.residente || 'Hay una nueva solicitud pendiente',
+        icon: '📋'
+      },
+      
+      // Notificaciones de publicaciones
+      publicacion_creada: {
+        title: '📢 Nueva publicación',
+        body: data.titulo || 'Se ha creado una nueva publicación',
+        icon: '📢'
+      },
+      
+      // Notificaciones de tickets
+      ticket_creado: {
+        title: '🎫 Nuevo ticket de soporte',
+        body: data.titulo || 'Se ha creado un nuevo ticket',
+        icon: '🎫'
+      },
+      ticket_actualizado: {
+        title: '✅ Tu ticket fue actualizado',
+        body: data.estado || 'Tu ticket ha sido actualizado',
+        icon: '✅'
       }
     };
 

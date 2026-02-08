@@ -2,90 +2,57 @@ import React, { useState, useEffect } from "react";
 import api from "../../../api";
 import BtnRegresar from "../components/BtnRegresar";
 import PaginationControls from "../../../components/PaginationControls";
+import cardStyles from "../../../css/Cards.module.css";
 
-// Subcomponente: Tabla de escaneos
-function TablaEscaneos({ escaneos, titulo }) {
+// Listado de escaneos (Diseño Moderno de Tarjetas)
+function EscaneosList({ escaneos }) {
   if (!escaneos || escaneos.length === 0) {
     return (
-      <p style={{ textAlign: "center", color: "#888" }}>
+      <p style={{ textAlign: "center", color: "#888", padding: "40px" }}>
         No hay escaneos registrados.
       </p>
     );
   }
-  return (
-    <div style={{ width: "100%", marginBottom: 20 }}>
-      <h3 style={{ marginTop: 0, color: "#1976d2" }}>{titulo}</h3>
-      <div style={{ overflowX: "auto" }}>
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Tipo</th>
-              <th>Visitante</th>
-              <th>Vehículo</th>
-              <th>Residente</th>
-              <th>Unidad</th>
-              <th>Estado</th>
-              <th>Dispositivo</th>
-              <th>Guardia</th>
-            </tr>
-          </thead>
-          <tbody>
-            {escaneos.map((e) => (
-              <tr key={e.id_escaneo}>
-                <td>{new Date(e.fecha_escaneo).toLocaleString()}</td>
-                <td>{e.tipo_escaneo}</td>
-                <td>{e.nombre_visitante}</td>
-                <td>
-                  {e.tipo_vehiculo} - {e.placa_vehiculo}
-                </td>
-                <td>{e.nombre_residente}</td>
-                <td>{e.unidad_residencial}</td>
-                <td>{e.estado_visita}</td>
-                <td>{e.dispositivo}</td>
-                <td>{e.nombre_guardia}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
 
-// Subcomponente: Cards móviles para escaneos
-function EscaneosCardsMobile({ escaneos }) {
   return (
-    <div className="escaneos-cards-mobile">
+    <div className={cardStyles["cards-container"]}>
       {escaneos.map((e) => (
-        <div className="escaneo-card-mobile" key={e.id_escaneo}>
-          <div className="escaneo-card-mobile-info">
-            <div>
-              <b>Fecha:</b> {new Date(e.fecha_escaneo).toLocaleString()}
+        <div className={cardStyles["horizontal-card"]} key={e.id_escaneo}>
+          <div className={`${cardStyles["status-stripe"]} ${cardStyles["info"]}`}></div>
+          
+          <div className={cardStyles["card-main-content"]}>
+            <div className={cardStyles["card-section"]}>
+              <span className={cardStyles["section-label"]}>Fecha / Tipo</span>
+              <span className={cardStyles["section-value"]}>{new Date(e.fecha_escaneo).toLocaleDateString()}</span>
+              <span style={{ fontSize: '0.85rem', color: '#1a237e', fontWeight: 'bold' }}>
+                {new Date(e.fecha_escaneo).toLocaleTimeString()} - {e.tipo_escaneo}
+              </span>
             </div>
-            <div>
-              <b>Tipo:</b> {e.tipo_escaneo}
+
+            <div className={cardStyles["card-section"]}>
+              <span className={cardStyles["section-label"]}>Visitante / Vehículo</span>
+              <span className={cardStyles["section-value"]}>{e.nombre_visitante}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>🆔 DNI: {e.dni_visitante || '-'}</span>
+                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>🚗 {e.tipo_vehiculo} - {e.placa_vehiculo}</span>
+                {e.placa_chasis && (
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>⚙️ Chasis: {e.placa_chasis}</span>
+                )}
+              </div>
             </div>
-            <div>
-              <b>Visitante:</b> {e.nombre_visitante}
+
+            <div className={cardStyles["card-section"]}>
+              <span className={cardStyles["section-label"]}>Miembro / Unidad</span>
+              <span className={cardStyles["section-value"]}>{e.nombre_residente}</span>
+              <span style={{ fontSize: '0.85rem', color: '#64748b' }}>🏢 {e.unidad_residencial}</span>
             </div>
-            <div>
-              <b>Vehículo:</b> {e.tipo_vehiculo} - {e.placa_vehiculo}
-            </div>
-            <div>
-              <b>Residente:</b> {e.nombre_residente}
-            </div>
-            <div>
-              <b>Unidad:</b> {e.unidad_residencial}
-            </div>
-            <div>
-              <b>Estado:</b> {e.estado_visita}
-            </div>
-            <div>
-              <b>Dispositivo:</b> {e.dispositivo}
-            </div>
-            <div>
-              <b>Guardia:</b> {e.nombre_guardia}
+
+            <div className={cardStyles["card-section"]}>
+              <span className={cardStyles["section-label"]}>Estado / Guardia</span>
+              <span className={`${cardStyles["badge"]} ${cardStyles["badge-" + (e.estado_visita === 'completada' ? 'resuelto' : 'pendiente')]}`}>
+                {e.estado_visita}
+              </span>
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '4px' }}>🛡️ {e.nombre_guardia}</span>
             </div>
           </div>
         </div>
@@ -212,28 +179,13 @@ function Escaneos({ token, onCancel, onNotification }) {
           Escaneos Históricos
         </button>
       </div>
-      {window.innerWidth < 700 ? (
-        <EscaneosCardsMobile
-          escaneos={
-            vistaEscaneos === "diario"
-              ? escaneosDia?.escaneos || []
-              : escaneosTotales?.escaneos || []
-          }
-        />
-      ) : (
-        <TablaEscaneos
-          escaneos={
-            vistaEscaneos === "diario"
-              ? escaneosDia?.escaneos || []
-              : escaneosTotales?.escaneos || []
-          }
-          titulo={
-            vistaEscaneos === "diario"
-              ? "Escaneos Diarios"
-              : "Escaneos Históricos"
-          }
-        />
-      )}
+      <EscaneosList
+        escaneos={
+          vistaEscaneos === "diario"
+            ? escaneosDia?.escaneos || []
+            : escaneosTotales?.escaneos || []
+        }
+      />
       <PaginationControls
         currentPage={pageEscaneos}
         totalPages={totalPagesEscaneos}

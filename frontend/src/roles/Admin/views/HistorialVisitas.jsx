@@ -3,42 +3,74 @@ import api from "../../../api";
 import { DeleteIcon } from "../components/Icons";
 import BtnRegresar from "../components/BtnRegresar";
 import PaginationControls from "../../../components/PaginationControls";
+import cardStyles from "../../../css/Cards.module.css";
 import { handleOrden } from "../utils/helpers";
 
-// Subcomponente: Cards móviles para historial
-function HistorialCardsMobile({ historial }) {
+// Listado de historial (Diseño Moderno de Tarjetas)
+function HistorialVisitasList({ historial, onEliminar }) {
+  if (!historial || historial.length === 0) {
+    return (
+      <p style={{ textAlign: "center", color: "#888", padding: "40px" }}>
+        No hay registros en el historial.
+      </p>
+    );
+  }
+
   return (
-    <div className="historial-cards-mobile">
+    <div className={cardStyles["cards-container"]}>
       {historial.map((h, i) => (
-        <div className="historial-card-mobile" key={i}>
-          <div className="historial-card-mobile-info">
-            <div>
-              <b>Residente:</b> {h.nombre_residente}
+        <div className={cardStyles["horizontal-card"]} key={i}>
+          <div className={`${cardStyles["status-stripe"]} ${
+            h.estado === 'completado' || h.estado === 'aprobado' ? cardStyles["success"] : 
+            h.estado === 'rechazado' || h.estado === 'expirado' ? cardStyles["danger"] : cardStyles["warning"]
+          }`}></div>
+          
+          <div className={cardStyles["card-main-content"]}>
+            <div className={cardStyles["card-section"]}>
+              <span className={cardStyles["section-label"]}>Miembro / Unidad</span>
+              <span className={cardStyles["section-value"]}>{h.nombre_residente}</span>
+              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>🏢 {h.unidad_residencial}</span>
             </div>
-            <div>
-              <b>Unidad Residencial:</b> {h.unidad_residencial}
+
+            <div className={cardStyles["card-section"]}>
+              <span className={cardStyles["section-label"]}>Visitante / Motivo</span>
+              <span className={cardStyles["section-value"]}>{h.nombre_visitante}</span>
+              <span style={{ fontSize: '0.85rem', color: '#64748b' }}>📌 {h.motivo_visita || '-'} / 📍 {h.destino_visita || '-'}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '4px' }}>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>🆔 DNI: {h.dni_conductor || '-'}</span>
+                {h.placa_vehiculo && (
+                   <span style={{ fontSize: '0.75rem', color: '#1e293b' }}>🚗 Placa: {h.placa_vehiculo}</span>
+                )}
+                {h.placa_chasis && (
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>⚙️ Chasis: {h.placa_chasis}</span>
+                )}
+              </div>
             </div>
-            <div>
-              <b>Visitante:</b> {h.nombre_visitante}
+
+            <div className={cardStyles["card-section"]}>
+              <span className={cardStyles["section-label"]}>Entrada / Salida</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '0.85rem' }}>
+                <span>📥 {h.fecha_entrada ? new Date(h.fecha_entrada).toLocaleString() : 'Pendiente'}</span>
+                <span>📤 {h.fecha_salida ? new Date(h.fecha_salida).toLocaleString() : '-'}</span>
+              </div>
             </div>
-            <div>
-              <b>Motivo:</b> {h.motivo_visita}
+
+            <div className={cardStyles["card-section"]}>
+              <span className={cardStyles["section-label"]}>Estado</span>
+              <span className={`${cardStyles["badge"]} ${cardStyles["badge-" + h.estado]}`}>
+                {h.estado}
+              </span>
             </div>
-            <div>
-              <b>Fecha Entrada:</b>{" "}
-              {h.fecha_entrada
-                ? new Date(h.fecha_entrada).toLocaleString()
-                : "Pendiente"}
-            </div>
-            <div>
-              <b>Fecha Salida:</b>{" "}
-              {h.fecha_salida
-                ? new Date(h.fecha_salida).toLocaleString()
-                : "Pendiente"}
-            </div>
-            <div>
-              <b>Estado:</b> {h.estado}
-            </div>
+          </div>
+
+          <div className={cardStyles["card-actions"]}>
+            <button 
+              className={`${cardStyles["action-btn"]} ${cardStyles["delete"]}`}
+              onClick={() => onEliminar(h.id || h.visita_id)}
+              title="Eliminar del historial"
+            >
+              🗑️
+            </button>
           </div>
         </div>
       ))}
@@ -175,114 +207,10 @@ function HistorialVisitas({ token, onCancel, onNotification }) {
           <option value="expirado">Expirado</option>
         </select>
       </div>
-      {window.innerWidth < 700 ? (
-        <HistorialCardsMobile historial={historial} />
-      ) : (
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th
-                onClick={() =>
-                  handleOrden(
-                    "nombre_residente",
-                    ordenHistorial,
-                    setOrdenHistorial,
-                    cargarHistorial
-                  )
-                }
-                style={{ cursor: "pointer" }}
-              >
-                Residente{" "}
-                {ordenHistorial.campo === "nombre_residente" &&
-                  (ordenHistorial.asc ? "↑" : "↓")}
-              </th>
-              <th
-                onClick={() =>
-                  handleOrden(
-                    "unidad_residencial",
-                    ordenHistorial,
-                    setOrdenHistorial,
-                    cargarHistorial
-                  )
-                }
-                style={{ cursor: "pointer" }}
-              >
-                Unidad{" "}
-                {ordenHistorial.campo === "unidad_residencial" &&
-                  (ordenHistorial.asc ? "↑" : "↓")}
-              </th>
-              <th
-                onClick={() =>
-                  handleOrden(
-                    "nombre_visitante",
-                    ordenHistorial,
-                    setOrdenHistorial,
-                    cargarHistorial
-                  )
-                }
-                style={{ cursor: "pointer" }}
-              >
-                Visitante{" "}
-                {ordenHistorial.campo === "nombre_visitante" &&
-                  (ordenHistorial.asc ? "↑" : "↓")}
-              </th>
-              <th>Motivo</th>
-              <th>Destino</th>
-              <th>Placa/Chasis</th>
-              <th
-                onClick={() =>
-                  handleOrden(
-                    "fecha_entrada",
-                    ordenHistorial,
-                    setOrdenHistorial,
-                    cargarHistorial
-                  )
-                }
-                style={{ cursor: "pointer" }}
-              >
-                Entrada{" "}
-                {ordenHistorial.campo === "fecha_entrada" &&
-                  (ordenHistorial.asc ? "↑" : "↓")}
-              </th>
-              <th>Salida</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {historial.map((h, i) => (
-              <tr key={i}>
-                <td>{h.nombre_residente}</td>
-                <td>{h.unidad_residencial}</td>
-                <td>{h.nombre_visitante}</td>
-                <td>{h.motivo_visita}</td>
-                <td>{h.destino_visita || "-"}</td>
-                <td>{h.placa_chasis || h.placa_vehiculo || "-"}</td>
-                <td>
-                  {h.fecha_entrada
-                    ? new Date(h.fecha_entrada).toLocaleString()
-                    : "Pendiente"}
-                </td>
-                <td>
-                  {h.fecha_salida
-                    ? new Date(h.fecha_salida).toLocaleString()
-                    : "-"}
-                </td>
-                <td>{h.estado}</td>
-                <td>
-                  <span
-                    onClick={() => eliminarVisitaAdmin(h.id || h.visita_id)}
-                    title="Eliminar del historial"
-                    style={{ cursor: "pointer", color: "#e53935" }}
-                  >
-                    <DeleteIcon />
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <HistorialVisitasList 
+        historial={historial} 
+        onEliminar={eliminarVisitaAdmin} 
+      />
       <PaginationControls
         currentPage={pageHistorial}
         totalPages={totalPagesHistorial}

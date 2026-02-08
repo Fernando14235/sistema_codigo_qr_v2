@@ -84,6 +84,7 @@ def obtener_historial_visitas_admin(
             fecha_salida=visita.fecha_salida,
             estado=visita.estado,
             placa_chasis=visitante.placa_chasis,
+            dni_conductor=visitante.dni_conductor,
             destino_visita=visitante.destino_visita
         )
         for residente, usuario_obj, visita, visitante in resultados
