@@ -153,10 +153,7 @@ Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más det
 
 ## 📞 Soporte
 
-Para soporte técnico o preguntas, contactar al administrador del sistema:
-
-correo: nandix2004@gmail.com
-linkedin: https://linkedin.com/in/jose-velasquez-97284b325
+Para soporte técnico o preguntas, contactar al administrador del sistema.
 
 ---
 
@@ -164,3 +161,4 @@ linkedin: https://linkedin.com/in/jose-velasquez-97284b325
 =======
 # sistema_codigo_qr_v2
 Version 2 del sistema de control de acceso a las residenciales por codigo QR
+>>>>>>> be04137bdbcb2eaa3743cb2cf8cc3055bdc3fc90
