@@ -475,6 +475,7 @@ def obtener_historial_escaneos_dia(db: Session, guardia_id: int = None, residenc
     try:
         # Obtener fecha actual en Honduras
         ahora_honduras = get_honduras_time()
+        now_utc = datetime.now(timezone.utc)
         fecha_inicio = ahora_honduras.replace(hour=0, minute=0, second=0, microsecond=0)
         fecha_fin = ahora_honduras.replace(hour=23, minute=59, second=59, microsecond=999999)
         
