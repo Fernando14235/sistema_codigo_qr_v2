@@ -3,6 +3,12 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   base: '/',
+  publicDir: 'public',
+  build: {
+    copyPublicDir: true,
+    outDir: 'dist',
+    assetsDir: 'assets',
+  },
   server: {
     host: true,
     port: process.env.PORT || 5173,

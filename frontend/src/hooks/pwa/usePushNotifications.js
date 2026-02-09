@@ -66,7 +66,8 @@ export const usePushNotifications = (token, userId, userRole) => {
   }, []);
 
   // ✅ REFINEMENT 5: Retry Mechanism with Exponential Backoff
-  const subscribeWithRetry = useCallback(async (maxRetries = 3) => {
+  // ⚡ OPTIMIZED: Reduced retries and delays to prevent UI freeze
+  const subscribeWithRetry = useCallback(async (maxRetries = 2) => { // Reduced from 3 to 2
     if (!validateSession(token)) {
       return false;
     }
@@ -74,6 +75,7 @@ export const usePushNotifications = (token, userId, userRole) => {
     if (!userId || !userRole) {
       return false;
     }
+    
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const success = await pushNotificationService.subscribeToPush(token);
@@ -89,14 +91,14 @@ export const usePushNotifications = (token, userId, userRole) => {
           return false;
         }
         
-        // Exponential backoff: 1s, 2s, 4s (max 5s)
-        const delayMs = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+        // ⚡ OPTIMIZED: Reduced exponential backoff (500ms, 1s instead of 1s, 2s, 4s)
+        const delayMs = Math.min(500 * Math.pow(2, attempt - 1), 2000);
         console.log(`⏳ Retrying in ${delayMs}ms...`);
         await new Promise(resolve => setTimeout(resolve, delayMs));
       }
     }
     return false;
-  }, [token]);
+  }, [token, userId, userRole, validateSession]);
 
   // ✅ REFINEMENT 1: Subscribe with Anti-Race Condition
   const subscribe = useCallback(async () => {
@@ -207,6 +209,7 @@ export const usePushNotifications = (token, userId, userRole) => {
 
   // ✅ FIX 2: SILENT RE-SUBSCRIPTION (Only when userId is available)
   // If permission is granted but subscription is missing, re-subscribe silently
+  // ⚡ NON-BLOCKING: Runs in background without freezing UI
   useEffect(() => {
     if (!token || !userId || !userRole || !isSupported) return;
     if (permission !== 'granted') return; // Only re-subscribe if permission exists
@@ -216,7 +219,8 @@ export const usePushNotifications = (token, userId, userRole) => {
 
     const silentResubscribe = async () => {
       console.log('🔄 Silent re-subscription: permission granted but no active subscription');
-      await subscribe();
+      // ⚡ NON-BLOCKING: Fire and forget, don't block UI
+      subscribe().catch(err => console.error('Silent re-subscription failed:', err));
     };
 
     silentResubscribe();
