@@ -20,6 +20,7 @@ class LoginResponse(BaseModel):
     access_token: str
     token_type: str
     usuario: EmailStr
+    usuario_id: int
     rol: str
     residencial_id: int | None = None
     ult_conexion: str | None = None
@@ -30,6 +31,9 @@ class RefreshRequest(BaseModel):
 class RefreshResponse(BaseModel):
     access_token: str
     token_type: str
+    usuario: EmailStr
+    usuario_id: int
+    rol: str
 
 # Schemas para RefreshToken
 class RefreshTokenBase(BaseModel):

@@ -162,6 +162,18 @@ class PushNotificationService:
             # Convertir payload a JSON
             data = json.dumps(payload)
             
+            # ✅ BACKEND VALIDATION: Ensure required fields exist
+            if 'title' not in payload:
+                logger.warning(f"Payload missing 'title' field, adding default: {payload}")
+                payload['title'] = '🔔 Notificación'
+            
+            if 'body' not in payload:
+                logger.warning(f"Payload missing 'body' field, adding default: {payload}")
+                payload['body'] = 'Nueva actualización'
+            
+            # Re-encode with validated payload
+            data = json.dumps(payload)
+            
             # Enviar notificación push
             webpush(
                 subscription_info=subscription_info,
@@ -178,10 +190,15 @@ class PushNotificationService:
             
             # Si el endpoint ya no es válido (410 Gone o 404), eliminar suscripción
             if e.response and e.response.status_code in [404, 410]:
-                logger.warning(f"Endpoint inválido, eliminando suscripción: {suscripcion.endpoint[:50]}...")
+                logger.warning(
+                    f"Endpoint inválido (status {e.response.status_code}), "
+                    f"eliminando suscripción del usuario {suscripcion.usuario_id}: "
+                    f"{suscripcion.endpoint[:50]}..."
+                )
                 try:
                     db.delete(suscripcion)
                     db.commit()
+                    logger.info(f"Suscripción expirada eliminada exitosamente")
                 except Exception as delete_error:
                     logger.error(f"Error eliminando suscripción inválida: {delete_error}")
                     db.rollback()

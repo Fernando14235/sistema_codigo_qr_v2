@@ -1,5 +1,5 @@
 // Service Worker para Residencial Access PWA
-const VERSION_SW = 'v3.2.1.2.5';
+const VERSION_SW = 'v3.2.1.2.7';
 const CACHE_NAME = `porto-pass-${VERSION_SW}`;
 const urlsToCache = [
   '/',
@@ -126,6 +126,8 @@ self.addEventListener('fetch', (event) => {
 
 // Manejar notificaciones push
 self.addEventListener('push', (event) => {
+  console.log('[SW] Push event received', event);
+  
   let notificationData = {
     title: '🔔 PortoPass',
     body: 'Nueva notificación',
@@ -144,6 +146,7 @@ self.addEventListener('push', (event) => {
   if (event.data) {
     try {
       const pushData = event.data.json();
+      console.log('[SW] Push data parsed successfully:', pushData);
       notificationData = {
         ...notificationData,
         ...pushData,
@@ -163,10 +166,14 @@ self.addEventListener('push', (event) => {
         notificationData.tag = pushData.tag;
       }
     } catch (error) {
-      console.error('Error parseando datos de push:', error);
+      console.error('[SW] Error parsing push data, using fallback:', error);
+      // Usar notificationData por defecto (fallback)
     }
+  } else {
+    console.warn('[SW] Push event received with no data payload');
   }
 
+  // CRITICAL: Ensure waitUntil wraps the notification display
   event.waitUntil(
     Promise.all([
       self.registration.showNotification(notificationData.title, {
@@ -177,7 +184,7 @@ self.addEventListener('push', (event) => {
         data: notificationData.data,
         requireInteraction: notificationData.requireInteraction,
         tag: notificationData.tag,
-        renotify: true,
+        renotify: true, // ✅ Ensure re-notification even with same tag
         actions: [
           {
             action: 'view',
@@ -190,9 +197,14 @@ self.addEventListener('push', (event) => {
             icon: '/genfavicon-32-v3.png'
           }
         ]
+      }).then(() => {
+        console.log('[SW] Notification displayed successfully');
+      }).catch((error) => {
+        console.error('[SW] Error displaying notification:', error);
       }),
       // Notificar a todos los clientes abiertos
       self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clients) {
+        console.log(`[SW] Notifying ${clients.length} open client(s)`);
         clients.forEach(function(client) {
           client.postMessage({ 
             type: 'PUSH_NOTIFICATION', 
@@ -205,22 +217,27 @@ self.addEventListener('push', (event) => {
 });
 
 self.addEventListener('notificationclick', (event) => {
+  console.log('[SW] Notification clicked:', event.notification.tag);
   event.notification.close();
 
   if (event.action === 'close') {
+    console.log('[SW] Close action clicked');
     return;
   }
 
   // Obtener URL de la notificación
   const urlToOpen = event.notification.data?.url || '/';
+  console.log('[SW] Opening URL:', urlToOpen);
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
+        console.log(`[SW] Found ${clientList.length} open client(s)`);
         // Buscar si ya hay una ventana abierta
         for (const client of clientList) {
           if (client.url.includes(self.location.origin) && 'focus' in client) {
             // Si hay una ventana abierta, enfocarla y navegar
+            console.log('[SW] Focusing existing client');
             client.postMessage({
               type: 'NOTIFICATION_CLICK',
               url: urlToOpen,
@@ -232,6 +249,7 @@ self.addEventListener('notificationclick', (event) => {
         
         // Si no hay ventana abierta, abrir una nueva
         if (clients.openWindow) {
+          console.log('[SW] Opening new window');
           return clients.openWindow(urlToOpen);
         }
       })

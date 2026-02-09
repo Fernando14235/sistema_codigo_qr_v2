@@ -103,6 +103,7 @@ def login(
         access_token=access_token,
         token_type="bearer",
         usuario=user.email,
+        usuario_id=user.id,
         rol=user.rol,
         residencial_id=user.residencial_id,
         ult_conexion=ult_conexion_anterior.isoformat() if ult_conexion_anterior else None
@@ -187,7 +188,10 @@ def refresh_token(request: Request, db: Session = Depends(get_db)):
     
     return RefreshResponse(
         access_token=new_access_token,
-        token_type="bearer"
+        token_type="bearer",
+        usuario=usuario.email,
+        usuario_id=usuario.id,
+        rol=usuario.rol
     )
 
 @router.get("/secure", response_model=dict)

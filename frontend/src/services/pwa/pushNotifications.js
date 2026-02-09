@@ -100,6 +100,12 @@ class PushNotificationService {
 
   // Enviar suscripción al servidor
   async sendSubscriptionToServer(token) {
+    // ✅ REFINEMENT 3: Session Validation
+    if (!token || token.trim() === '') {
+      console.log('⚠️ No auth token provided, skipping backend sync');
+      return false; // Silent return without fetch
+    }
+
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
       
@@ -120,17 +126,23 @@ class PushNotificationService {
         return true;
       } else {
         const error = await response.json();
-        console.error('Error enviando suscripción al servidor:', error);
+        console.error('❌ Error enviando suscripción al servidor:', error);
         return false;
       }
     } catch (error) {
-      console.error('Error enviando suscripción:', error);
-      return false;
+      console.error('❌ Network error sending subscription:', error);
+      throw error; // Let retry mechanism handle this
     }
   }
 
   // Remover suscripción del servidor
   async removeSubscriptionFromServer(token) {
+    // ✅ REFINEMENT 3: Session Validation
+    if (!token || token.trim() === '') {
+      console.log('⚠️ No auth token provided, skipping backend call');
+      return false;
+    }
+
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
       
@@ -149,11 +161,11 @@ class PushNotificationService {
         console.log('✅ Suscripción removida del servidor');
         return true;
       } else {
-        console.error('Error removiendo suscripción del servidor');
+        console.error('❌ Error removiendo suscripción del servidor');
         return false;
       }
     } catch (error) {
-      console.error('Error removiendo suscripción:', error);
+      console.error('❌ Network error removing subscription:', error);
       return false;
     }
   }

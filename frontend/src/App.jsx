@@ -53,14 +53,14 @@ function Login({ onLogin, notification, setNotification }) {
         }
       );
       
-      const { access_token, usuario, rol, residencial_id } = res.data;
+      const { access_token, usuario, rol, residencial_id, usuario_id } = res.data;
 
       if (!access_token) {
         throw new Error("No se recibió un token de acceso válido.");
       }
       
       if (isMounted.current) {
-        onLogin(access_token, null, usuario, rol, residencial_id);
+        onLogin(access_token, null, usuario, rol, residencial_id, usuario_id);
         setNotification({ message: `Bienvenido ${usuario}`, type: "success" });
         console.log("✅ Login exitoso, token guardado");
       }
@@ -112,7 +112,7 @@ const processQueue = (error, token = null) => {
 };
 
 // Configurar interceptor de Axios (ahora sobre la instancia 'api')
-function setupAxiosInterceptors(setToken, setNotification, handleLogout) {
+function setupAxiosInterceptors(setToken, setNombre, setRol, setUsuarioId, setNotification, handleLogout) {
   // Interceptor REQUEST
   const reqInterceptor = api.interceptors.request.use(
     (config) => {
@@ -168,28 +168,30 @@ function setupAxiosInterceptors(setToken, setNotification, handleLogout) {
             skipAuthRefresh: true // Flag custom por si acaso
         });
 
-        const { access_token } = refreshRes.data;
-        console.log("✅ Token renovado exitosamente");
+        const { access_token, usuario, rol, usuario_id } = refreshRes.data;
+        console.log("✅ Token y datos de usuario renovados exitosamente");
 
-        // Guardar nuevo token
+        // Guardar nuevo token y actualizar info de usuario
         localStorage.setItem("token", access_token);
+        if (usuario) localStorage.setItem("nombre", usuario);
+        if (rol) localStorage.setItem("rol", rol);
+        if (usuario_id) localStorage.setItem("usuario_id", usuario_id.toString());
+
         setToken(access_token);
+        if (usuario) setNombre(usuario);
+        if (rol) setRol(rol);
+        if (usuario_id) setUsuarioId(usuario_id);
 
         // Procesar cola de peticiones fallidas
         processQueue(null, access_token);
         
         // Reintentar la petición original con el nuevo token
         originalRequest.headers['Authorization'] = `Bearer ${access_token}`;
-        return api(originalRequest); // Usar 'api'
+        return api(originalRequest); 
 
       } catch (refreshError) {
         console.error("❌ Falló renovación de token:", refreshError);
-        
-        // Si falla el refresh (401 o 403), cerramos sesión
         processQueue(refreshError, null);
-        
-        // El handleLogout se encargará de limpiar el estado y localStorage
-        // Solo mostrar notificación si no estamos en la pantalla de login ya
         handleLogout("Tu sesión ha expirado. Por favor inicia sesión nuevamente.");
         return Promise.reject(refreshError);
       } finally {
@@ -241,18 +243,23 @@ function App() {
   const [token, setToken] = useState(localStorage.getItem("token"));
   const [nombre, setNombre] = useState(localStorage.getItem("nombre") || "");
   const [rol, setRol] = useState(localStorage.getItem("rol") || "");
+  const [usuarioId, setUsuarioId] = useState(localStorage.getItem("usuario_id") || null);
   const [notification, setNotification] = useState({ message: "", type: "" });
 
-  const handleLogin = (accessToken, refreshToken, usuario, rol, residencialId) => {
+  const handleLogin = (accessToken, refreshToken, usuario, rol, residencialId, usuarioId) => {
     setToken(accessToken);
     setNombre(usuario);
     setRol(rol);
+    setUsuarioId(usuarioId);
     
     localStorage.setItem("token", accessToken);
     localStorage.setItem("nombre", usuario);
     localStorage.setItem("rol", rol);
     if (residencialId) {
       localStorage.setItem("residencial_id", residencialId.toString());
+    }
+    if (usuarioId) {
+      localStorage.setItem("usuario_id", usuarioId.toString());
     }
   };
 
@@ -270,10 +277,12 @@ function App() {
       setToken(null);
       setNombre("");
       setRol("");
+      setUsuarioId(null);
       localStorage.removeItem("token");
       localStorage.removeItem("nombre");
       localStorage.removeItem("rol");
       localStorage.removeItem("residencial_id");
+      localStorage.removeItem("usuario_id");
       console.log("🚪 Logout local completado");
       
       const finalMessage = typeof reason === "string" ? reason : "Sesión cerrada correctamente";
@@ -289,7 +298,7 @@ function App() {
 
   // Configurar interceptores
   useEffect(() => {
-    const cleanup = setupAxiosInterceptors(setToken, setNotification, handleLogout);
+    const cleanup = setupAxiosInterceptors(setToken, setNombre, setRol, setUsuarioId, setNotification, handleLogout);
     return cleanup;
   }, []); 
 
@@ -301,7 +310,7 @@ function App() {
         <PWADownloadButton />
         <OfflineIndicator />
         {/* Renderizar PushNotificationManager solo si hay usuario logueado */}
-        {token && <PushNotificationManager token={token} usuario={{ nombre, rol }} />}
+        {token && <PushNotificationManager token={token} usuario={{ id: usuarioId, nombre, rol }} />}
         
         <Notification {...notification} onClose={() => setNotification({ message: "", type: "" })} />
         <Routes>

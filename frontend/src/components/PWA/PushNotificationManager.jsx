@@ -1,157 +1,78 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { usePushNotifications } from '../../hooks/pwa/usePushNotifications';
 import pushNotificationService from '../../services/pwa/pushNotifications';
 import './PushNotificationManager.css';
 
+/**
+ * Componente "tonto" de UI para manejar el banner de notificaciones push
+ * ✅ Solo maneja presentación y eventos de UI
+ * ✅ Toda la lógica de negocio está en usePushNotifications hook
+ */
 function PushNotificationManager({ token, usuario }) {
-  const [showBanner, setShowBanner] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [hasChecked, setHasChecked] = useState(false);
-
-  // Función para re-suscribir automáticamente (memoizada con useCallback)
-  const handleAutoSubscribe = useCallback(async () => {
-    try {
-      const success = await pushNotificationService.subscribeToPush(token);
-      if (success) {
-        console.log('✅ Re-suscripción automática exitosa');
-      }
-    } catch (error) {
-      console.error('Error en suscripción automática:', error);
-    }
-  }, [token]);
-
+  const [localDismissed, setLocalDismissed] = useState(false);
+  
+  const { 
+    isSupported,
+    permission, 
+    isSubscribed,
+    isLoading,
+    requestPermissionAndSubscribe 
+  } = usePushNotifications(token, usuario?.id, usuario?.rol);
+  
+  // Check if banner was dismissed within 24 hours
   useEffect(() => {
-    if (!token || !usuario || hasChecked) return; // Si no hay token, usuario, o ya revisamos en esta sesión, no hacer nada
-
-    let timeoutId = null; // Para limpiar el timeout si el componente se desmonta
-
-    const checkPushStatus = async () => {
-      // 1. Verificar soporte técnico del navegador
-      const isSupported = pushNotificationService.isPushSupported();
-      if (!isSupported) {
-        console.log('🚫 Las notificaciones Push no son soportadas en este navegador.');
-        setHasChecked(true);
-        return;
-      }
-
-      // 2. Verificar estado actual (Permisos y Suscripción)
-      const currentPermission = pushNotificationService.getPermissionStatus(); 
+    const dismissed = localStorage.getItem('push_banner_dismissed');
+    if (dismissed) {
+      const dismissedTime = parseInt(dismissed);
+      const hoursPassed = (Date.now() - dismissedTime) / (1000 * 60 * 60);
       
-      try {
-        // Obtenemos el registro del Service Worker y la suscripción actual
-        const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.getSubscription();
-
-        // --- CASO A: Ya tiene permiso y está suscrito ---
-        if (currentPermission === 'granted' && subscription) {
-          console.log('✅ Usuario ya suscrito y configurado correctamente.');
-          setHasChecked(true);
-          return;
-        }
-
-        // --- CASO B: Tiene permiso pero perdió la suscripción (ej. limpió caché) ---
-        if (currentPermission === 'granted' && !subscription) {
-          console.log('🔄 Permisos otorgados pero sin suscripción. Recuperando en segundo plano...');
-          await handleAutoSubscribe();
-          setHasChecked(true);
-          return;
-        }
-
-        // --- CASO C: Permiso denegado permanentemente ---
-        if (currentPermission === 'denied') {
-          console.log('🔕 Notificaciones bloqueadas en el navegador por el usuario.');
-          setHasChecked(true);
-          return;
-        }
-
-        // --- CASO D: Estado 'default' (No ha decidido aún) ---
-        if (currentPermission === 'default') {
-          const dismissed = localStorage.getItem('push_banner_dismissed');
-          
-          if (dismissed) {
-            const dismissedTime = parseInt(dismissed);
-            const now = Date.now();
-            const hoursPassed = (now - dismissedTime) / (1000 * 60 * 60);
-
-            // Si el usuario le dio a "Más tarde" hace menos de 24 horas, no molestamos
-            if (hoursPassed < 24) {
-              console.log(`⏳ Banner pospuesto. Faltan ${Math.round(24 - hoursPassed)} horas para volver a mostrar.`);
-              setHasChecked(true);
-              return;
-            }
-          }
-
-          // Si llegamos aquí, mostramos el banner tras un breve delay (mejor UX)
-          timeoutId = setTimeout(() => {
-            setShowBanner(true);
-          }, 2000);
-        }
-
-      } catch (error) {
-        console.error('Error verificando estado de push:', error);
-      } finally {
-        setHasChecked(true);
-      }
-    };
-
-    checkPushStatus();
-
-    // Cleanup: Limpiar timeout si el componente se desmonta
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [token, usuario, handleAutoSubscribe]); 
-
-  // Acción: Aceptar y Activar
-  const handleEnable = useCallback(async () => {
-    setIsProcessing(true);
-    try {
-      // Solicitar permisos nativos del navegador
-      const granted = await pushNotificationService.requestPermission();
-
-      if (granted) {
-        // Suscribirse
-        const success = await pushNotificationService.subscribeToPush(token);
-        if (success) {
-          setShowBanner(false);
-          // Limpiar cualquier "dismissed" previo ya que ahora aceptó
-          localStorage.removeItem('push_banner_dismissed');
-          
-          // Feedback visual (notificación de bienvenida)
-          setTimeout(() => {
-            pushNotificationService.showLocalNotification(
-              '🎉 ¡Notificaciones Activadas!',
-              {
-                body: 'Ahora recibirás alertas importantes en tiempo real',
-                icon: '/resi192.png',
-                badge: '/resi64.png'
-              }
-            );
-          }, 500);
-        }
+      if (hoursPassed < 24) {
+        setLocalDismissed(true);
       } else {
-        // El usuario bloqueó en el prompt nativo
-        setShowBanner(false);
-        // Guardamos esto para no volver a intentar mostrar el banner
-        localStorage.setItem('push_banner_dismissed', Date.now().toString());
+        localStorage.removeItem('push_banner_dismissed');
       }
-    } catch (error) {
-      console.error('Error al intentar activar notificaciones:', error);
-    } finally {
-      setIsProcessing(false);
     }
-  }, [token]);
-
-  // Acción: Más tarde (Cerrar banner)
-  const handleDismiss = useCallback(() => {
-    setShowBanner(false);
-    // Guardar fecha actual para no molestar por 24h
-    localStorage.setItem('push_banner_dismissed', Date.now().toString());
   }, []);
-
-  // Obtener beneficios según rol (memoizado para mejor rendimiento)
-  const getBenefitsByRole = useCallback(() => {
+  
+  // Simple UI logic: Show banner ONLY if all conditions met
+  const shouldShowBanner = 
+    isSupported &&
+    permission === 'default' &&
+    !isSubscribed &&
+    !localDismissed &&
+    !isLoading &&
+    token &&
+    usuario;
+  
+  const handleEnable = async () => {
+    const success = await requestPermissionAndSubscribe();
+    if (success) {
+      localStorage.removeItem('push_banner_dismissed');
+      
+      // Show welcome notification after a delay
+      setTimeout(() => {
+        pushNotificationService.showLocalNotification(
+          '🎉 ¡Notificaciones Activadas!',
+          {
+            body: 'Ahora recibirás alertas importantes en tiempo real',
+            icon: '/resi192.png',
+            badge: '/resi64.png'
+          }
+        );
+      }, 500);
+    } else if (permission === 'denied') {
+      // User denied in the native prompt
+      localStorage.setItem('push_banner_dismissed', Date.now().toString());
+    }
+  };
+  
+  const handleDismiss = () => {
+    setLocalDismissed(true);
+    localStorage.setItem('push_banner_dismissed', Date.now().toString());
+  };
+  
+  // Get benefits by role for display
+  const getBenefitsByRole = () => {
     const benefits = {
       admin: [
         { icon: '🚨', text: 'Nuevas visitas programadas' },
@@ -169,12 +90,11 @@ function PushNotificationManager({ token, usuario }) {
         { icon: '📢', text: 'Anuncios importantes' }
       ]
     };
-
     return benefits[usuario?.rol] || [];
-  }, [usuario?.rol]);
-
-  if (!showBanner) return null;
-
+  };
+  
+  if (!shouldShowBanner) return null;
+  
   return (
     <div className="push-banner-overlay">
       <div className="push-banner">
@@ -208,8 +128,8 @@ function PushNotificationManager({ token, usuario }) {
           <button
             className="push-banner-btn push-banner-btn-primary"
             onClick={handleEnable}
-            disabled={isProcessing}>
-            {isProcessing ? (
+            disabled={isLoading}>
+            {isLoading ? (
               <>
                 <span className="push-banner-spinner"></span>
                 Activando...
@@ -224,7 +144,7 @@ function PushNotificationManager({ token, usuario }) {
           <button
             className="push-banner-btn push-banner-btn-secondary"
             onClick={handleDismiss}
-            disabled={isProcessing}>
+            disabled={isLoading}>
             Más tarde
           </button>
         </div>

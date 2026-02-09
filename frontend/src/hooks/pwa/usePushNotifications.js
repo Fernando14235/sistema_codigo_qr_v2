@@ -1,77 +1,168 @@
 import { useState, useEffect, useCallback } from 'react';
 import pushNotificationService from '../../services/pwa/pushNotifications';
 
-export const usePushNotifications = (userId, userRole) => {
+/**
+ * Hook para manejar notificaciones push
+ * ✅ Implementa todas las mejores prácticas:
+ * - Anti-race conditions con isSubscribing lock
+ * - Session validation antes de llamadas backend
+ * - Retry mechanism con exponential backoff
+ * - Auto-recovery de suscripciones expiradas
+ * - Separación de lógica de negocio y UI
+ */
+export const usePushNotifications = (token, userId, userRole) => {
   const [isSupported, setIsSupported] = useState(false);
   const [permission, setPermission] = useState('default');
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSubscribing, setIsSubscribing] = useState(false); // 🔒 ANTI-RACE LOCK
 
-  // Verificar soporte y permisos al inicializar
-  useEffect(() => {
-    const checkSupport = () => {
-      const supported = pushNotificationService.isPushSupported();
-      setIsSupported(supported);
-      
-      if (supported) {
-        const currentPermission = pushNotificationService.getPermissionStatus();
-        setPermission(currentPermission);
-      }
-    };
-
-    checkSupport();
+  // ✅ REFINEMENT 3: Session Validation
+  const validateSession = useCallback((authToken) => {
+    if (!authToken || authToken.trim() === '') {
+      console.log('⚠️ No auth token, skipping backend sync');
+      return false;
+    }
+    return true;
   }, []);
 
-  // Suscribirse a notificaciones push
-  const subscribe = useCallback(async () => {
-    if (!isSupported || !userId || !userRole) {
-      console.log('No se puede suscribir: falta soporte, userId o userRole');
+  // ✅ REFINEMENT 5: Retry Mechanism with Exponential Backoff
+  const subscribeWithRetry = useCallback(async (maxRetries = 3) => {
+    if (!validateSession(token)) {
       return false;
     }
 
+    if (!userId || !userRole) {
+      return false;
+    }
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const success = await pushNotificationService.subscribeToPush(token);
+        if (success) {
+          console.log(`✅ Subscription successful on attempt ${attempt}`);
+          return true;
+        }
+      } catch (error) {
+        console.error(`❌ Subscription attempt ${attempt} failed:`, error);
+        
+        if (attempt === maxRetries) {
+          console.error('❌ Failed after max retries');
+          return false;
+        }
+        
+        // Exponential backoff: 1s, 2s, 4s (max 5s)
+        const delayMs = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+        console.log(`⏳ Retrying in ${delayMs}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+    return false;
+  }, [token]);
+
+  // ✅ REFINEMENT 1: Subscribe with Anti-Race Condition
+  const subscribe = useCallback(async () => {
+    if (!isSupported || !userId || !userRole) {
+      // Info level - this is normal during initial render before usuario loads
+      console.log('ℹ️ Cannot subscribe yet - waiting for:', {
+        isSupported,
+        hasUserId: !!userId,
+        hasUserRole: !!userRole,
+        hasToken: !!token
+      });
+      return false;
+    }
+
+    // 🔒 ANTI-RACE: Check if already subscribing
+    if (isSubscribing) {
+      console.log('⚠️ Subscription already in progress, aborting');
+      return false;
+    }
+
+    // ✅ REFINEMENT 3: Validate session before attempt
+    if (!validateSession(token)) {
+      return false;
+    }
+
+    setIsSubscribing(true);
     setIsLoading(true);
+    
     try {
-      const success = await pushNotificationService.subscribeToPush(userId, userRole);
+      const success = await subscribeWithRetry();
       setIsSubscribed(success);
       
       if (success) {
-        setPermission('granted');
-        console.log('✅ Suscrito exitosamente a notificaciones push');
+        setPermission('granted'); // ✅ FIX: Must be string 'granted', not boolean
+        console.log('✅ Subscribed successfully to push notifications');
       }
       
       return success;
     } catch (error) {
-      console.error('Error suscribiéndose a notificaciones:', error);
+      console.error('❌ Error subscribing:', error);
       return false;
     } finally {
+      setIsSubscribing(false);
       setIsLoading(false);
     }
-  }, [isSupported, userId, userRole]);
+  }, [isSupported, userId, userRole, token, isSubscribing, validateSession, subscribeWithRetry]);
 
-  // Desuscribirse de notificaciones push
+  // Unsubscribe from push
   const unsubscribe = useCallback(async () => {
+    if (!validateSession(token)) {
+      return false;
+    }
+
     setIsLoading(true);
     try {
-      const success = await pushNotificationService.unsubscribeFromPush();
+      const success = await pushNotificationService.unsubscribeFromPush(token);
       setIsSubscribed(!success);
       
       if (success) {
-        console.log('✅ Desuscrito exitosamente de notificaciones push');
+        console.log('✅ Unsubscribed successfully from push notifications');
       }
       
       return success;
     } catch (error) {
-      console.error('Error desuscribiéndose de notificaciones:', error);
+      console.error('Error unsubscribing:', error);
       return false;
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [token, validateSession]);
 
-  // Solicitar permisos
-  const requestPermission = useCallback(async () => {
+  // ✅ REFINEMENT 2: Auto-check and Silent Re-subscription (Business Logic in Hook)
+  useEffect(() => {
+    if (!token || !userId || !userRole ||!isSupported) return;
+
+    const checkAndRecover = async () => {
+      const currentPermission = pushNotificationService.getPermissionStatus();
+      setPermission(currentPermission);
+
+      if (currentPermission === 'granted') {
+        try {
+          const registration = await navigator.serviceWorker.ready;
+          const subscription = await registration.pushManager.getSubscription();
+
+          if (subscription) {
+            setIsSubscribed(true);
+            console.log('✅ Active subscription found');
+          } else if (!isSubscribing) {
+            // Silent re-subscription for users who already granted permission
+            console.log('🔄 Permission granted but no subscription, recovering...');
+            await subscribe();
+          }
+        } catch (error) {
+          console.error('Error checking subscription:', error);
+        }
+      }
+    };
+
+    checkAndRecover();
+  }, [token, userId, userRole, isSupported, isSubscribing, subscribe]);
+
+  // Request permission and subscribe
+  const requestPermissionAndSubscribe = useCallback(async () => {
     if (!isSupported) {
-      console.log('Push notifications no están soportadas');
+      console.log('Push notifications not supported');
       return false;
     }
 
@@ -79,25 +170,24 @@ export const usePushNotifications = (userId, userRole) => {
     try {
       const granted = await pushNotificationService.requestPermission();
       setPermission(granted ? 'granted' : 'denied');
-      
-      if (granted && userId && userRole) {
-        // Auto-suscribirse si se conceden permisos
-        await subscribe();
+
+      if (granted) {
+        return await subscribe();
       }
-      
-      return granted;
+
+      return false;
     } catch (error) {
-      console.error('Error solicitando permisos:', error);
+      console.error('Error requesting permission:', error);
       return false;
     } finally {
       setIsLoading(false);
     }
-  }, [isSupported, userId, userRole, subscribe]);
+  }, [isSupported, subscribe]);
 
-  // Mostrar notificación local
+  // Show local notification (legacy support)
   const showNotification = useCallback((type, data = {}) => {
     if (!isSupported || permission !== 'granted') {
-      console.log('No se pueden mostrar notificaciones: sin soporte o permisos');
+      console.log('Cannot show notification: no support or permissions');
       return false;
     }
 
@@ -112,7 +202,7 @@ export const usePushNotifications = (userId, userRole) => {
     });
   }, [isSupported, permission]);
 
-  // Verificar si el usuario debe recibir este tipo de notificación
+  // Check if user should receive notification type
   const shouldReceiveNotification = useCallback((type) => {
     if (!userRole) return false;
     
@@ -120,43 +210,22 @@ export const usePushNotifications = (userId, userRole) => {
     return allowedTypes.includes(type);
   }, [userRole]);
 
-  // Obtener tipos de notificación permitidos para el rol
+  // Get allowed notification types
   const getAllowedNotificationTypes = useCallback(() => {
     if (!userRole) return [];
     return pushNotificationService.getNotificationTypes(userRole);
   }, [userRole]);
 
-  // Manejar notificación recibida
-  const handleNotificationReceived = useCallback((notification) => {
-    const { type, ...data } = notification.data || {};
-    
-    if (shouldReceiveNotification(type)) {
-      showNotification(type, data);
-    }
-  }, [shouldReceiveNotification, showNotification]);
-
-  // Configurar listener para notificaciones push
+  // Initialize support check
   useEffect(() => {
-    if (!isSupported || permission !== 'granted') return;
-
-    const handlePushMessage = (event) => {
-      if (event.data) {
-        try {
-          const notification = JSON.parse(event.data.text());
-          handleNotificationReceived(notification);
-        } catch (error) {
-          console.error('Error procesando notificación push:', error);
-        }
-      }
-    };
-
-    // Escuchar mensajes del service worker
-    navigator.serviceWorker.addEventListener('message', handlePushMessage);
-
-    return () => {
-      navigator.serviceWorker.removeEventListener('message', handlePushMessage);
-    };
-  }, [isSupported, permission, handleNotificationReceived]);
+    const supported = pushNotificationService.isPushSupported();
+    setIsSupported(supported);
+    
+    if (supported) {
+      const currentPermission = pushNotificationService.getPermissionStatus();
+      setPermission(currentPermission);
+    }
+  }, []);
 
   return {
     // Estado
@@ -164,16 +233,16 @@ export const usePushNotifications = (userId, userRole) => {
     permission,
     isSubscribed,
     isLoading,
+    isSubscribing,
     
-    // Acciones
+    // Acciones principales
     subscribe,
     unsubscribe,
-    requestPermission,
-    showNotification,
+    requestPermissionAndSubscribe,
     
     // Utilidades
+    showNotification,
     shouldReceiveNotification,
     getAllowedNotificationTypes,
-    handleNotificationReceived
   };
-}; 
+};
