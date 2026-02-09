@@ -1,21 +1,60 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import pushNotificationService from '../../services/pwa/pushNotifications';
 
 /**
+ * ✅ SMART STATE INITIALIZATION
+ * Reads browser state BEFORE first render to prevent "amnesia effect"
+ */
+const getInitialPushState = () => {
+  // Check if push is supported
+  if (!pushNotificationService.isPushSupported()) {
+    return { 
+      permission: 'default', 
+      isSubscribed: false, 
+      isSupported: false,
+      isStandalone: false
+    };
+  }
+
+  // ✅ iOS STANDALONE MODE DETECTION
+  // Push notifications only work in iOS if app is installed to home screen
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                       window.navigator.standalone === true;
+
+  const permission = pushNotificationService.getPermissionStatus();
+  
+  // ✅ OPTIMISTIC INITIALIZATION
+  // If permission is granted, assume subscription exists (will verify async)
+  return {
+    permission,
+    isSubscribed: permission === 'granted',
+    isSupported: true,
+    isStandalone
+  };
+};
+
+/**
  * Hook para manejar notificaciones push
- * ✅ Implementa todas las mejores prácticas:
+ * ✅ FIXES IMPLEMENTED:
+ * - Smart initialization: reads browser state before first render
+ * - Early verification: checks subscription independently of userId
+ * - iOS standalone detection: prevents subscription attempts in Safari browser
+ * - Separated re-subscription logic: only runs when userId is available
  * - Anti-race conditions con isSubscribing lock
  * - Session validation antes de llamadas backend
  * - Retry mechanism con exponential backoff
- * - Auto-recovery de suscripciones expiradas
- * - Separación de lógica de negocio y UI
  */
 export const usePushNotifications = (token, userId, userRole) => {
-  const [isSupported, setIsSupported] = useState(false);
-  const [permission, setPermission] = useState('default');
-  const [isSubscribed, setIsSubscribed] = useState(false);
+  // ✅ SMART INITIALIZATION using function to compute initial state
+  const initialState = useRef(getInitialPushState()).current;
+  
+  const [isSupported, setIsSupported] = useState(initialState.isSupported);
+  const [permission, setPermission] = useState(initialState.permission);
+  const [isSubscribed, setIsSubscribed] = useState(initialState.isSubscribed);
+  const [isStandalone] = useState(initialState.isStandalone);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false); // 🔒 ANTI-RACE LOCK
+  const [isInitializing, setIsInitializing] = useState(true); // 🆕 PREVENTS UI FLICKER
 
   // ✅ REFINEMENT 3: Session Validation
   const validateSession = useCallback((authToken) => {
@@ -129,35 +168,59 @@ export const usePushNotifications = (token, userId, userRole) => {
     }
   }, [token, validateSession]);
 
-  // ✅ REFINEMENT 2: Auto-check and Silent Re-subscription (Business Logic in Hook)
+  // ✅ FIX 1: EARLY VERIFICATION (Independent of userId)
+  // Runs immediately on mount to verify actual subscription state
+  // This prevents showing the banner when permission is already granted
   useEffect(() => {
-    if (!token || !userId || !userRole ||!isSupported) return;
+    if (!isSupported) return;
 
-    const checkAndRecover = async () => {
-      const currentPermission = pushNotificationService.getPermissionStatus();
-      setPermission(currentPermission);
+    const verifySubscription = async () => {
+      try {
+        const currentPermission = pushNotificationService.getPermissionStatus();
+        setPermission(currentPermission);
 
-      if (currentPermission === 'granted') {
-        try {
+        if (currentPermission === 'granted') {
           const registration = await navigator.serviceWorker.ready;
           const subscription = await registration.pushManager.getSubscription();
-
+          
           if (subscription) {
             setIsSubscribed(true);
-            console.log('✅ Active subscription found');
-          } else if (!isSubscribing) {
-            // Silent re-subscription for users who already granted permission
-            console.log('🔄 Permission granted but no subscription, recovering...');
-            await subscribe();
+            console.log('✅ Existing subscription verified on mount');
+          } else {
+            setIsSubscribed(false);
+            console.log('⚠️ Permission granted but no subscription found (will re-subscribe when userId available)');
           }
-        } catch (error) {
-          console.error('Error checking subscription:', error);
+        } else {
+          setIsSubscribed(false);
         }
+      } catch (error) {
+        console.error('❌ Error verifying subscription on mount:', error);
+        setIsSubscribed(false);
+      } finally {
+        // ✅ INITIALIZATION COMPLETE - UI can now render safely
+        setIsInitializing(false);
       }
     };
 
-    checkAndRecover();
-  }, [token, userId, userRole, isSupported, isSubscribing, subscribe]);
+    verifySubscription();
+  }, [isSupported]); // Only depends on isSupported - runs once
+
+  // ✅ FIX 2: SILENT RE-SUBSCRIPTION (Only when userId is available)
+  // If permission is granted but subscription is missing, re-subscribe silently
+  useEffect(() => {
+    if (!token || !userId || !userRole || !isSupported) return;
+    if (permission !== 'granted') return; // Only re-subscribe if permission exists
+    if (isSubscribed) return; // Already subscribed
+    if (isSubscribing) return; // Already in progress
+    if (isInitializing) return; // Wait for initial verification to complete
+
+    const silentResubscribe = async () => {
+      console.log('🔄 Silent re-subscription: permission granted but no active subscription');
+      await subscribe();
+    };
+
+    silentResubscribe();
+  }, [token, userId, userRole, isSupported, permission, isSubscribed, isSubscribing, isInitializing, subscribe]);
 
   // Request permission and subscribe
   const requestPermissionAndSubscribe = useCallback(async () => {
@@ -216,16 +279,8 @@ export const usePushNotifications = (token, userId, userRole) => {
     return pushNotificationService.getNotificationTypes(userRole);
   }, [userRole]);
 
-  // Initialize support check
-  useEffect(() => {
-    const supported = pushNotificationService.isPushSupported();
-    setIsSupported(supported);
-    
-    if (supported) {
-      const currentPermission = pushNotificationService.getPermissionStatus();
-      setPermission(currentPermission);
-    }
-  }, []);
+  // ✅ REMOVED: Redundant initialization useEffect
+  // State is now initialized smartly using getInitialPushState()
 
   return {
     // Estado
@@ -234,6 +289,8 @@ export const usePushNotifications = (token, userId, userRole) => {
     isSubscribed,
     isLoading,
     isSubscribing,
+    isInitializing, // 🆕 EXPORTED: UI can use this to prevent flicker
+    isStandalone,   // 🆕 EXPORTED: UI can show iOS-specific messages
     
     // Acciones principales
     subscribe,

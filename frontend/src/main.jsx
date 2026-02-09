@@ -7,7 +7,11 @@ import ServiceWorkerUpdater from './components/ServiceWorkerUpdater';
 // Registrar Service Worker con lógica de actualización mejorada
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
+    // ✅ PERSISTENCE FIX: Explicit scope and cache bypass
+    navigator.serviceWorker.register('/sw.js', {
+      scope: '/',  // ✅ Global scope ensures SW controls all pages
+      updateViaCache: 'none'  // ✅ Force fresh SW checks (critical for persistence fix)
+    })
       .then(registration => {
         console.log('✅ Service Worker registrado correctamente');
 

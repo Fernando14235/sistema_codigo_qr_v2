@@ -1,5 +1,5 @@
-// Service Worker para Residencial Access PWA
-const VERSION_SW = 'v3.2.1.2.7';
+// Service Worker para Porto Pass PWA
+const VERSION_SW = 'v3.2.1.3.0';
 const CACHE_NAME = `porto-pass-${VERSION_SW}`;
 const urlsToCache = [
   '/',

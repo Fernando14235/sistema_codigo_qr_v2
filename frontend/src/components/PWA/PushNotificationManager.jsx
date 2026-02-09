@@ -16,6 +16,7 @@ function PushNotificationManager({ token, usuario }) {
     permission, 
     isSubscribed,
     isLoading,
+    isInitializing,  // 🆕 Prevents UI flicker during initial verification
     requestPermissionAndSubscribe 
   } = usePushNotifications(token, usuario?.id, usuario?.rol);
   
@@ -34,13 +35,15 @@ function PushNotificationManager({ token, usuario }) {
     }
   }, []);
   
-  // Simple UI logic: Show banner ONLY if all conditions met
+  // ✅ IMPROVED: Banner visibility includes isInitializing check
+  // This prevents the banner from appearing during the first second while we verify state
   const shouldShowBanner = 
     isSupported &&
     permission === 'default' &&
     !isSubscribed &&
     !localDismissed &&
     !isLoading &&
+    !isInitializing &&  // 🆕 Don't show while initializing
     token &&
     usuario;
   
