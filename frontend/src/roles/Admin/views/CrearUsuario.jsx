@@ -205,10 +205,10 @@ function CrearUsuario({
       <div className="form-row">
         <div style={{ position: "relative", width: "100%" }}>
           <input
-            placeholder={usuarioEditar ? "Nueva Contraseña" : "Contraseña"}
+            placeholder={usuarioEditar ? "Nueva Contraseña (opcional)" : "Contraseña"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            required
+            required={!usuarioEditar} 
             type={showPassword ? "text" : "password"}
             disabled={bloqueado}
             style={{ width: "100%", paddingRight: 40 }}
@@ -229,41 +229,15 @@ function CrearUsuario({
               padding: 0,
             }}
             tabIndex={-1}
-            aria-label={
-              showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
-            }
-          >
+            aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}>
             {showPassword ? (
-              <svg
-                width="25"
-                height="25"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
+              <svg width="25" height="25" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M1 1L23 23" stroke="#1976d2" strokeWidth="2" />
-                <path
-                  d="M12 5C7 5 2.73 8.11 1 12C1.73 13.66 2.91 15.09 4.41 16.17M9.9 9.9C10.27 9.63 10.73 9.5 11.2 9.5C12.49 9.5 13.5 10.51 13.5 11.8C13.5 12.27 13.37 12.73 13.1 13.1M7.11 7.11C8.39 6.4 10.13 6 12 6C17 6 21.27 9.11 23 13C22.27 14.66 21.09 16.09 19.59 17.17"
-                  stroke="#1976d2"
-                  strokeWidth="2"
-                />
+                <path d="M12 5C7 5 2.73 8.11 1 12C1.73 13.66 2.91 15.09 4.41 16.17M9.9 9.9C10.27 9.63 10.73 9.5 11.2 9.5C12.49 9.5 13.5 10.51 13.5 11.8C13.5 12.27 13.37 12.73 13.1 13.1M7.11 7.11C8.39 6.4 10.13 6 12 6C17 6 21.27 9.11 23 13C22.27 14.66 21.09 16.09 19.59 17.17" stroke="#1976d2" strokeWidth="2" />
               </svg>
             ) : (
-              <svg
-                width="25"
-                height="25"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <ellipse
-                  cx="12"
-                  cy="12"
-                  rx="10"
-                  ry="6"
-                  stroke="#1976d2"
-                  strokeWidth="2"
-                />
+              <svg width="25" height="25" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <ellipse cx="12" cy="12" rx="10" ry="6" stroke="#1976d2" strokeWidth="2" />
                 <circle cx="12" cy="12" r="2.5" fill="#1976d2" />
               </svg>
             )}
@@ -280,8 +254,7 @@ function CrearUsuario({
             className="btn-secondary"
             style={{ marginLeft: 10 }}
             onClick={() => setUsuarioEditar(null)}
-            disabled={bloqueado}
-          >
+            disabled={bloqueado}>
             Cancelar
           </button>
         )}
@@ -303,8 +276,7 @@ function CrearUsuario({
               display: "flex",
               alignItems: "center",
               gap: "6px",
-            }}
-          >
+            }}>
             {mensaje.includes("Error")
               ? "❌"
               : mensaje.includes("correctamente")

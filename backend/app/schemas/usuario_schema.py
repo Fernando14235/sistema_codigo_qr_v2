@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, constr, model_validator
+from pydantic import BaseModel, EmailStr, constr, model_validator, field_validator
 from typing import Optional
 from datetime import datetime
 from enum import Enum
@@ -75,5 +75,16 @@ class UsuarioUpdate(BaseModel):
     email: Optional[EmailStr] = None
     rol: Optional[Rol] = None
     unidad_residencial: Optional[str] = None
-    password: Optional[constr(min_length=6)] = None
+    password: Optional[str] = None
     telefono: Optional[str] = None
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v):
+        # Si viene vacío, lo convertimos en None (no actualizar password)
+        if v == "":
+            return None
+        
+        if v is not None and len(v) < 6:
+            raise ValueError("La contraseña debe tener al menos 6 caracteres")
+        return v
