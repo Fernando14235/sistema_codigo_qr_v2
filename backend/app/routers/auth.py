@@ -99,6 +99,12 @@ def login(
         
     )
 
+    # Obtener tipo_entidad
+    tipo_entidad_val = "residencial"
+    if user.residencial:
+        # Asegurarse de que el atributo existe (por si acaso la migración no se aplicó correctamente en el objeto en memoria)
+        tipo_entidad_val = getattr(user.residencial, "tipo_entidad", "residencial")
+
     return LoginResponse(
         access_token=access_token,
         token_type="bearer",
@@ -106,6 +112,7 @@ def login(
         usuario_id=user.id,
         rol=user.rol,
         residencial_id=user.residencial_id,
+        tipo_entidad=tipo_entidad_val,
         ult_conexion=ult_conexion_anterior.isoformat() if ult_conexion_anterior else None
     )
 
@@ -186,12 +193,18 @@ def refresh_token(request: Request, db: Session = Depends(get_db)):
         expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     
+    # Obtener tipo_entidad
+    tipo_entidad_val = "residencial"
+    if usuario.residencial:
+        tipo_entidad_val = getattr(usuario.residencial, "tipo_entidad", "residencial")
+
     return RefreshResponse(
         access_token=new_access_token,
         token_type="bearer",
         usuario=usuario.email,
         usuario_id=usuario.id,
-        rol=usuario.rol
+        rol=usuario.rol,
+        tipo_entidad=tipo_entidad_val
     )
 
 @router.get("/secure", response_model=dict)

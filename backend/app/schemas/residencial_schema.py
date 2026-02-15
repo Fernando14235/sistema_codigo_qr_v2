@@ -7,7 +7,7 @@ class ResidencialBase(BaseModel):
     direccion: Optional[str] = None
 
 class ResidencialCreate(ResidencialBase):
-    pass
+    tipo_entidad: Optional[str] = "residencial"
 
 class ResidencialUpdate(BaseModel):
     nombre: Optional[str] = None
@@ -16,6 +16,7 @@ class ResidencialUpdate(BaseModel):
 class ResidencialResponse(ResidencialBase):
     id: int
     fecha_creacion: datetime
+    tipo_entidad: str
 
     class Config:
         from_attributes = True

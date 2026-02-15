@@ -72,6 +72,30 @@ def crear_visita_con_qr(db: Session, visita_data: VisitaCreate, admin_id: int = 
                 detail="El creador de la visita debe tener una residencial asignada."
             )
 
+        # Validar campos requeridos según el tipo de entidad de la residencial
+        residencial_obj = db.query(Residencial).filter(Residencial.id == creador_residencial_id).first()
+        if not residencial_obj:
+             raise HTTPException(status_code=404, detail="Residencial no encontrada.")
+        
+        tipo_entidad = getattr(residencial_obj, "tipo_entidad", "residencial")
+        
+        for visitante_data in visita_data.visitantes:
+            # Validación para Predio e Industrial: Placa/Chasis obligatoria
+            if tipo_entidad in ["predio", "industrial"]:
+                if not visitante_data.placa_chasis:
+                     raise HTTPException(
+                         status_code=400, 
+                         detail=f"Para el tipo de entidad '{tipo_entidad}', el número de placa o chasis es obligatorio."
+                     )
+            
+            # Validación para Instituto, Empresa, Industrial: Destino de Visita obligatorio
+            if tipo_entidad in ["instituto", "empresa", "industrial"]:
+                if not visitante_data.destino_visita:
+                     raise HTTPException(
+                         status_code=400, 
+                         detail=f"Para el tipo de entidad '{tipo_entidad}', el destino de visita es obligatorio."
+                     )
+
         acompanantes = getattr(visita_data, "acompanantes", None)
         if acompanantes is not None:
             if not isinstance(acompanantes, list):
@@ -79,6 +103,15 @@ def crear_visita_con_qr(db: Session, visita_data: VisitaCreate, admin_id: int = 
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="El campo 'acompañantes' debe ser una lista de nombres o no enviarse."
                 )
+            
+            # Validar límite de acompañantes
+            MAX_ACOMPANANTES = 10
+            if len(acompanantes) > MAX_ACOMPANANTES:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Máximo {MAX_ACOMPANANTES} acompañantes permitidos. Has intentado agregar {len(acompanantes)}."
+                )
+            
             for nombre in acompanantes:
                 if not isinstance(nombre, str) or not nombre.strip():
                     raise HTTPException(

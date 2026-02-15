@@ -7,7 +7,8 @@ def crear_residencial(db: Session, residencial: ResidencialCreate) -> Residencia
     """Crear una nueva residencial"""
     db_residencial = Residencial(
         nombre=residencial.nombre,
-        direccion=residencial.direccion
+        direccion=residencial.direccion,
+        tipo_entidad=residencial.tipo_entidad
     )
     db.add(db_residencial)
     db.commit()
