@@ -88,9 +88,9 @@ function GestionarVistas({ token, onCancel, onLogout }) {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      let mensaje = `Vista ${activa ? 'activada' : 'desactivada'} para la residencial`;
+      let mensaje = `Vista ${activa ? 'activada' : 'desactivada'} para la entidad`;
       if (!activa) {
-        mensaje += ". Todos los administradores de esta residencial perderán acceso a esta vista.";
+        mensaje += ". Todos los administradores de esta entidad perderán acceso a esta vista.";
       }
       
       setNotification({ 
@@ -112,7 +112,7 @@ function GestionarVistas({ token, onCancel, onLogout }) {
     const vista = vistasAdmin.find(v => v.id === vistaId);
     if (vista && vista.bloqueada_por_residencial) {
       setNotification({ 
-        message: "No se puede activar una vista que está desactivada a nivel residencial", 
+        message: "No se puede activar una vista que está desactivada a nivel entidad", 
         type: "error" 
       });
       return;
@@ -158,12 +158,12 @@ function GestionarVistas({ token, onCancel, onLogout }) {
 
       <div className="gestionar-vistas-content">
         <div className="residenciales-section">
-          <h3>Seleccionar Residencial</h3>
+          <h3>Seleccionar Entidad</h3>
           <div className="residenciales-grid">
             {residenciales.length === 0 ? (
               <div className="no-residenciales">
-                <p>No hay residenciales disponibles.</p>
-                <p>Crea una residencial primero desde el menú principal.</p>
+                <p>No hay entidades disponibles.</p>
+                <p>Crea una entidad primero desde el menú principal.</p>
               </div>
             ) : (
               residenciales.map(residencial => (
@@ -237,7 +237,7 @@ function GestionarVistas({ token, onCancel, onLogout }) {
           <div className="vistas-admin-section">
             <h3>Vistas para: {adminSeleccionado.nombre}</h3>
             <div className="jerarquia-info">
-              <p><strong>Nota:</strong> Las vistas desactivadas a nivel residencial no pueden ser activadas por administradores individuales.</p>
+              <p><strong>Nota:</strong> Las vistas desactivadas a nivel entidad no pueden ser activadas por administradores individuales.</p>
             </div>
             {cargando ? (
               <div className="loading">Cargando vistas...</div>
@@ -251,7 +251,7 @@ function GestionarVistas({ token, onCancel, onLogout }) {
                       <div className="vista-status-container">
                         {vista.bloqueada_por_residencial ? (
                           <span className="vista-status bloqueada">
-                            🔒 Bloqueada por Residencial
+                            🔒 Bloqueada por Entidad
                           </span>
                         ) : vista.configurada_admin ? (
                           <span className="vista-status configurada">

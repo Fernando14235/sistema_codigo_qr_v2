@@ -43,7 +43,7 @@ function MainMenu({
       id: "crear_visita",
       title: "Crear Visita",
       icon: "🏠",
-      description: "Crear nuevas visitas para residentes",
+      description: "Crear nuevas visitas para entidades",
     },
     {
       id: "mis_visitas",

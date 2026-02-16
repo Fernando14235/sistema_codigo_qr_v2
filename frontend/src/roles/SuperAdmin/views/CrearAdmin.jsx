@@ -146,7 +146,7 @@ function CrearAdmin({ token, onAdminCreado, onCancel, onNotification }) {
               onChange={(e) => setFormData({...formData, residencial_id: e.target.value})}
               required
             >
-              <option value="">Seleccionar residencial</option>
+              <option value="">Seleccionar entidad</option>
               {residenciales.map(residencial => (
                 <option key={residencial.id} value={residencial.id}>
                   {residencial.nombre}

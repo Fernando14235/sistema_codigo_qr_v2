@@ -28,7 +28,7 @@ function MainMenu({ nombre, onLogout, onSelectVista }) {
           <div className="menu-card" onClick={() => onSelectVista("crear-admin")}>
             <div className="menu-icon">👤</div>
             <h3>Crear Administrador</h3>
-            <p>Crear nuevos administradores para residenciales</p>
+            <p>Crear nuevos administradores para las entidades</p>
           </div>
 
           <div className="menu-card" onClick={() => onSelectVista("listar-admins")}>
@@ -39,20 +39,20 @@ function MainMenu({ nombre, onLogout, onSelectVista }) {
 
           <div className="menu-card" onClick={() => onSelectVista("crear-residencial")}>
             <div className="menu-icon">🏢</div>
-            <h3>Crear Residencial</h3>
-            <p>Crear nuevas residenciales en el sistema</p>
+            <h3>Crear Entidad</h3>
+            <p>Crear nuevas entidades en el sistema</p>
           </div>
 
           <div className="menu-card" onClick={() => onSelectVista("listar-residenciales")}>
             <div className="menu-icon">📊</div>
-            <h3>Ver Residenciales</h3>
-            <p>Listar todas las residenciales con estadísticas</p>
+            <h3>Ver Entidades</h3>
+            <p>Listar todas las entidades con estadísticas</p>
           </div>
 
           <div className="menu-card" onClick={() => onSelectVista("gestionar-vistas")}>
             <div className="menu-icon">👁️</div>
             <h3>Gestionar Vistas</h3>
-            <p>Configurar vistas por residencial y administrador</p>
+            <p>Configurar vistas por entidad y administrador</p>
           </div>
         </div>
       </div>

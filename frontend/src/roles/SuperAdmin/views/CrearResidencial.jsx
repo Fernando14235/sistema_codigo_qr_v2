@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import api from "../../../api";
 import Notification from "../components/Notification";
 
-// Componente para crear residenciales
+// Componente para crear entidades
 function CrearResidencial({ token, onResidencialCreada, onCancel, onLogout }) {
   const [formData, setFormData] = useState({
     nombre: "",
@@ -26,7 +26,7 @@ function CrearResidencial({ token, onResidencialCreada, onCancel, onLogout }) {
       setFormData({ nombre: "", direccion: "", tipo_entidad: "residencial" });
       onResidencialCreada();
     } catch (error) {
-      const message = error.response?.data?.detail || "Error al crear residencial";
+      const message = error.response?.data?.detail || "Error al crear entidad";
       setNotification({ message, type: "error" });
     } finally {
       setCargando(false);
@@ -36,7 +36,7 @@ function CrearResidencial({ token, onResidencialCreada, onCancel, onLogout }) {
   return (
     <div className="super-admin-section">
       <div className="section-header">
-        <h2>Crear Residencial</h2>
+        <h2>Crear Entidad</h2>
         <div className="header-actions">
           <button className="btn-regresar" onClick={onCancel}>
             ← Regresar
@@ -82,7 +82,7 @@ function CrearResidencial({ token, onResidencialCreada, onCancel, onLogout }) {
 
         <div className="form-actions">
           <button type="submit" className="btn-primary" disabled={cargando}>
-            {cargando ? "Creando..." : "Crear Residencial"}
+            {cargando ? "Creando..." : "Crear Entidad"}
           </button>
         </div>
       </form>

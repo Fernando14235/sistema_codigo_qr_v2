@@ -58,7 +58,7 @@ function ListarResidenciales({ token, onCancel, onLogout, onSelectVista }) {
   return (
     <div className="super-admin-section">
       <div className="section-header">
-        <h2>Residenciales del Sistema</h2>
+        <h2>Entidades del Sistema</h2>
         <div className="header-actions">
           <button className="btn-regresar" onClick={onCancel}>
             ← Regresar
@@ -75,7 +75,7 @@ function ListarResidenciales({ token, onCancel, onLogout, onSelectVista }) {
               type="text"
               value={filtros.nombre}
               onChange={(e) => handleFiltroChange('nombre', e.target.value)}
-              placeholder="Nombre de la residencial..."
+              placeholder="Nombre de la entidad..."
             />
           </div>
           <div className="filtro-group">
@@ -84,7 +84,7 @@ function ListarResidenciales({ token, onCancel, onLogout, onSelectVista }) {
               type="text"
               value={filtros.direccion}
               onChange={(e) => handleFiltroChange('direccion', e.target.value)}
-              placeholder="Dirección de la residencial..."
+              placeholder="Dirección de la entidad..."
             />
           </div>
           <div className="filtro-actions">
@@ -134,7 +134,7 @@ function ListarResidenciales({ token, onCancel, onLogout, onSelectVista }) {
 
       {residencialesFiltrados.length === 0 && (
         <div className="empty-state">
-          <p>No hay residenciales que coincidan con los filtros</p>
+          <p>No hay entidades que coincidan con los filtros</p>
         </div>
       )}
 

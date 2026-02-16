@@ -104,7 +104,7 @@ function ListarAdmins({ token, onCancel, onLogout }) {
             </div>
             <div className="admin-info">
               <p><strong>Email:</strong> {admin.email}</p>
-              <p><strong>Residencial:</strong> {admin.residencial_nombre}</p>
+              <p><strong>Entidad:</strong> {admin.residencial_nombre}</p>
               <p><strong>Teléfono:</strong> {admin.telefono}</p>
               <p><strong>Unidad:</strong> {admin.unidad_residencial}</p>
               <p><strong>Fecha de creación:</strong> {new Date(admin.fecha_creacion).toLocaleDateString()}</p>
