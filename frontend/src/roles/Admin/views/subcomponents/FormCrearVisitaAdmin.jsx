@@ -331,29 +331,44 @@ function FormCrearVisitaAdmin({
         />
       </div>
 
-      <div className="form-row">
-        <label>Número de Chasis: <small>(Opcional)</small></label>
-        <input
-          type="text"
-          name="placa_chasis"
-          value={formData.placa_chasis}
-          onChange={handleChange}
-          disabled={bloqueado || !!qrUrl}
-          placeholder="Número de chasis"
-        />
-      </div>
+      {["predio", "industrial"].includes(localStorage.getItem("tipo_entidad")) && (
+        <div className="form-row">
+          <label>
+            Número de Chasis: 
+            <small style={{ color: "red", fontWeight: "bold" }}> (Obligatorio)</small>
+          </label>
+          <input
+            type="text"
+            name="placa_chasis"
+            value={formData.placa_chasis}
+            onChange={handleChange}
+            disabled={bloqueado || !!qrUrl}
+            placeholder="Número de chasis"
+            required={true}
+          />
+        </div>
+      )}
 
-      <div className="form-row">
-        <label>Destino Visita: <small>(Opcional)</small></label>
-        <input
-          type="text"
-          name="destino_visita"
-          value={formData.destino_visita}
-          onChange={handleChange}
-          disabled={bloqueado || !!qrUrl}
-          placeholder="Lugar de destino"
-        />
-      </div>
+      {/* Mostrar Destino Visita para predio (opcional) o instituto/empresa/industrial (obligatorio) */}
+      {["predio", "instituto", "empresa", "industrial"].includes(localStorage.getItem("tipo_entidad")) && (
+        <div className="form-row">
+          <label>
+            Destino Visita: 
+            {["instituto", "empresa", "industrial"].includes(localStorage.getItem("tipo_entidad")) ? 
+              <small style={{ color: "red", fontWeight: "bold" }}> (Obligatorio)</small> : 
+              <small> (Opcional)</small>}
+          </label>
+          <input
+            type="text"
+            name="destino_visita"
+            value={formData.destino_visita}
+            onChange={handleChange}
+            disabled={bloqueado || !!qrUrl}
+            placeholder="Lugar de destino"
+            required={["instituto", "empresa", "industrial"].includes(localStorage.getItem("tipo_entidad"))}
+          />
+        </div>
+      )}
 
       <div className="form-row">
         <label>Motivo de la visita:</label>
@@ -384,7 +399,7 @@ function FormCrearVisitaAdmin({
       </div>
 
       <div className="form-row">
-        <label>Cantidad de acompañantes: <small>(Opcional)</small></label>
+        <label>Cantidad de acompañantes: <small>(Opcional - Máximo 10)</small></label>
         <input
           type="number"
           name="cantidadAcompanantes"

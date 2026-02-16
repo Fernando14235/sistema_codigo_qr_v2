@@ -53,14 +53,14 @@ function Login({ onLogin, notification, setNotification }) {
         }
       );
       
-      const { access_token, usuario, rol, residencial_id, usuario_id } = res.data;
+      const { access_token, usuario, rol, residencial_id, usuario_id, tipo_entidad } = res.data;
 
       if (!access_token) {
         throw new Error("No se recibió un token de acceso válido.");
       }
       
       if (isMounted.current) {
-        onLogin(access_token, null, usuario, rol, residencial_id, usuario_id);
+        onLogin(access_token, null, usuario, rol, residencial_id, usuario_id, tipo_entidad);
         setNotification({ message: `Bienvenido ${usuario}`, type: "success" });
         console.log("✅ Login exitoso, token guardado");
       }
@@ -112,7 +112,7 @@ const processQueue = (error, token = null) => {
 };
 
 // Configurar interceptor de Axios (ahora sobre la instancia 'api')
-function setupAxiosInterceptors(setToken, setNombre, setRol, setUsuarioId, setNotification, handleLogout) {
+function setupAxiosInterceptors(setToken, setNombre, setRol, setUsuarioId, setNotification, handleLogout, setTipoEntidad) {
   // Interceptor REQUEST
   const reqInterceptor = api.interceptors.request.use(
     (config) => {
@@ -168,7 +168,7 @@ function setupAxiosInterceptors(setToken, setNombre, setRol, setUsuarioId, setNo
             skipAuthRefresh: true // Flag custom por si acaso
         });
 
-        const { access_token, usuario, rol, usuario_id } = refreshRes.data;
+        const { access_token, usuario, rol, usuario_id, tipo_entidad } = refreshRes.data;
         console.log("✅ Token y datos de usuario renovados exitosamente");
 
         // Guardar nuevo token y actualizar info de usuario
@@ -176,11 +176,13 @@ function setupAxiosInterceptors(setToken, setNombre, setRol, setUsuarioId, setNo
         if (usuario) localStorage.setItem("nombre", usuario);
         if (rol) localStorage.setItem("rol", rol);
         if (usuario_id) localStorage.setItem("usuario_id", usuario_id.toString());
+        if (tipo_entidad) localStorage.setItem("tipo_entidad", tipo_entidad);
 
         setToken(access_token);
         if (usuario) setNombre(usuario);
         if (rol) setRol(rol);
         if (usuario_id) setUsuarioId(usuario_id);
+        if (tipo_entidad && setTipoEntidad) setTipoEntidad(tipo_entidad);
 
         // Procesar cola de peticiones fallidas
         processQueue(null, access_token);
@@ -244,17 +246,20 @@ function App() {
   const [nombre, setNombre] = useState(localStorage.getItem("nombre") || "");
   const [rol, setRol] = useState(localStorage.getItem("rol") || "");
   const [usuarioId, setUsuarioId] = useState(localStorage.getItem("usuario_id") || null);
+  const [tipoEntidad, setTipoEntidad] = useState(localStorage.getItem("tipo_entidad") || "residencial");
   const [notification, setNotification] = useState({ message: "", type: "" });
 
-  const handleLogin = (accessToken, refreshToken, usuario, rol, residencialId, usuarioId) => {
+  const handleLogin = (accessToken, refreshToken, usuario, rol, residencialId, usuarioId, tipoEntidadVal) => {
     setToken(accessToken);
     setNombre(usuario);
     setRol(rol);
     setUsuarioId(usuarioId);
+    setTipoEntidad(tipoEntidadVal || "residencial");
     
     localStorage.setItem("token", accessToken);
     localStorage.setItem("nombre", usuario);
     localStorage.setItem("rol", rol);
+    localStorage.setItem("tipo_entidad", tipoEntidadVal || "residencial");
     if (residencialId) {
       localStorage.setItem("residencial_id", residencialId.toString());
     }
@@ -283,6 +288,7 @@ function App() {
       localStorage.removeItem("rol");
       localStorage.removeItem("residencial_id");
       localStorage.removeItem("usuario_id");
+      localStorage.removeItem("tipo_entidad");
       console.log("🚪 Logout local completado");
       
       const finalMessage = typeof reason === "string" ? reason : "Sesión cerrada correctamente";
@@ -298,7 +304,7 @@ function App() {
 
   // Configurar interceptores
   useEffect(() => {
-    const cleanup = setupAxiosInterceptors(setToken, setNombre, setRol, setUsuarioId, setNotification, handleLogout);
+    const cleanup = setupAxiosInterceptors(setToken, setNombre, setRol, setUsuarioId, setNotification, handleLogout, setTipoEntidad);
     return cleanup;
   }, []); 
 

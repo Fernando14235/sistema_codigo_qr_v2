@@ -6,7 +6,8 @@ import Notification from "../components/Notification";
 function CrearResidencial({ token, onResidencialCreada, onCancel, onLogout }) {
   const [formData, setFormData] = useState({
     nombre: "",
-    direccion: ""
+    direccion: "",
+    tipo_entidad: "residencial"
   });
   const [cargando, setCargando] = useState(false);
   const [notification, setNotification] = useState({ message: "", type: "" });
@@ -22,7 +23,7 @@ function CrearResidencial({ token, onResidencialCreada, onCancel, onLogout }) {
       });
 
       setNotification({ message: "Residencial creada exitosamente", type: "success" });
-      setFormData({ nombre: "", direccion: "" });
+      setFormData({ nombre: "", direccion: "", tipo_entidad: "residencial" });
       onResidencialCreada();
     } catch (error) {
       const message = error.response?.data?.detail || "Error al crear residencial";
@@ -62,6 +63,20 @@ function CrearResidencial({ token, onResidencialCreada, onCancel, onLogout }) {
               onChange={(e) => setFormData({...formData, direccion: e.target.value})}
               required
             />
+          </div>
+          <div className="form-group">
+            <label>Tipo de Entidad:</label>
+            <select
+              value={formData.tipo_entidad}
+              onChange={(e) => setFormData({...formData, tipo_entidad: e.target.value})}
+              required
+            >
+              <option value="residencial">Residencial</option>
+              <option value="predio">Predio</option>
+              <option value="industrial">Industrial</option>
+              <option value="instituto">Instituto</option>
+              <option value="empresa">Empresa</option>
+            </select>
           </div>
         </div>
 

@@ -10,12 +10,13 @@ engine = create_engine(settings.DATABASE_URL)
 # Crear sesión para manejar transacciones (lectura/escritura)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+#llamando la funcion clave load_dotenv para cargar las variables de entorno del archivo .env
 load_dotenv()
 
 # Base para todos los modelos
 Base = declarative_base()
 
-# Dependencia para obtener sesión en rutas (usado en FastAPI)
+# Dependencia para obtener sesión en rutas
 def get_db():
     db = SessionLocal()
     try:

@@ -224,39 +224,40 @@ function FormEditarVisitaAdmin({ token, visita, onSuccess, onCancel }) {
         />
       </div>
 
-      <div className="form-row">
-        <label>
-          Placa Chasis:{" "}
-          <span
-            style={{ color: "#666", fontSize: "0.9em", fontWeight: "normal" }}
-          >
-            (Opcional)
-          </span>
-        </label>
-        <input
-          type="text"
-          value={placa_chasis}
-          onChange={(e) => setPlacaChasis(e.target.value)}
-          disabled={cargando || bloqueadoEditar}
-        />
-      </div>
+      {["predio", "industrial"].includes(localStorage.getItem("tipo_entidad")) && (
+        <div className="form-row">
+          <label>
+            Número de Chasis: 
+            <small style={{ color: "red", fontWeight: "bold" }}> (Obligatorio)</small>
+          </label>
+          <input
+            type="text"
+            value={placa_chasis}
+            onChange={(e) => setPlacaChasis(e.target.value)}
+            disabled={cargando || bloqueadoEditar}
+            required={true}
+          />
+        </div>
+      )}
 
-      <div className="form-row">
-        <label>
-          Destino Visita:{" "}
-          <span
-            style={{ color: "#666", fontSize: "0.9em", fontWeight: "normal" }}
-          >
-            (Opcional)
-          </span>
-        </label>
-        <input
-          type="text"
-          value={destino_visita}
-          onChange={(e) => setDestinoVisita(e.target.value)}
-          disabled={cargando || bloqueadoEditar}
-        />
-      </div>
+      {/* Mostrar Destino Visita para predio (opcional) o instituto/empresa/industrial (obligatorio) */}
+      {["predio", "instituto", "empresa", "industrial"].includes(localStorage.getItem("tipo_entidad")) && (
+        <div className="form-row">
+          <label>
+            Destino Visita: 
+            {["instituto", "empresa", "industrial"].includes(localStorage.getItem("tipo_entidad")) ? 
+              <small style={{ color: "red", fontWeight: "bold" }}> (Obligatorio)</small> : 
+              <small> (Opcional)</small>}
+          </label>
+          <input
+            type="text"
+            value={destino_visita}
+            onChange={(e) => setDestinoVisita(e.target.value)}
+            disabled={cargando || bloqueadoEditar}
+            required={["instituto", "empresa", "industrial"].includes(localStorage.getItem("tipo_entidad"))}
+          />
+        </div>
+      )}
       <div className="form-row">
         <label>Motivo de la visita:</label>
         <select
