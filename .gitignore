@@ -18,10 +18,6 @@ frontend/dist/
 # Ignorar archivos de caché de Python
 **/__pycache__/
 backend/__pycache__/
-**/__init__.py
-backend/__init__.py
-backend/uploads/__pycache__/
-backend/uploads/social
 *.pyc
 *.pyo
 *.pyd
