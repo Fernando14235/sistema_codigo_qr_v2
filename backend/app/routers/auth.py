@@ -69,6 +69,14 @@ def login(
     if not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Contraseña incorrecta")
 
+    # Validar si el usuario está activo
+    if hasattr(user, "activo") and not user.activo:
+        raise HTTPException(status_code=401, detail="Usuario desactivado. Contacte al administrador.")
+
+    # Validar si la residencial está activa (si aplica)
+    if user.residencial and hasattr(user.residencial, "activa") and not user.residencial.activa:
+        raise HTTPException(status_code=401, detail="La residencial de este usuario ha sido suspendida. Contacte al soporte.")
+
     ult_conexion_anterior = user.ult_conexion
     
     # Actualizar la última conexión del usuario

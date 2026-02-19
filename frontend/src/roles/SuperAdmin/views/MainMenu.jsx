@@ -25,6 +25,13 @@ function MainMenu({ nombre, onLogout, onSelectVista }) {
 
       <div className="super-admin-menu">
         <div className="menu-grid">
+          {/* ── Nuevo: Dashboard Global ── */}
+          <div className="menu-card menu-card--highlight" onClick={() => onSelectVista("dashboard-global")}>
+            <div className="menu-icon">📊</div>
+            <h3>Dashboard Global</h3>
+            <p>Métricas en tiempo real de todo el sistema</p>
+          </div>
+
           <div className="menu-card" onClick={() => onSelectVista("crear-admin")}>
             <div className="menu-icon">👤</div>
             <h3>Crear Administrador</h3>
@@ -43,10 +50,18 @@ function MainMenu({ nombre, onLogout, onSelectVista }) {
             <p>Crear nuevas entidades en el sistema</p>
           </div>
 
-          <div className="menu-card" onClick={() => onSelectVista("listar-residenciales")}>
-            <div className="menu-icon">📊</div>
-            <h3>Ver Entidades</h3>
-            <p>Listar todas las entidades con estadísticas</p>
+          {/* ── Nuevo: Gestionar Entidades (reemplaza Ver Entidades) ── */}
+          <div className="menu-card" onClick={() => onSelectVista("gestionar-entidades")}>
+            <div className="menu-icon">🏗️</div>
+            <h3>Gestionar Entidades</h3>
+            <p>Editar, suspender, reactivar o eliminar entidades</p>
+          </div>
+
+          {/* ── Nuevo: Gestionar Usuarios Global ── */}
+          <div className="menu-card" onClick={() => onSelectVista("gestionar-usuarios-global")}>
+            <div className="menu-icon">🔧</div>
+            <h3>Gestionar Usuarios</h3>
+            <p>Activar, desactivar y resetear contraseñas de usuarios</p>
           </div>
 
           <div className="menu-card" onClick={() => onSelectVista("gestionar-vistas")}>

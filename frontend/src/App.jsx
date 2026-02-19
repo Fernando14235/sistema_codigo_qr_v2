@@ -8,7 +8,7 @@ import GuardiaDashboard from './GuardiaDashboard';
 import ResidenteDashboard from './ResidenteDashboard';
 import SuperAdminDashboard from './SuperAdminDashboard';
 import PWADownloadButton from './components/PWA/PWADownloadButton';
-import OfflineIndicator from './components/Offline/OfflineIndicator';
+
 import PushNotificationManager from './components/PWA/PushNotificationManager';
 
 // Notificación tipo tarjeta
@@ -314,7 +314,7 @@ function App() {
     <Router>
       <div>
         <PWADownloadButton />
-        <OfflineIndicator />
+
         {/* Renderizar PushNotificationManager solo si hay usuario logueado */}
         {token && <PushNotificationManager token={token} usuario={{ id: usuarioId, nombre, rol }} />}
         

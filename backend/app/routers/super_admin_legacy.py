@@ -237,6 +237,8 @@ def listar_residenciales_super_admin(db: Session = Depends(get_db)):
             "nombre": residencial.nombre,
             "direccion": residencial.direccion,
             "fecha_creacion": residencial.fecha_creacion,
+            "tipo_entidad": getattr(residencial, 'tipo_entidad', None),
+            "activa": getattr(residencial, 'activa', True),
             "estadisticas": {
                 "administradores": admins_count,
                 "residentes": residentes_count,

@@ -24,6 +24,7 @@ class Usuario(Base):
     fecha_creacion = Column(DateTime(timezone=True), default=get_current_time)
     fecha_actualizacion = Column(DateTime(timezone=True), default=get_current_time, onupdate=get_current_time)
     ult_conexion = Column(DateTime(timezone=True), nullable=True)
+    activo = Column(Boolean, default=True, nullable=False)
     
     # relaciones con otras tablas
     residencial = relationship("Residencial", back_populates="usuarios")

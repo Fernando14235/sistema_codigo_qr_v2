@@ -628,11 +628,10 @@ def obtener_visitas_del_dia(
             "visitas": resultado
         }
         
-    except HTTPException:
-        raise
     except Exception as e:
         logging.error(f"Error obteniendo visitas del día: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Error al obtener visitas del día: {str(e)}"
         )
+

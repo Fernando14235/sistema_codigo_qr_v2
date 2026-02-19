@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Enum
+from sqlalchemy import Column, Integer, String, Text, DateTime, Enum, Boolean
 from sqlalchemy.orm import relationship
 from app.database import Base
 from app.utils.time import get_current_time
@@ -10,6 +10,7 @@ class Residencial(Base):
     nombre = Column(String(100), nullable=False)
     direccion = Column(Text, nullable=True)
     tipo_entidad = Column(Enum("residencial", "predio", "industrial", "instituto", "empresa", name="tipo_entidad_enum"), nullable=False, default="residencial")
+    activa = Column(Boolean, default=True, nullable=False)
     fecha_creacion = Column(DateTime(timezone=True), default=get_current_time)
     
     # Relaciones con otras tablas

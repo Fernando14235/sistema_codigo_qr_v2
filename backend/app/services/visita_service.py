@@ -260,7 +260,7 @@ def _guardar_imagenes_visita(db: Session, visita_id: int, urls: list[str], tipo:
         imagen = VisitaImagen(visita_id=visita_id, url=url, tipo=tipo)
         db.add(imagen)
 
-def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str = None, observacion: str = None, imagenes: list[str] = []) -> dict:
+def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str = None, observacion: str = None, imagenes: list[str] = [], commit: bool = True) -> dict:
     try:
         # Buscar la visita con el QR proporcionado
         visitas = db.query(Visita).filter(Visita.qr_code == qr_code).all()
@@ -329,7 +329,10 @@ def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str =
         if visita.qr_expiracion:
             if now_hn > visita.qr_expiracion:
                 visita.estado = "expirado"
-                db.commit()
+                if commit:
+                    db.commit()
+                else:
+                    db.flush()
                 return {"valido": False, "error": "El QR ha expirado"}
 
         # Verificar si la visita llega antes de la hora programada
@@ -362,7 +365,8 @@ def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str =
         
         # Hacer flush antes del commit para asegurar que los cambios se apliquen
         db.flush()
-        db.commit()
+        if commit:
+            db.commit()
         
         # Verificar que el cambio se aplicó correctamente
         db.refresh(visita)
@@ -388,10 +392,12 @@ def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str =
         }
         
     except HTTPException as e:
-        db.rollback()
+        if commit:
+            db.rollback()
         raise e
     except Exception as e:
-        db.rollback()
+        if commit:
+            db.rollback()
         print(f"Error al validar QR de entrada: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
@@ -399,7 +405,7 @@ def validar_qr_entrada(db: Session, qr_code: str, guardia_id: int, accion: str =
             detail=f"Error al validar QR de entrada: {str(e)}"
         )
 
-def registrar_salida_visita(db: Session, qr_code: str, guardia_id: int, observacion: str = None, imagenes: list[str] = []) -> dict:
+def registrar_salida_visita(db: Session, qr_code: str, guardia_id: int, observacion: str = None, imagenes: list[str] = [], commit: bool = True) -> dict:
     try:
         # Buscar la visita con el QR proporcionado
         visita = db.query(Visita).filter(Visita.qr_code == qr_code).first()
@@ -468,7 +474,10 @@ def registrar_salida_visita(db: Session, qr_code: str, guardia_id: int, observac
         guardia_usuario = db.query(Usuario).filter(Usuario.id == guardia.usuario_id).first()
         # guardia_nombre = guardia_usuario.nombre if guardia_usuario else "Guardia"
         
-        db.commit()
+        if commit:
+            db.commit()
+        else:
+            db.flush()
         
         mensaje_respuesta = "Salida registrada exitosamente"
         if salida_tardia:
@@ -493,16 +502,19 @@ def registrar_salida_visita(db: Session, qr_code: str, guardia_id: int, observac
         }
         
     except HTTPException as e:
-        db.rollback()
+        if commit:
+            db.rollback()
         raise e
     except Exception as e:
-        db.rollback()
+        if commit:
+            db.rollback()
         print(f"Error al registrar salida: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error interno del servidor al registrar la salida: {str(e)}"
         )
+
 
 def obtener_historial_escaneos_dia(db: Session, guardia_id: int = None, residencial_id: int = None, nombre_guardia: str = None, page: int = 1, limit: int = 15) -> dict:
     try:

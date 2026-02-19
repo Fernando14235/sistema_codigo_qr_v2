@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate, useLocation, Routes, Route, Navigate, useParams } from "react-router-dom";
+import { useNavigate, Routes, Route, Navigate, useParams } from "react-router-dom";
 import PWADownloadButton from "./components/PWA/PWADownloadButton";
 import Notification from "./roles/SuperAdmin/components/Notification";
 import MainMenu from "./roles/SuperAdmin/views/MainMenu";
@@ -9,6 +9,10 @@ import CrearResidencial from "./roles/SuperAdmin/views/CrearResidencial";
 import ListarResidenciales from "./roles/SuperAdmin/views/ListarResidenciales";
 import UsuariosResidencial from "./roles/SuperAdmin/views/UsuariosResidencial";
 import GestionarVistas from "./roles/SuperAdmin/views/GestionarVistas";
+// Nuevas vistas
+import DashboardGlobal from "./roles/SuperAdmin/views/DashboardGlobal";
+import GestionarEntidades from "./roles/SuperAdmin/views/GestionarEntidades";
+import GestionarUsuariosGlobal from "./roles/SuperAdmin/views/GestionarUsuariosGlobal";
 import './css/SuperAdminDashboard.css';
 import './css/GestionarVistas.css';
 
@@ -16,14 +20,12 @@ import './css/GestionarVistas.css';
 function SuperAdminDashboard({ token, nombre, onLogout }) {
   const [notification, setNotification] = useState({ message: "", type: "" });
   const navigate = useNavigate();
-  const location = useLocation();
 
   const handleSelectVista = (nuevaVista, data = null) => {
     if (nuevaVista === "menu") {
       navigate("/");
       return;
     }
-
     if (nuevaVista === "usuarios-residencial" && data) {
       navigate(`/usuarios-residencial/${data.residencialId}`);
     } else {
@@ -31,9 +33,7 @@ function SuperAdminDashboard({ token, nombre, onLogout }) {
     }
   };
 
-  const handleRegresar = () => {
-    navigate("/");
-  };
+  const handleRegresar = () => navigate("/");
 
   const handleAdminCreado = () => {
     setNotification({ message: "Administrador creado exitosamente", type: "success" });
@@ -52,7 +52,7 @@ function SuperAdminDashboard({ token, nombre, onLogout }) {
       <UsuariosResidencial 
         token={token} 
         residencialData={{ residencialId: id }}
-        onCancel={() => navigate("/listar-residenciales")} 
+        onCancel={() => navigate("/gestionar-entidades")} 
         onLogout={onLogout}
       />
     );
@@ -75,6 +75,24 @@ function SuperAdminDashboard({ token, nombre, onLogout }) {
           />
         } />
 
+        {/* ── Nuevas rutas ── */}
+        <Route path="/dashboard-global" element={
+          <DashboardGlobal token={token} onCancel={handleRegresar} />
+        } />
+
+        <Route path="/gestionar-entidades" element={
+          <GestionarEntidades
+            token={token}
+            onCancel={handleRegresar}
+            onSelectVista={handleSelectVista}
+          />
+        } />
+
+        <Route path="/gestionar-usuarios-global" element={
+          <GestionarUsuariosGlobal token={token} onCancel={handleRegresar} />
+        } />
+
+        {/* ── Rutas existentes ── */}
         <Route path="/crear-admin" element={
           <CrearAdmin 
             token={token} 
@@ -85,7 +103,7 @@ function SuperAdminDashboard({ token, nombre, onLogout }) {
         } />
 
         <Route path="/listar-admins" element={
-          <ListarAdmins token={token} onCancel={handleRegresar}  />
+          <ListarAdmins token={token} onCancel={handleRegresar} />
         } />
 
         <Route path="/crear-residencial" element={

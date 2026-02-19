@@ -18,10 +18,9 @@ class OfflineStorage {
       timestamp: new Date().toISOString(),
       version: '1.0'
     };
-    
+
     try {
       localStorage.setItem(key, JSON.stringify(dataWithTimestamp));
-      console.log(`💾 Datos guardados offline: ${key}`);
       return true;
     } catch (error) {
       console.error(`Error guardando datos offline: ${key}`, error);
@@ -39,9 +38,7 @@ class OfflineStorage {
       const dataAge = new Date() - new Date(parsed.timestamp);
       const maxAgeMs = maxAgeHours * 60 * 60 * 1000;
 
-      // Si los datos son muy antiguos, no los devolvemos
       if (dataAge > maxAgeMs) {
-        console.log(`⏰ Datos expirados: ${key}`);
         localStorage.removeItem(key);
         return null;
       }
@@ -53,69 +50,27 @@ class OfflineStorage {
     }
   }
 
-  // Verificar si hay datos offline disponibles
   hasOfflineData(key) {
     return this.getData(key) !== null;
   }
 
-  // Limpiar datos expirados
-  cleanupExpiredData() {
-    Object.values(this.storageKeys).forEach(key => {
-      this.getData(key); // Esto automáticamente limpia datos expirados
-    });
-  }
+  // Helpers específicos
+  saveHistorialVisitas(historial) { return this.saveData(this.storageKeys.HISTORIAL_VISITAS, historial); }
+  getHistorialVisitas() { return this.getData(this.storageKeys.HISTORIAL_VISITAS, 24); }
 
-  // Guardar historial de visitas offline
-  saveHistorialVisitas(historial) {
-    return this.saveData(this.storageKeys.HISTORIAL_VISITAS, historial);
-  }
+  saveEstadisticas(estadisticas) { return this.saveData(this.storageKeys.ESTADISTICAS, estadisticas); }
+  getEstadisticas() { return this.getData(this.storageKeys.ESTADISTICAS, 6); }
 
-  // Obtener historial de visitas offline
-  getHistorialVisitas() {
-    return this.getData(this.storageKeys.HISTORIAL_VISITAS, 24); // 24 horas
-  }
+  saveEscaneosDia(escaneos) { return this.saveData(this.storageKeys.ESCANEOS_DIA, escaneos); }
+  getEscaneosDia() { return this.getData(this.storageKeys.ESCANEOS_DIA, 24); }
 
-  // Guardar estadísticas offline
-  saveEstadisticas(estadisticas) {
-    return this.saveData(this.storageKeys.ESTADISTICAS, estadisticas);
-  }
+  savePublicaciones(publicaciones) { return this.saveData(this.storageKeys.PUBLICACIONES, publicaciones); }
+  getPublicaciones() { return this.getData(this.storageKeys.PUBLICACIONES, 12); }
 
-  // Obtener estadísticas offline
-  getEstadisticas() {
-    return this.getData(this.storageKeys.ESTADISTICAS, 6); // 6 horas
-  }
+  saveComunicados(comunicados) { return this.saveData(this.storageKeys.COMUNICADOS, comunicados); }
+  getComunicados() { return this.getData(this.storageKeys.COMUNICADOS, 12); }
 
-  // Guardar escaneos del día offline
-  saveEscaneosDia(escaneos) {
-    return this.saveData(this.storageKeys.ESCANEOS_DIA, escaneos);
-  }
-
-  // Obtener escaneos del día offline
-  getEscaneosDia() {
-    return this.getData(this.storageKeys.ESCANEOS_DIA, 24); // 24 horas
-  }
-
-  // Guardar publicaciones offline
-  savePublicaciones(publicaciones) {
-    return this.saveData(this.storageKeys.PUBLICACIONES, publicaciones);
-  }
-
-  // Obtener publicaciones offline
-  getPublicaciones() {
-    return this.getData(this.storageKeys.PUBLICACIONES, 12); // 12 horas
-  }
-
-  // Guardar comunicados offline
-  saveComunicados(comunicados) {
-    return this.saveData(this.storageKeys.COMUNICADOS, comunicados);
-  }
-
-  // Obtener comunicados offline
-  getComunicados() {
-    return this.getData(this.storageKeys.COMUNICADOS, 12); // 12 horas
-  }
-
-  // Agregar acción pendiente
+  // Acciones pendientes
   addPendingAction(action) {
     try {
       const pending = JSON.parse(localStorage.getItem(this.storageKeys.PENDING_ACTIONS) || '[]');
@@ -128,22 +83,18 @@ class OfflineStorage {
       localStorage.setItem(this.storageKeys.PENDING_ACTIONS, JSON.stringify(pending));
       return newAction;
     } catch (error) {
-      console.error('Error agregando acción pendiente:', error);
       return null;
     }
   }
 
-  // Obtener acciones pendientes
   getPendingActions() {
     try {
       return JSON.parse(localStorage.getItem(this.storageKeys.PENDING_ACTIONS) || '[]');
     } catch (error) {
-      console.error('Error obteniendo acciones pendientes:', error);
       return [];
     }
   }
 
-  // Remover acción pendiente
   removePendingAction(actionId) {
     try {
       const pending = this.getPendingActions();
@@ -151,39 +102,22 @@ class OfflineStorage {
       localStorage.setItem(this.storageKeys.PENDING_ACTIONS, JSON.stringify(filtered));
       return true;
     } catch (error) {
-      console.error('Error removiendo acción pendiente:', error);
       return false;
     }
   }
 
-  // Limpiar todas las acciones pendientes
-  clearPendingActions() {
+  // Limpiar todos los datos
+  clearAllData() {
     try {
-      localStorage.removeItem(this.storageKeys.PENDING_ACTIONS);
+      Object.values(this.storageKeys).forEach(key => {
+        localStorage.removeItem(key);
+      });
       return true;
     } catch (error) {
-      console.error('Error limpiando acciones pendientes:', error);
       return false;
     }
-  }
-
-  // Obtener información del almacenamiento
-  getStorageInfo() {
-    const info = {};
-    Object.entries(this.storageKeys).forEach(([key, storageKey]) => {
-      const data = this.getData(storageKey);
-      info[key] = {
-        hasData: data !== null,
-        dataType: data ? typeof data : null,
-        isArray: Array.isArray(data),
-        itemCount: Array.isArray(data) ? data.length : null
-      };
-    });
-    return info;
   }
 }
 
-// Instancia singleton
 const offlineStorage = new OfflineStorage();
-
-export default offlineStorage; 
+export default offlineStorage;

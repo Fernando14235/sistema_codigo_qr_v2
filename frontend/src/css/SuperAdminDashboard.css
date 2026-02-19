@@ -1161,3 +1161,459 @@
     width: 100%;
   }
 }
+
+/* =====================================================
+   DASHBOARD GLOBAL
+===================================================== */
+.dashboard-timestamp {
+  text-align: right;
+  font-size: 0.85em;
+  color: #a0aec0;
+  margin: -10px 0 20px;
+}
+
+.dashboard-global-content {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.dashboard-section {
+  background: #f7fafc;
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+}
+
+.dashboard-section-title {
+  font-size: 1.1em;
+  font-weight: 700;
+  color: #4a5568;
+  margin: 0 0 20px 0;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e2e8f0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dashboard-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+}
+
+.metric-card {
+  background: white;
+  border-radius: 14px;
+  padding: 20px 16px;
+  text-align: center;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  border: 2px solid transparent;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.metric-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+}
+
+.metric-card.span-full {
+  grid-column: 1 / -1;
+}
+
+.metric-card.metric-total { border-color: #667eea; }
+.metric-card.metric-activo { border-color: #48bb78; }
+.metric-card.metric-inactivo { border-color: #fc8181; }
+.metric-card.metric-rol { border-color: #a0aec0; }
+.metric-card.metric-visitas { border-color: #4299e1; }
+.metric-card.metric-tickets { border-color: #ed8936; }
+
+.metric-number {
+  font-size: 2.4em;
+  font-weight: 800;
+  line-height: 1;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-card.metric-activo .metric-number {
+  background: linear-gradient(135deg, #48bb78, #38a169);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.metric-card.metric-inactivo .metric-number {
+  background: linear-gradient(135deg, #fc8181, #e53e3e);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.metric-card.metric-visitas .metric-number {
+  background: linear-gradient(135deg, #4299e1, #2b6cb0);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.metric-card.metric-tickets .metric-number {
+  background: linear-gradient(135deg, #ed8936, #c05621);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.metric-label {
+  font-size: 0.8em;
+  font-weight: 600;
+  color: #718096;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* =====================================================
+   MENU CARD HIGHLIGHT (Dashboard card)
+===================================================== */
+.menu-card--highlight {
+  background: linear-gradient(135deg, #667eea08 0%, #764ba208 100%);
+  border-color: #667eea !important;
+}
+
+.menu-card--highlight::before {
+  transform: scaleX(1) !important;
+}
+
+/* =====================================================
+   BADGES DE ESTADO Y ROL
+===================================================== */
+.badge-estado {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.78em;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.badge-activo {
+  background: #c6f6d5;
+  color: #276749;
+}
+
+.badge-suspendido {
+  background: #fed7d7;
+  color: #9b2c2c;
+}
+
+.badge-rol {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.78em;
+  font-weight: 600;
+}
+
+.badge-rol--admin,
+.badge-rol--admin_residencial { background: #ebf4ff; color: #2c5282; }
+.badge-rol--residente { background: #faf5ff; color: #553c9a; }
+.badge-rol--guardia { background: #fffaf0; color: #7b341e; }
+.badge-rol--super_admin { background: linear-gradient(135deg, #667eea22, #764ba222); color: #553c9a; }
+
+/* =====================================================
+   ACCIONES DE ENTIDAD
+===================================================== */
+.entidad-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.btn-action {
+  flex: 1;
+  min-width: 90px;
+  padding: 9px 14px;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.85em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.btn-action:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-edit { background: #ebf8ff; color: #2b6cb0; border: 1px solid #bee3f8; }
+.btn-edit:hover { background: #bee3f8; }
+
+.btn-suspend { background: #fffaf0; color: #c05621; border: 1px solid #fbd38d; }
+.btn-suspend:hover { background: #fbd38d; }
+
+.btn-activate { background: #f0fff4; color: #276749; border: 1px solid #9ae6b4; }
+.btn-activate:hover { background: #9ae6b4; }
+
+.btn-danger {
+  background: #fff5f5;
+  color: #c53030;
+  border: 1px solid #feb2b2;
+  padding: 9px 14px;
+  border-radius: 10px;
+  font-size: 0.85em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.btn-danger:hover { background: #feb2b2; transform: translateY(-2px); }
+
+.btn-warning {
+  background: #fffaf0;
+  color: #c05621;
+  border: 1px solid #fbd38d;
+  padding: 9px 14px;
+  border-radius: 10px;
+  font-size: 0.85em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.btn-warning:hover { background: #fbd38d; transform: translateY(-2px); }
+
+/* Card suspendida */
+.card-suspendida {
+  opacity: 0.75;
+  border-color: #feb2b2 !important;
+}
+
+/* =====================================================
+   MODALES
+===================================================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  padding: 20px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.modal-box {
+  background: white;
+  border-radius: 20px;
+  padding: 32px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+  animation: slideUp 0.25s ease;
+}
+
+.modal-box--wide {
+  max-width: 520px;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.modal-title {
+  font-size: 1.3em;
+  font-weight: 700;
+  color: #2d3748;
+  margin: 0 0 20px 0;
+}
+
+.modal-mensaje {
+  color: #4a5568;
+  font-size: 1em;
+  line-height: 1.6;
+  margin: 0 0 24px 0;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+/* =====================================================
+   TABLA DE USUARIOS GLOBAL
+===================================================== */
+.usuarios-global-table-wrapper {
+  overflow-x: auto;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+.usuarios-global-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+  background: white;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.usuarios-global-table thead tr {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.usuarios-global-table th {
+  padding: 14px 16px;
+  text-align: left;
+  font-weight: 700;
+  font-size: 0.82em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.usuarios-global-table tbody tr {
+  border-bottom: 1px solid #f0f4f8;
+  transition: background 0.15s ease;
+}
+
+.usuarios-global-table tbody tr:hover {
+  background: #f7faff;
+}
+
+.usuarios-global-table tbody tr.row-inactiva {
+  background: #fff5f5;
+  opacity: 0.8;
+}
+
+.usuarios-global-table td {
+  padding: 12px 16px;
+  vertical-align: middle;
+  color: #4a5568;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.td-id { color: #a0aec0; font-variant-numeric: tabular-nums; width: 50px; }
+.td-nombre { font-weight: 600; color: #2d3748; }
+.td-email { color: #718096; }
+.td-entidad { color: #718096; }
+.td-conexion { color: #a0aec0; font-size: 0.85em; }
+
+.td-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.btn-action-sm {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.btn-action-sm:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.btn-action-sm:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-action-sm.btn-suspend { background: #fffaf0; }
+.btn-action-sm.btn-activate { background: #f0fff4; }
+.btn-action-sm.btn-edit { background: #ebf8ff; }
+
+/* Contador de filtros */
+.filtros-count {
+  margin: 10px 0 0;
+  font-size: 0.85em;
+  color: #718096;
+  text-align: right;
+}
+
+/* Filtros con 4 columnas */
+.filtros-row--4col {
+  grid-template-columns: 1fr 1fr 1fr auto;
+}
+
+/* =====================================================
+   RESPONSIVE
+===================================================== */
+@media (max-width: 768px) {
+  .dashboard-metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .metric-card.span-full {
+    grid-column: span 2;
+  }
+
+  .entidad-actions {
+    flex-direction: column;
+  }
+
+  .btn-action {
+    width: 100%;
+  }
+
+  .filtros-row--4col {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+
+  .modal-box {
+    padding: 20px;
+  }
+
+  .usuarios-global-table th,
+  .usuarios-global-table td {
+    padding: 10px 12px;
+    font-size: 0.82em;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-metrics-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .metric-number {
+    font-size: 1.8em;
+  }
+
+  .filtros-row--4col {
+    grid-template-columns: 1fr;
+  }
+}

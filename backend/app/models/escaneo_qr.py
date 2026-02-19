@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey, DateTime, String
+from sqlalchemy import Column, Integer, ForeignKey, DateTime, String, Boolean
 from sqlalchemy.orm import relationship
 from app.database import Base
 from app.utils.time import get_current_time
@@ -11,6 +11,6 @@ class EscaneoQR(Base):
     guardia_id = Column(Integer, ForeignKey("guardias.id", ondelete="CASCADE"), nullable=False)
     dispositivo = Column(String(100), nullable=True)
     fecha_escaneo = Column(DateTime(timezone=True), default=get_current_time)
-    
+
     visita = relationship("Visita", back_populates="escaneos", passive_deletes=True)
     guardia = relationship("Guardia", back_populates="escaneos")
