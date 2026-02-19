@@ -25,23 +25,36 @@ def get_global_dashboard(db: Session = Depends(get_db)):
             func.sum(case((Residencial.activa == False, 1), else_=0)).label("inactivas")
         ).first()
 
+        if not entidades_stats or entidades_stats.total is None:
+            entidades_data = {"total": 0, "activas": 0, "inactivas": 0}
+        else:
+            entidades_data = {
+                "total": entidades_stats.total,
+                "activas": token_stats(entidades_stats.activas),
+                "inactivas": token_stats(entidades_stats.inactivas)
+            }
+
         # 2. Total de usuarios por rol (admins, residentes, guardias)
         usuarios_stats = db.query(
             Usuario.rol,
             func.count(Usuario.id).label("count")
         ).group_by(Usuario.rol).all()
         
-        usuarios_dict = {rol: count for rol, count in usuarios_stats}
+        # Asegurar que todos los roles clave existan en el dict, incluso con 0
+        usuarios_dict = {r.value: 0 for r in Rol}
+        for rol, count in usuarios_stats:
+            if rol in usuarios_dict:
+                usuarios_dict[rol] = count
+            else:
+                usuarios_dict[rol] = count
 
         # 3. Visitas activas en este momento (todas las entidades)
-        # Consideramos activas las que tienen fecha de entrada pero no de salida, O las aprobadas para hoy
         now = get_current_time()
         start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
         end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=999999)
         
         visitas_activas = db.query(Visita).filter(
             Visita.estado.in_(['aprobado', 'pendiente']),
-            # Visitas con fecha de entrada hoy
             Visita.fecha_entrada >= start_of_day,
             Visita.fecha_entrada <= end_of_day
         ).count()
@@ -52,11 +65,7 @@ def get_global_dashboard(db: Session = Depends(get_db)):
         ).count()
 
         return {
-            "entidades": {
-                "total": token_stats(entidades_stats.total),
-                "activas": token_stats(entidades_stats.activas),
-                "inactivas": token_stats(entidades_stats.inactivas)
-            },
+            "entidades": entidades_data,
             "usuarios": {
                 "total": sum(usuarios_dict.values()),
                 "por_rol": usuarios_dict

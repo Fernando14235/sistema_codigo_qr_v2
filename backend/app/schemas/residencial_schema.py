@@ -25,6 +25,8 @@ class ResidencialListResponse(BaseModel):
     id: int
     nombre: str
     direccion: Optional[str] = None
+    activa: bool
+    tipo_entidad: str
     fecha_creacion: datetime
 
     class Config:
