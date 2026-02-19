@@ -10,6 +10,7 @@ def add_cors(app):
     production_origins = [
         "https://tsapp.tekhnosupport.com",
         "https://exquisite-healing-production.up.railway.app",
+        "https://sistema-codigo-qr-v2-production.up.railway.app",
     ]
     
     # Orígenes para desarrollo

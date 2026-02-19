@@ -3,7 +3,8 @@ from fastapi.responses import HTMLResponse
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.database import SessionLocal, get_db
 from typing import Optional, List
-from app.routers import auth, usuarios, visitas, notificaciones, historial_visitas, estadisticas, sociales, tickets, residenciales, super_admin, vistas, push_notifications
+from app.routers import auth, usuarios, visitas, notificaciones, historial_visitas, estadisticas, sociales, tickets, residenciales, vistas, push_notifications
+from app.routers.super_admin import router as super_admin_router
 from app.middleware import cleanup
 from app.services.user_service import crear_usuario, eliminar_usuario, obtener_usuario, obtener_usuario_por_id, actualizar_usuario
 from app.schemas.usuario_schema import Usuario, UsuarioCreate, UsuarioUpdate, UsuarioCreateSuperAdmin, UsuarioCreateAdmin
@@ -38,7 +39,7 @@ app.include_router(sociales.router)
 app.include_router(estadisticas.router)
 app.include_router(notificaciones.router)
 app.include_router(residenciales.router)
-app.include_router(super_admin.router)
+app.include_router(super_admin_router)
 app.include_router(vistas.router)
 app.include_router(push_notifications.router)
 
