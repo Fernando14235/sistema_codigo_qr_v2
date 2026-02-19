@@ -7,6 +7,12 @@
 *.js text eol=lf
 *.ts text eol=lf
 *.tsx text eol=lf
-*.pyc text eol=lf
-*.pyo text eol=lf
-*.pyd text eol=lf
+
+# Archivos binarios de Python
+*.pyc binary
+*.pyo binary
+*.pyd binary
+
+# Archivos de log (no deberían estar en el repo, pero por seguridad)
+*.log binary export-ignore
+logs/ export-ignore

@@ -106,7 +106,7 @@ function UsuariosResidencial({ token, residencialData, onCancel, onLogout }) {
       {/* Información de la residencial */}
       {residencial && (
         <div className="residencial-info-card">
-          <h3>Información de la Residencial</h3>
+          <h3>Información de la Entidad</h3>
           <p><strong>Nombre:</strong> {residencial.nombre}</p>
           <p><strong>Dirección:</strong> {residencial.direccion}</p>
           <p><strong>Total de usuarios:</strong> {usuarios.length}</p>
