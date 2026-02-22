@@ -186,11 +186,24 @@ export const usePushNotifications = (token, userId, userRole) => {
           const subscription = await registration.pushManager.getSubscription();
           
           if (subscription) {
-            setIsSubscribed(true);
-            console.log('✅ Existing subscription verified on mount');
+            // ✅ CROSS-CHECK: Verify if it exists in backend too
+            if (token && userId) {
+              const existsOnBackend = await pushNotificationService.checkSubscriptionOnBackend(token);
+              if (existsOnBackend) {
+                setIsSubscribed(true);
+                console.log('✅ Existing subscription verified on mount (Browser + Backend)');
+              } else {
+                setIsSubscribed(false);
+                console.log('⚠️ Browser has subscription but Backend does not (will re-sync silently)');
+              }
+            } else {
+              // We have browser subscription, but can't check backend yet (no token)
+              // We'll set it to true for now to avoid the banner flicker
+              setIsSubscribed(true);
+            }
           } else {
             setIsSubscribed(false);
-            console.log('⚠️ Permission granted but no subscription found (will re-subscribe when userId available)');
+            console.log('⚠️ Permission granted but no subscription found in browser');
           }
         } else {
           setIsSubscribed(false);
@@ -205,7 +218,7 @@ export const usePushNotifications = (token, userId, userRole) => {
     };
 
     verifySubscription();
-  }, [isSupported]); // Only depends on isSupported - runs once
+  }, [isSupported, token, userId]); // Depend on token/userId for cross-check
 
   // ✅ FIX 2: SILENT RE-SUBSCRIPTION (Only when userId is available)
   // If permission is granted but subscription is missing, re-subscribe silently
@@ -225,6 +238,58 @@ export const usePushNotifications = (token, userId, userRole) => {
 
     silentResubscribe();
   }, [token, userId, userRole, isSupported, permission, isSubscribed, isSubscribing, isInitializing, subscribe]);
+
+  // ✅ FIX 3: SW-INITIATED SYNC
+  // Handles 'pushsubscriptionchange' events forwarded by the Service Worker
+  useEffect(() => {
+    if (!('serviceWorker' in navigator) || !isSupported) return;
+
+    const handleSWMessage = async (event) => {
+      // 1. Direct message from SW during rotation
+      if (event.data && event.data.type === 'PUSH_SUBSCRIPTION_CHANGED') {
+        console.log('🔄 SW notified push subscription change. Syncing with backend...');
+        if (token && userId && userRole) {
+          try {
+            await pushNotificationService.syncExistingSubscription(token);
+            setIsSubscribed(true);
+            console.log('✅ SW-initiated subscription sync successful');
+          } catch (err) {
+            console.error('SW-initiated sync failed:', err);
+          }
+        }
+      }
+    };
+
+    // 2. Check for pending sync stored in Cache (from closed-app rotation)
+    const checkPendingSync = async () => {
+      if (!token || !userId) return;
+      
+      try {
+        const cache = await caches.open('porto-pass-sw-meta');
+        const response = await cache.match('push-subscription-pending');
+        
+        if (response) {
+          console.log('📦 Found pending push subscription sync from background rotation');
+          const data = await response.json();
+          
+          // Sync with backend
+          const success = await pushNotificationService.syncExistingSubscription(token);
+          if (success) {
+            await cache.delete('push-subscription-pending');
+            setIsSubscribed(true);
+            console.log('✅ Pending background sync completed successfully');
+          }
+        }
+      } catch (err) {
+        console.warn('Error checking pending push sync:', err);
+      }
+    };
+
+    navigator.serviceWorker.addEventListener('message', handleSWMessage);
+    checkPendingSync();
+
+    return () => navigator.serviceWorker.removeEventListener('message', handleSWMessage);
+  }, [token, userId, userRole, isSupported]);
 
   // Request permission and subscribe
   const requestPermissionAndSubscribe = useCallback(async () => {

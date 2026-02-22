@@ -12,6 +12,8 @@ class PushSubscription(Base):
     p256dh_key = Column(Text, nullable=False)
     auth_key = Column(Text, nullable=False)
     user_agent = Column(String(500), nullable=True)
+    is_active = Column(Integer, default=1, nullable=False)
+    last_used = Column(DateTime(timezone=True), nullable=True)
     fecha_creacion = Column(DateTime(timezone=True), default=get_current_time)
     
     # Relación con usuario

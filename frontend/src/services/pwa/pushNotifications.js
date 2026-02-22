@@ -135,6 +135,53 @@ class PushNotificationService {
     }
   }
 
+  // Verificar si la suscripción actual existe en el servidor
+  async checkSubscriptionOnBackend(token) {
+    if (!token || !this.isSupported) return false;
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      
+      if (!subscription) return false;
+
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_URL}/push/subscriptions`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const subscriptions = await response.json();
+        // Verificar si el endpoint actual está en la lista
+        return subscriptions.some(s => s.endpoint === subscription.endpoint);
+      }
+      return false;
+    } catch (error) {
+      console.error('Error verificando suscripción en backend:', error);
+      return false;
+    }
+  }
+
+  // Sincronizar suscripción existente del navegador con el backend
+  async syncExistingSubscription(token) {
+    if (!this.isSupported || !token) return false;
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      this.subscription = await registration.pushManager.getSubscription();
+      
+      if (this.subscription) {
+        return await this.sendSubscriptionToServer(token);
+      }
+      return false;
+    } catch (error) {
+      console.error('Error sincronizando suscripción existente:', error);
+      return false;
+    }
+  }
+
   // Remover suscripción del servidor
   async removeSubscriptionFromServer(token) {
     // ✅ REFINEMENT 3: Session Validation

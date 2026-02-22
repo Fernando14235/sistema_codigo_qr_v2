@@ -57,6 +57,7 @@ class PushNotificationService:
                 suscripcion_existente.p256dh_key = p256dh_key
                 suscripcion_existente.auth_key = auth_key
                 suscripcion_existente.user_agent = user_agent
+                suscripcion_existente.is_active = 1 # Asegurarse de que esté activa
                 suscripcion_existente.fecha_creacion = get_honduras_time()
                 db.commit()
                 db.refresh(suscripcion_existente)
@@ -130,7 +131,8 @@ class PushNotificationService:
             Lista de suscripciones del usuario
         """
         return db.query(PushSubscription).filter(
-            PushSubscription.usuario_id == usuario_id
+            PushSubscription.usuario_id == usuario_id,
+            PushSubscription.is_active == 1
         ).all()
     
     def enviar_push(
@@ -182,6 +184,10 @@ class PushNotificationService:
                 vapid_claims=self.vapid_claims.copy()
             )
             
+            # Actualizar last_used
+            suscripcion.last_used = get_honduras_time()
+            db.commit()
+            
             logger.info(f"Push enviado a usuario {suscripcion.usuario_id}")
             return True
             
@@ -196,9 +202,9 @@ class PushNotificationService:
                     f"{suscripcion.endpoint[:50]}..."
                 )
                 try:
-                    db.delete(suscripcion)
+                    suscripcion.is_active = 0 # Soft-delete
                     db.commit()
-                    logger.info(f"Suscripción expirada eliminada exitosamente")
+                    logger.info(f"Suscripción desactivada exitosamente (soft-delete)")
                 except Exception as delete_error:
                     logger.error(f"Error eliminando suscripción inválida: {delete_error}")
                     db.rollback()

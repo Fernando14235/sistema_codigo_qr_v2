@@ -206,6 +206,26 @@ def refresh_token(request: Request, db: Session = Depends(get_db)):
         tipo_entidad=tipo_entidad_val
     )
 
+@router.get("/me", response_model=dict)
+def get_me(usuario_actual: Usuario = Depends(get_current_user)):
+    """
+    Retorna el perfil del usuario actual (valida que el token sea vigente)
+    """
+    # Obtener tipo_entidad
+    tipo_entidad_val = "residencial"
+    if usuario_actual.residencial:
+        tipo_entidad_val = getattr(usuario_actual.residencial, "tipo_entidad", "residencial")
+
+    return {
+        "id": usuario_actual.id,
+        "email": usuario_actual.email,
+        "nombre": usuario_actual.nombre,
+        "rol": usuario_actual.rol,
+        "residencial_id": usuario_actual.residencial_id,
+        "tipo_entidad": tipo_entidad_val,
+        "ult_conexion": usuario_actual.ult_conexion.isoformat() if usuario_actual.ult_conexion else None
+    }
+
 @router.get("/secure", response_model=dict)
 def secure_endpoint(usuario_actual=Depends(get_current_user)):
     return {

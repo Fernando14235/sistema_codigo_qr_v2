@@ -36,14 +36,16 @@ function PushNotificationManager({ token, usuario }) {
   }, []);
   
   // ✅ IMPROVED: Banner visibility includes isInitializing check
-  // This prevents the banner from appearing during the first second while we verify state
+  // Also show even if supported is false but it's iOS (to show install instructions)
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  
   const shouldShowBanner = 
-    isSupported &&
+    (isSupported || isIOS) &&
     permission === 'default' &&
     !isSubscribed &&
     !localDismissed &&
     !isLoading &&
-    !isInitializing &&  // 🆕 Don't show while initializing
+    !isInitializing &&
     token &&
     usuario;
   
@@ -128,28 +130,41 @@ function PushNotificationManager({ token, usuario }) {
         </div>
         
         <div className="push-banner-actions">
-          <button
-            className="push-banner-btn push-banner-btn-primary"
-            onClick={handleEnable}
-            disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <span className="push-banner-spinner"></span>
-                Activando...
-              </>
-            ) : (
-              <>
-                <span>🔔</span>
-                Activar Notificaciones
-              </>
-            )}
-          </button>
-          <button
-            className="push-banner-btn push-banner-btn-secondary"
-            onClick={handleDismiss}
-            disabled={isLoading}>
-            Más tarde
-          </button>
+          {(!isStandalone && isIOS) ? (
+            <div className="ios-install-hint">
+              <p>💡 <strong>Para activar notificaciones en iOS:</strong></p>
+              <ol>
+                <li>Toca el botón <strong>Compartir</strong> <span className="share-icon">⎋</span></li>
+                <li>Selecciona <strong>"Agregar a Inicio"</strong> <span className="add-icon">+</span></li>
+                <li>Abre la app desde tu pantalla de inicio</li>
+              </ol>
+            </div>
+          ) : (
+            <>
+              <button
+                className="push-banner-btn push-banner-btn-primary"
+                onClick={handleEnable}
+                disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <span className="push-banner-spinner"></span>
+                    Activando...
+                  </>
+                ) : (
+                  <>
+                    <span>🔔</span>
+                    Activar Notificaciones
+                  </>
+                )}
+              </button>
+              <button
+                className="push-banner-btn push-banner-btn-secondary"
+                onClick={handleDismiss}
+                disabled={isLoading}>
+                Más tarde
+              </button>
+            </>
+          )}
         </div>
         <p className="push-banner-note">
           💡 Puedes cambiar esto después en Configuración

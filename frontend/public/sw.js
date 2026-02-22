@@ -1,5 +1,5 @@
 // Service Worker para Porto Pass PWA
-const VERSION_SW = 'v3.2.1.4.3';
+const VERSION_SW = 'v3.2.2.1';
 const CACHE_NAME = `porto-pass-${VERSION_SW}`;
 const urlsToCache = [
   '/',
@@ -254,6 +254,74 @@ self.addEventListener('notificationclick', (event) => {
         }
       })
   );
+});
+
+// CRÍTICO: Manejar rotación/invalidación de suscripción push por el navegador o el OS.
+// Sin este handler, cuando Chrome/Firefox/Android rotan el endpoint (común con Doze Mode,
+// updates del browser, expiración de endpoint), la suscripción en la BD queda obsoleta
+// y los pushes dejan de llegar en background permanentemente.
+self.addEventListener('pushsubscriptionchange', (event) => {
+  console.log('[SW] 🔄 pushsubscriptionchange event received');
+
+  const PENDING_SYNC_KEY = 'push-subscription-pending';
+
+  const resubscribeAndSync = async () => {
+    // Re-suscribirse usando la misma VAPID key del endpoint anterior
+    const applicationServerKey =
+      event.oldSubscription?.options?.applicationServerKey ||
+      event.newSubscription?.options?.applicationServerKey;
+
+    if (!applicationServerKey) {
+      console.warn('[SW] pushsubscriptionchange: no applicationServerKey available, cannot resubscribe');
+      return;
+    }
+
+    let newSubscription;
+    try {
+      newSubscription = await self.registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey
+      });
+      console.log('[SW] ✅ New push subscription obtained:', newSubscription.endpoint);
+    } catch (err) {
+      console.error('[SW] ❌ Failed to resubscribe after pushsubscriptionchange:', err);
+      return;
+    }
+
+    const subscriptionJSON = newSubscription.toJSON();
+
+    // Notificar a todos los clientes abiertos para que sincronicen con el backend
+    const openClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    if (openClients.length > 0) {
+      console.log(`[SW] Notifying ${openClients.length} open client(s) about subscription change`);
+      openClients.forEach(client => {
+        client.postMessage({
+          type: 'PUSH_SUBSCRIPTION_CHANGED',
+          subscription: subscriptionJSON,
+          oldEndpoint: event.oldSubscription?.endpoint || null
+        });
+      });
+    } else {
+      // App cerrada: guardar la nueva suscripción en el Cache Storage para
+      // sincronizar con el backend en el próximo arranque de la app.
+      console.log('[SW] No open clients — storing pending sync in cache for next app open');
+      try {
+        const cache = await caches.open('porto-pass-sw-meta');
+        await cache.put(
+          PENDING_SYNC_KEY,
+          new Response(JSON.stringify({
+            subscription: subscriptionJSON,
+            oldEndpoint: event.oldSubscription?.endpoint || null,
+            timestamp: Date.now()
+          }), { headers: { 'Content-Type': 'application/json' } })
+        );
+      } catch (cacheErr) {
+        console.error('[SW] Failed to store pending sync:', cacheErr);
+      }
+    }
+  };
+
+  event.waitUntil(resubscribeAndSync());
 });
 
 self.addEventListener('message', (event) => {
