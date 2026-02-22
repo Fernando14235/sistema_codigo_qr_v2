@@ -1,5 +1,5 @@
 // Service Worker para Porto Pass PWA
-const VERSION_SW = 'v3.2.2.1';
+const VERSION_SW = 'v3.2.2.2';
 const CACHE_NAME = `porto-pass-${VERSION_SW}`;
 const urlsToCache = [
   '/',

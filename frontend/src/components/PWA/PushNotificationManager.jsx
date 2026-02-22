@@ -17,6 +17,7 @@ function PushNotificationManager({ token, usuario }) {
     isSubscribed,
     isLoading,
     isInitializing,  // 🆕 Prevents UI flicker during initial verification
+    isStandalone,    // 🆕 Required for iOS-specific logic
     requestPermissionAndSubscribe 
   } = usePushNotifications(token, usuario?.id, usuario?.rol);
   
