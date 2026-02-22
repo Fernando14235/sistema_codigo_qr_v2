@@ -26,19 +26,15 @@ is_production = settings.ENVIRONMENT == "production"
 # Definimos la configuración base para asegurar consistencia
 cookie_config = {
     "key": "refresh_token",
-    "httponly": True,   # Javascript no puede acceder (seguridad XSS)
-    "path": "/",        # Disponible en todo el sitio
-    "secure": True if is_production else False,
-    "samesite": "lax",  # Lax es mejor para desarrollo que "none" sin secure
-    "domain": ".tekhnosupport.com" if is_production else None
+    "httponly": True,   
+    "path": "/",        
+    "secure": True,             
+    "samesite": "lax",          # Correcto: tsapp. y backend. son same-site (mismo eTLD+1: tekhnosupport.com)
+    "domain": ".tekhnosupport.com" # El punto cubre todos los subdomains
 }
 
 def clear_refresh_cookie(response: Response):
-    """
-    Elimina la cookie de forma segura.
-    IMPORTANTE: Para borrar una cookie, los atributos domain, secure y samesite
-    deben coincidir EXACTAMENTE con los usados al crearla.
-    """
+    #Elimina la cookie de forma segura.
     response.delete_cookie(
         key=cookie_config["key"],
         path=cookie_config["path"],
@@ -131,9 +127,7 @@ def logout(
     db: Session = Depends(get_db), 
     usuario_actual: Usuario = Depends(get_current_user)
 ):
-    """
-    Cerrar sesión: revocar refresh token y limpiar cookie
-    """
+    #Cerrar sesión: revocar refresh token y limpiar cookie
     if not usuario_actual:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -158,9 +152,6 @@ def logout(
 
 @router.post("/refresh", response_model=RefreshResponse)
 def refresh_token(request: Request, db: Session = Depends(get_db)):
-    """
-    Renovar access token usando refresh token de la cookie
-    """
     # Obtener refresh token de la cookie
     refresh_token = request.cookies.get("refresh_token")
     

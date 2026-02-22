@@ -62,10 +62,13 @@ def add_cors(app):
             "Origin",
             "Access-Control-Request-Method",
             "Access-Control-Request-Headers",
+            "Cookie", # <--- CRÍTICO AGREGAR ESTO
+            "Set-Cookie"
         ],
         expose_headers=[
             "Content-Length",
             "Content-Range",
             "Content-Type",
+            "Set-Cookie",
         ],
     )

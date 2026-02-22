@@ -96,27 +96,26 @@ function Login({ onLogin, notification, setNotification }) {
   );
 }
 
-// Variables para control de concurrencia en refresh token
-let isRefreshing = false;
-let failedQueue = [];
+// Configurar interceptor de Axios
+// Recibe refs en lugar de valores directos para evitar stale closures
+function setupAxiosInterceptors(handleLogoutRef, tokenRef, setToken, setNombre, setRol, setUsuarioId, setNotification, setTipoEntidad) {
+  // Variables de control LOCALES: se resetean correctamente al re-registrar
+  let isRefreshing = false;
+  let failedQueue = [];
+  let isLoggingOut = false;
 
-const processQueue = (error, token = null) => {
-  failedQueue.forEach(prom => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-  failedQueue = [];
-};
+  const processQueue = (error, token = null) => {
+    failedQueue.forEach(prom => {
+      if (error) prom.reject(error);
+      else prom.resolve(token);
+    });
+    failedQueue = [];
+  };
 
-// Configurar interceptor de Axios (ahora sobre la instancia 'api')
-function setupAxiosInterceptors(setToken, setNombre, setRol, setUsuarioId, setNotification, handleLogout, setTipoEntidad) {
-  // Interceptor REQUEST
+  // Interceptor REQUEST: lee tokenRef para tener siempre el token más reciente
   const reqInterceptor = api.interceptors.request.use(
     (config) => {
-      const token = localStorage.getItem("token");
+      const token = tokenRef.current || localStorage.getItem("token");
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -131,47 +130,60 @@ function setupAxiosInterceptors(setToken, setNombre, setRol, setUsuarioId, setNo
     async (error) => {
       const originalRequest = error.config;
 
-      // Si no hay respuesta o no es error 401, rechazar
-      if (!error.response || error.response.status !== 401) {
+      // Guard 1: si ya estamos en proceso de logout, cortar el ciclo
+      if (isLoggingOut) return Promise.reject(error);
+
+      // Guard 2: sin token no tiene sentido intentar refresh
+      const currentToken = tokenRef.current || localStorage.getItem("token");
+      if (!currentToken) return Promise.reject(error);
+
+      // Guard 3: error de red sin respuesta HTTP → rechazar sin logout
+      if (!error.response) return Promise.reject(error);
+
+      const status = error.response.status;
+
+      // Guard 4: nunca reentrar en endpoints de autenticación
+      const isAuthEndpoint = originalRequest.url &&
+        (originalRequest.url.includes("/auth/token") ||
+         originalRequest.url.includes("/auth/refresh") ||
+         originalRequest.url.includes("/auth/logout"));
+      if (isAuthEndpoint) return Promise.reject(error);
+
+      // 403 = Sin cookie de refresh token → logout forzado directo
+      // No llamar /auth/refresh: tampoco tendrá cookie
+      if (status === 403) {
+        isLoggingOut = true;
+        processQueue(error, null);
+        // isForced=true: el backend ya lo sabe, no llamar /auth/logout
+        handleLogoutRef.current("Sesión no encontrada. Inicia sesión nuevamente.", true);
         return Promise.reject(error);
       }
 
-      // Evitar bucle infinito y verificar endpoints de auth
-      if (originalRequest._retry || 
-          originalRequest.url.includes("/auth/token") || 
-          originalRequest.url.includes("/auth/refresh") || 
-          originalRequest.url.includes("/auth/logout")) {
-        return Promise.reject(error);
-      }
+      // Solo intentar refresh para 401 (access token expirado/inválido)
+      if (status !== 401) return Promise.reject(error);
 
+      // Evitar double-refresh en la misma petición
+      if (originalRequest._retry) return Promise.reject(error);
       originalRequest._retry = true;
 
+      // Si ya hay un refresh en progreso, encolar esta petición
       if (isRefreshing) {
-        // Si ya hay un refresh en proceso, encolar esta petición
-        return new Promise(function(resolve, reject) {
-          failedQueue.push({resolve, reject});
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
         }).then(token => {
           originalRequest.headers['Authorization'] = 'Bearer ' + token;
-          return api(originalRequest); // Usar 'api' en lugar de axios
-        }).catch(err => {
-          return Promise.reject(err);
-        });
+          return api(originalRequest);
+        }).catch(err => Promise.reject(err));
       }
 
       isRefreshing = true;
 
       try {
         console.log("🔄 Intentando renovar token...");
-        
-        // Llamada explícita al endpoint de refresh usando la instancia 'api'
-        const refreshRes = await api.post(`/auth/refresh`, {}, {
-            skipAuthRefresh: true // Flag custom por si acaso
-        });
-
+        const refreshRes = await api.post(`/auth/refresh`, {});
         const { access_token, usuario, rol, usuario_id, tipo_entidad } = refreshRes.data;
-        console.log("✅ Token y datos de usuario renovados exitosamente");
+        console.log("✅ Token renovado exitosamente");
 
-        // Guardar nuevo token y actualizar info de usuario
         localStorage.setItem("token", access_token);
         if (usuario) localStorage.setItem("nombre", usuario);
         if (rol) localStorage.setItem("rol", rol);
@@ -184,17 +196,18 @@ function setupAxiosInterceptors(setToken, setNombre, setRol, setUsuarioId, setNo
         if (usuario_id) setUsuarioId(usuario_id);
         if (tipo_entidad && setTipoEntidad) setTipoEntidad(tipo_entidad);
 
-        // Procesar cola de peticiones fallidas
         processQueue(null, access_token);
-        
-        // Reintentar la petición original con el nuevo token
         originalRequest.headers['Authorization'] = `Bearer ${access_token}`;
-        return api(originalRequest); 
+        return api(originalRequest);
 
       } catch (refreshError) {
         console.error("❌ Falló renovación de token:", refreshError);
         processQueue(refreshError, null);
-        handleLogout("Tu sesión ha expirado. Por favor inicia sesión nuevamente.");
+        if (!isLoggingOut) {
+          isLoggingOut = true;
+          // isForced=true: refresh falló, backend ya lo sabe, no llamar /auth/logout
+          handleLogoutRef.current("Tu sesión ha expirado. Por favor inicia sesión nuevamente.", true);
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -202,8 +215,11 @@ function setupAxiosInterceptors(setToken, setNombre, setRol, setUsuarioId, setNo
     }
   );
 
-  // Retornar función de limpieza
+  // Cleanup completo: resetear todo el estado local
   return () => {
+    isLoggingOut = false;
+    isRefreshing = false;
+    failedQueue = [];
     api.interceptors.request.eject(reqInterceptor);
     api.interceptors.response.eject(resInterceptor);
   };
@@ -249,6 +265,15 @@ function App() {
   const [tipoEntidad, setTipoEntidad] = useState(localStorage.getItem("tipo_entidad") || "residencial");
   const [notification, setNotification] = useState({ message: "", type: "" });
 
+  // Refs para evitar stale closures en el interceptor (registrado una sola vez)
+  const handleLogoutRef = useRef(null);
+  const tokenRef = useRef(token);
+
+  // Mantener tokenRef sincronizado con el estado
+  useEffect(() => {
+    tokenRef.current = token;
+  }, [token]);
+
   const handleLogin = (accessToken, refreshToken, usuario, rol, residencialId, usuarioId, tipoEntidadVal) => {
     setToken(accessToken);
     setNombre(usuario);
@@ -268,16 +293,15 @@ function App() {
     }
   };
 
-  const handleLogout = async (reason = null) => {
+  // isForced=true cuando lo llama el interceptor: solo limpieza local, no llama backend
+  // (el backend ya invalidó la sesión; llamar /auth/logout generaría un 401 innecesario)
+  const handleLogout = async (reason = null, isForced = false) => {
     try {
-      if (token) {
-        // Intentar logout en backend, pero no bloquear el logout local si falla
+      if (!isForced && tokenRef.current) {
         await api.post(`/auth/logout`, {}, {
-          headers: { Authorization: `Bearer ${token}` }
-        }).catch(() => {/* Ignorar error de red en logout */});
+          headers: { Authorization: `Bearer ${tokenRef.current}` }
+        }).catch(() => {/* Ignorar error de red en logout voluntario */});
       }
-    } catch (error) {
-      console.error("Error logout backend:", error);
     } finally {
       setToken(null);
       setNombre("");
@@ -290,23 +314,24 @@ function App() {
       localStorage.removeItem("usuario_id");
       localStorage.removeItem("tipo_entidad");
       console.log("🚪 Logout local completado");
-      
-      const finalMessage = typeof reason === "string" ? reason : "Sesión cerrada correctamente";
-      // Si es cierre voluntario (reason es evento o null) -> info, si es forzado -> error
-      const finalType = (reason && typeof reason === "string") ? "error" : "info";
 
-      setNotification({
-        message: finalMessage,
-        type: finalType
-      });
+      const finalMessage = typeof reason === "string" ? reason : "Sesión cerrada correctamente";
+      const finalType = (reason && typeof reason === "string") ? "error" : "info";
+      setNotification({ message: finalMessage, type: finalType });
     }
   };
 
-  // Configurar interceptores
+  // Asignar en cada render: el interceptor siempre llama la versión más reciente
+  handleLogoutRef.current = handleLogout;
+
+  // Registrar interceptores UNA VEZ usando refs (no re-registra en cada render)
   useEffect(() => {
-    const cleanup = setupAxiosInterceptors(setToken, setNombre, setRol, setUsuarioId, setNotification, handleLogout, setTipoEntidad);
+    const cleanup = setupAxiosInterceptors(
+      handleLogoutRef, tokenRef,
+      setToken, setNombre, setRol, setUsuarioId, setNotification, setTipoEntidad
+    );
     return cleanup;
-  }, []); 
+  }, []); // [] es correcto porque usamos refs, no valores del estado
 
   usePushNotificationToasts(setNotification);
 
