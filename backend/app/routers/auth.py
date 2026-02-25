@@ -28,9 +28,9 @@ cookie_config = {
     "key": "refresh_token",
     "httponly": True,   
     "path": "/",        
-    "secure": True,             
-    "samesite": "lax",          # Correcto: tsapp. y backend. son same-site (mismo eTLD+1: tekhnosupport.com)
-    "domain": ".tekhnosupport.com" # El punto cubre todos los subdomains
+    "secure": True if is_production else False,             
+    "samesite": "lax",
+    "domain": ".tekhnosupport.com" if is_production else None
 }
 
 def clear_refresh_cookie(response: Response):

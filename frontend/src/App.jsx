@@ -133,16 +133,12 @@ function setupAxiosInterceptors(handleLogoutRef, tokenRef, setToken, setNombre, 
       // Guard 1: si ya estamos en proceso de logout, cortar el ciclo
       if (isLoggingOut) return Promise.reject(error);
 
-      // Guard 2: sin token no tiene sentido intentar refresh
-      const currentToken = tokenRef.current || localStorage.getItem("token");
-      if (!currentToken) return Promise.reject(error);
-
-      // Guard 3: error de red sin respuesta HTTP → rechazar sin logout
+      // Guard 2: error de red sin respuesta HTTP → rechazar sin logout
       if (!error.response) return Promise.reject(error);
 
       const status = error.response.status;
 
-      // Guard 4: nunca reentrar en endpoints de autenticación
+      // Guard 3: nunca reentrar en endpoints de autenticación
       const isAuthEndpoint = originalRequest.url &&
         (originalRequest.url.includes("/auth/token") ||
          originalRequest.url.includes("/auth/refresh") ||
@@ -155,7 +151,9 @@ function setupAxiosInterceptors(handleLogoutRef, tokenRef, setToken, setNombre, 
         isLoggingOut = true;
         processQueue(error, null);
         // isForced=true: el backend ya lo sabe, no llamar /auth/logout
-        handleLogoutRef.current("Sesión no encontrada. Inicia sesión nuevamente.", true);
+        if (handleLogoutRef.current) {
+            handleLogoutRef.current("Sesión no encontrada o expirada. Inicia sesión nuevamente.", true);
+        }
         return Promise.reject(error);
       }
 
@@ -180,7 +178,7 @@ function setupAxiosInterceptors(handleLogoutRef, tokenRef, setToken, setNombre, 
 
       try {
         console.log("🔄 Intentando renovar token...");
-        const refreshRes = await api.post(`/auth/refresh`, {});
+        const refreshRes = await api.post(`/auth/refresh`, {}, { _retry: true }); // Evitar loop interno
         const { access_token, usuario, rol, usuario_id, tipo_entidad } = refreshRes.data;
         console.log("✅ Token renovado exitosamente");
 
@@ -196,21 +194,25 @@ function setupAxiosInterceptors(handleLogoutRef, tokenRef, setToken, setNombre, 
         if (usuario_id) setUsuarioId(usuario_id);
         if (tipo_entidad && setTipoEntidad) setTipoEntidad(tipo_entidad);
 
+        isRefreshing = false; // Liberar lock ANTES de procesar la cola
         processQueue(null, access_token);
+        
         originalRequest.headers['Authorization'] = `Bearer ${access_token}`;
         return api(originalRequest);
 
       } catch (refreshError) {
-        console.error("❌ Falló renovación de token:", refreshError);
+        console.error("❌ Falló renovación de token durante llamada a API:", refreshError);
+        isRefreshing = false; // Liberar lock ANTES de procesar la cola
         processQueue(refreshError, null);
+        
         if (!isLoggingOut) {
           isLoggingOut = true;
           // isForced=true: refresh falló, backend ya lo sabe, no llamar /auth/logout
-          handleLogoutRef.current("Tu sesión ha expirado. Por favor inicia sesión nuevamente.", true);
+          if (handleLogoutRef.current) {
+            handleLogoutRef.current("Tu sesión ha expirado. Por favor inicia sesión nuevamente.", true);
+          }
         }
         return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
       }
     }
   );
@@ -257,8 +259,22 @@ function usePushNotificationToasts(setNotification) {
   }, [setNotification]);
 }
 
+// 🛡️ Wrapper de Rutas Protegidas
+import { Navigate, Outlet } from 'react-router-dom';
+
+function ProtectedRoute({ isAllowed, redirectPath = "/login", children }) {
+  if (!isAllowed) {
+    return <Navigate to={redirectPath} replace />;
+  }
+  return children ? children : <Outlet />;
+}
+
+// Global flag para prevenir la ejecución doble del StrictMode en desarrollo
+let isBootstrapping = false;
+
 function App() {
   const [token, setToken] = useState(localStorage.getItem("token"));
+  const [estaVerificando, setEstaVerificando] = useState(true);
   const [nombre, setNombre] = useState(localStorage.getItem("nombre") || "");
   const [rol, setRol] = useState(localStorage.getItem("rol") || "");
   const [usuarioId, setUsuarioId] = useState(localStorage.getItem("usuario_id") || null);
@@ -268,30 +284,13 @@ function App() {
   // Refs para evitar stale closures en el interceptor (registrado una sola vez)
   const handleLogoutRef = useRef(null);
   const tokenRef = useRef(token);
+  const estaVerificandoRef = useRef(estaVerificando);
 
-  // Mantener tokenRef sincronizado con el estado
+  // Mantener refs sincronizados con el estado
   useEffect(() => {
     tokenRef.current = token;
-  }, [token]);
-
-  const handleLogin = (accessToken, refreshToken, usuario, rol, residencialId, usuarioId, tipoEntidadVal) => {
-    setToken(accessToken);
-    setNombre(usuario);
-    setRol(rol);
-    setUsuarioId(usuarioId);
-    setTipoEntidad(tipoEntidadVal || "residencial");
-    
-    localStorage.setItem("token", accessToken);
-    localStorage.setItem("nombre", usuario);
-    localStorage.setItem("rol", rol);
-    localStorage.setItem("tipo_entidad", tipoEntidadVal || "residencial");
-    if (residencialId) {
-      localStorage.setItem("residencial_id", residencialId.toString());
-    }
-    if (usuarioId) {
-      localStorage.setItem("usuario_id", usuarioId.toString());
-    }
-  };
+    estaVerificandoRef.current = estaVerificando;
+  }, [token, estaVerificando]);
 
   // isForced=true cuando lo llama el interceptor: solo limpieza local, no llama backend
   // (el backend ya invalidó la sesión; llamar /auth/logout generaría un 401 innecesario)
@@ -324,6 +323,71 @@ function App() {
   // Asignar en cada render: el interceptor siempre llama la versión más reciente
   handleLogoutRef.current = handleLogout;
 
+  const handleLogin = (accessToken, refreshToken, usuario, rol, residencialId, usuarioId, tipoEntidadVal) => {
+    setToken(accessToken);
+    setNombre(usuario);
+    setRol(rol);
+    setUsuarioId(usuarioId);
+    setTipoEntidad(tipoEntidadVal || "residencial");
+    
+    localStorage.setItem("token", accessToken);
+    localStorage.setItem("nombre", usuario);
+    localStorage.setItem("rol", rol);
+    localStorage.setItem("tipo_entidad", tipoEntidadVal || "residencial");
+    if (residencialId) {
+      localStorage.setItem("residencial_id", residencialId.toString());
+    }
+    if (usuarioId) {
+      localStorage.setItem("usuario_id", usuarioId.toString());
+    }
+  };
+
+  // 1. SILENT REFRESH INICIAL (Se ejecuta al montar App)
+  useEffect(() => {
+    const verifySession = async () => {
+      if (isBootstrapping) return;
+      isBootstrapping = true;
+
+      const hasLocalToken = !!localStorage.getItem("token");
+
+      try {
+        console.log("🔄 Ejecutando Silent Refresh Inicial...");
+        // Intentar renovar sesión (el backend validará las cookies HttpOnly o el refresh token si aplica)
+        const refreshRes = await api.post(`/auth/refresh`, {}, { _retry: true }); 
+        
+        const { access_token, usuario, rol, usuario_id, tipo_entidad } = refreshRes.data;
+        console.log("✅ Sesión válida verificada inicialmente");
+        
+        // Actualizar estado y local storage con data fresca del backend
+        localStorage.setItem("token", access_token);
+        if (usuario) localStorage.setItem("nombre", usuario);
+        if (rol) localStorage.setItem("rol", rol);
+        if (usuario_id) localStorage.setItem("usuario_id", usuario_id.toString());
+        if (tipo_entidad) localStorage.setItem("tipo_entidad", tipo_entidad);
+
+        setToken(access_token);
+        if (usuario) setNombre(usuario);
+        if (rol) setRol(rol);
+        if (usuario_id) setUsuarioId(usuario_id);
+        if (tipo_entidad && setTipoEntidad) setTipoEntidad(tipo_entidad);
+
+      } catch (err) {
+        console.warn("⚠️ Silent Refresh Inicial falló:", err.response?.status || err.message);
+        // Si no hay cookies o el token expiró, aseguramos limpieza completa
+        if (hasLocalToken) { // Sólo si se esperaba que hubiera sesión
+           if (handleLogoutRef.current) handleLogoutRef.current(null, true);
+        } else {
+           setToken(null);
+           localStorage.removeItem("token");
+        }
+      } finally {
+        setEstaVerificando(false);
+      }
+    };
+
+    verifySession();
+  }, []);
+
   // Registrar interceptores UNA VEZ usando refs (no re-registra en cada render)
   useEffect(() => {
     const cleanup = setupAxiosInterceptors(
@@ -335,8 +399,32 @@ function App() {
 
   usePushNotificationToasts(setNotification);
 
+  // 2. RENDER CONDICIONAL BLOQUEADO MIENTRAS VERIFICA
+  if (estaVerificando) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column' }}>
+        <div className="custom-loader" style={{
+            border: '4px solid #f3f3f3',
+            borderTop: '4px solid #3498db',
+            borderRadius: '50%',
+            width: '40px',
+            height: '40px',
+            animation: 'spin 1s linear infinite'
+        }}></div>
+        <style>
+          {`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}
+        </style>
+        <p style={{ marginTop: '20px', color: '#555', fontFamily: 'sans-serif' }}>Verificando sesión...</p>
+      </div>
+    );
+  }
+
+  // Helper para determinar la ruta por defecto según rol
+  // Dado que ahora usamos renderizado condicional en la ruta "/*", la raíz
+  // lógica de todos los dashboards es "/".
+  // 3. RENDER FINAL CON RUTAS FORMALES
   return (
-    <Router>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <div>
         <PWADownloadButton />
 
@@ -345,21 +433,46 @@ function App() {
         
         <Notification {...notification} onClose={() => setNotification({ message: "", type: "" })} />
         <Routes>
-          {!token && [
-            <Route key="login-root" path="/" element={<Login onLogin={handleLogin} notification={notification} setNotification={setNotification} />} />, 
-            <Route key="login-any" path="*" element={<Login onLogin={handleLogin} notification={notification} setNotification={setNotification} />} />
-          ]}
-          {token && (rol === "admin" || rol === "admin_residencial") && (
-            <Route path="/*" element={<AdminDashboard token={token} nombre={nombre} rol={rol} onLogout={handleLogout} />} />
+          {/* Si NO hay token (Usuario NO autenticado) */}
+          {!token && (
+            <>
+              <Route path="/login" element={<Login onLogin={handleLogin} notification={notification} setNotification={setNotification} />} />
+              {/* Cualquier otra ruta redirige al login */}
+              <Route path="*" element={<Navigate to="/login" replace />} />
+            </>
           )}
-          {token && rol === "guardia" && (
-            <Route path="/*" element={<GuardiaDashboard token={token} nombre={nombre} onLogout={handleLogout} />} />
-          )}
-          {token && rol === "residente" && (
-            <Route path="/*" element={<ResidenteDashboard token={token} nombre={nombre}  onLogout={handleLogout} />} />
-          )}
-          {token && rol === "super_admin" && (
-            <Route path="/*" element={<SuperAdminDashboard token={token} nombre={nombre} onLogout={handleLogout} />} />
+
+          {/* Si HAY token (Usuario autenticado) */}
+          {token && (
+            <>
+              {/* Si intenta ir a login estando autenticado, enviarlo al inicio */}
+              <Route path="/login" element={<Navigate to="/" replace />} />
+              
+              {/* Renderizado Condicional: Delegar todo el enrutamiento al Dashboard correspondiente en la raíz ("/*") */}
+              {(rol === "admin" || rol === "admin_residencial") && (
+                <Route path="/*" element={<AdminDashboard token={token} nombre={nombre} rol={rol} onLogout={handleLogout} />} />
+              )}
+              {rol === "guardia" && (
+                <Route path="/*" element={<GuardiaDashboard token={token} nombre={nombre} onLogout={handleLogout} />} />
+              )}
+              {rol === "residente" && (
+                <Route path="/*" element={<ResidenteDashboard token={token} nombre={nombre} onLogout={handleLogout} />} />
+              )}
+              {rol === "super_admin" && (
+                <Route path="/*" element={<SuperAdminDashboard token={token} nombre={nombre} onLogout={handleLogout} />} />
+              )}
+
+              {/* Si el rol no es reconocido, mostrar un error amigable o cerrar sesión */}
+              {!["admin", "admin_residencial", "guardia", "residente", "super_admin"].includes(rol) && (
+                <Route path="*" element={
+                  <div style={{ padding: 40, textAlign: 'center' }}>
+                    <h3>Rol no autorizado o sesión corrupta.</h3>
+                    <p>Por favor, cierra sesión y vuelve a ingresar.</p>
+                    <button onClick={() => handleLogoutRef.current("Sesión invalidada", true)} style={{ padding: '10px 20px', marginTop: 20 }}>Cerrar Sesión</button>
+                  </div>
+                } />
+              )}
+            </>
           )}
         </Routes>
       </div>

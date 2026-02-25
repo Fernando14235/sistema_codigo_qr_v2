@@ -1,79 +1,46 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import './ServiceWorkerUpdater.css';
 
 const ServiceWorkerUpdater = () => {
-  const [showUpdatePrompt, setShowUpdatePrompt] = useState(false);
-  const [waitingWorker, setWaitingWorker] = useState(null);
-
   useEffect(() => {
     // Verificar si el navegador soporta Service Workers
     if ('serviceWorker' in navigator) {
-      console.log('🔍 ServiceWorkerUpdater: Iniciando verificación de actualizaciones...');
-      // Obtener el registro del Service Worker
+      console.log('🔍 ServiceWorkerUpdater: Iniciando actualización en segundo plano (Silent Auto-Update)...');
+      
       navigator.serviceWorker.ready.then((registration) => {
-        // Verificar si hay un SW esperando
+        // Si ya hay un worker esperando, lo activamos automáticamente
         if (registration.waiting) {
-          setWaitingWorker(registration.waiting);
-          setShowUpdatePrompt(true);
+          console.log('🔄 SW esperando detectado. Activando automáticamente...');
+          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
         }
 
-        // Escuchar cambios en el estado del SW
+        // Escuchar cambios en el estado del SW cuando se encuentra una actualización
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
 
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              // Hay una nueva versión disponible
-              setWaitingWorker(newWorker);
-              setShowUpdatePrompt(true);
+              // Hay una nueva versión disponible, la activamos automáticamente
+              console.log('✨ Nuevo SW descargado. Activando silenciosamente...');
+              newWorker.postMessage({ type: 'SKIP_WAITING' });
             }
           });
         });
       });
 
-      // Escuchar mensajes del Service Worker
+      // Escuchar cuando el nuevo ServiceWorker toma el control
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        // El SW ha cambiado, recargar la página
-        window.location.reload();
+        // NOTA: Se eliminó window.location.reload() a propósito.
+        // Forzar una recarga aquí destruiría el estado de React (ej. cuando se activan notificaciones push).
+        // El nuevo SW tomará las riendas para las peticiones en segundo plano y la app se actualizará 
+        // naturalmente en la próxima recarga manual o navegación completa.
+        console.log('✅ Nuevo Service Worker activado. Los cambios aplicarán totalmente tras la próxima recarga.');
       });
     }
   }, []);
 
-  const handleUpdate = () => {
-    if (waitingWorker) {
-      // Enviar mensaje al SW para que se active inmediatamente
-      waitingWorker.postMessage({ type: 'SKIP_WAITING' });
-      setShowUpdatePrompt(false);
-    }
-  };
-
-  const handleDismiss = () => {
-    setShowUpdatePrompt(false);
-  };
-
-  if (!showUpdatePrompt) {
-    return null;
-  }
-
-  return (
-    <div className="sw-update-toast">
-      <div className="sw-update-content">
-        <div className="sw-update-icon">🔄</div>
-        <div className="sw-update-text">
-          <strong>Nueva versión disponible</strong>
-          <p>Hay una actualización lista para instalar</p>
-        </div>
-        <div className="sw-update-actions">
-          <button className="sw-update-btn sw-update-btn-primary" onClick={handleUpdate}>
-            Actualizar ahora
-          </button>
-          <button className="sw-update-btn sw-update-btn-secondary" onClick={handleDismiss}>
-            Más tarde
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+  // Ya no mostramos el banner (prompt) UI, todo es silencioso
+  return null;
 };
 
 export default ServiceWorkerUpdater;

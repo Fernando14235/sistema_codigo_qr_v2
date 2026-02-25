@@ -1,5 +1,5 @@
 // Service Worker para Porto Pass PWA
-const VERSION_SW = 'v3.2.2.2';
+const VERSION_SW = 'v3.2.2.4';
 const CACHE_NAME = `porto-pass-${VERSION_SW}`;
 const urlsToCache = [
   '/',
@@ -12,12 +12,23 @@ const urlsToCache = [
 
 // Instalación del Service Worker
 self.addEventListener('install', (event) => {
+  console.log(`[SW] Instalando versión: ${VERSION_SW}`);
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => {
-        return cache.addAll(urlsToCache);
+      .then(async (cache) => {
+        console.log('[SW] Cache abierto, precacheando recursos críticos...');
+        // Usar un loop para que si UN recurso falla (404), no aborte toda la instalación
+        for (const url of urlsToCache) {
+          try {
+            await cache.add(url);
+            console.log(`[SW] Cacheado con éxito: ${url}`);
+          } catch (err) {
+            console.warn(`[SW] No se pudo cachear (normal en desarrollo): ${url}`, err);
+          }
+        }
       })
       .then(() => {
+        console.log('[SW] Instalación finalizada');
         return self.skipWaiting();
       })
   );
@@ -89,6 +100,31 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // ✅ NUEVO: Estrategia Network-First explícita para peticiones de navegación (index.html, recargas F5)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // Guardar nueva versión en caché si fue exitoso
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // Fallback a caché si no hay red (offline)
+          return caches.match(event.request).then((cachedResponse) => {
+            return cachedResponse || caches.match('/index.html');
+          });
+        })
+    );
+    return;
+  }
+
+  // Resto de los assets: Estrategia Cache-First
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
@@ -115,7 +151,7 @@ self.addEventListener('fetch', (event) => {
             return response;
           })
           .catch(() => {
-            // Si falla la red, devolver página offline
+            // Si falla la red, devolver página offline solo para documentos
             if (event.request.destination === 'document') {
               return caches.match('/index.html');
             }
